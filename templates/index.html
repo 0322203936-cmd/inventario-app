@@ -2,9 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registros</title>
+    <title>Registro de Merma e Inventario</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="manifest" href="/static/manifest.json">
     <style>
         * { box-sizing: border-box; }
 
@@ -18,290 +19,331 @@
         }
 
         .phone-wrapper {
-            width: 100%; max-width: 480px; min-height: 100vh;
-            background: #fff; display: flex; flex-direction: column;
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
         }
 
         .app-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 16px 14px;
+            border-bottom: 1px solid #e8eaed;
+        }
+
+        .back-arrow { color: #1a73e8; font-size: 20px; text-decoration: none; }
+
+        .app-header h5 {
+            color: #1a73e8; font-size: 17px; font-weight: 600; margin: 0;
+        }
+
+        .form-body { padding: 16px; flex: 1; overflow-x: hidden; }
+
+        .field-label {
+            font-weight: 600; font-size: 14px; color: #202124;
+            margin-bottom: 8px; display: block;
+        }
+
+        .tienda-select-wrapper { position: relative; margin-bottom: 16px; }
+
+        .tienda-select-wrapper select {
+            width: 100%; appearance: none; -webkit-appearance: none;
+            border: 1.5px solid #dadce0; border-radius: 8px;
+            padding: 10px 40px 10px 14px; font-size: 14px; font-weight: 500;
+            color: #202124; background: #fff; cursor: pointer; outline: none;
+        }
+
+        .tienda-select-wrapper select:focus { border-color: #1a73e8; }
+
+        .tienda-select-wrapper::after {
+            content: ''; position: absolute; right: 14px; top: 50%;
+            transform: translateY(-50%);
+            border-left: 5px solid transparent; border-right: 5px solid transparent;
+            border-top: 6px solid #5f6368; pointer-events: none;
+        }
+
+        .field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+
+        .field-row-label { font-weight: 600; font-size: 14px; color: #202124; min-width: 70px; }
+
+        .field-row input {
+            flex: 1; border: 1.5px solid #dadce0; border-radius: 6px;
+            padding: 8px 12px; font-size: 14px; color: #202124; outline: none;
+        }
+
+        .field-row input:focus { border-color: #1a73e8; }
+
+        .section-title { font-size: 14px; font-weight: 700; color: #202124; margin: 16px 0 10px; }
+
+        /* Cuarto Frío toggle */
+        .cf-toggle {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 13px 14px; border-bottom: 1px solid #e8eaed;
-            position: sticky; top: 0; background: #fff; z-index: 10;
+            border: 1.5px solid #0d9488; border-radius: 10px;
+            padding: 11px 14px; margin-bottom: 14px;
+            cursor: pointer; background: #f0fdfa; user-select: none;
         }
 
-        .app-header h5 { color: #1a73e8; font-size: 16px; font-weight: 700; margin: 0; }
+        .cf-toggle-left { display: flex; align-items: center; gap: 8px; }
+        .cf-icon { font-size: 18px; }
+        .cf-toggle-label { font-weight: 700; font-size: 14px; color: #0d9488; }
+        .cf-arrow { font-size: 13px; color: #0d9488; transition: transform 0.2s; }
+        .cf-arrow.open { transform: rotate(180deg); }
 
-        .btn-nuevo {
-            background: #1a73e8; color: #fff; border: none;
-            border-radius: 6px; padding: 7px 13px; font-size: 13px;
-            font-weight: 600; text-decoration: none;
+        .cf-panel {
+            display: none; border: 1.5px solid #0d9488; border-radius: 10px;
+            padding: 10px; margin-bottom: 14px; background: #f0fdfa;
+        }
+        .cf-panel.open { display: block; }
+
+        .cf-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+        .cf-table thead th {
+            font-size: 12px; font-weight: 600; color: #0d9488;
+            padding: 5px 4px; text-align: left; border-bottom: 1px solid #99f6e4;
         }
 
-        /* Tabs */
-        .tabs {
-            display: flex; border-bottom: 1px solid #e8eaed;
-            position: sticky; top: 45px; background: #fff; z-index: 9;
+        .cf-table thead th.col-exist { text-align: center; width: 80px; }
+        .cf-table tbody tr { border-top: 1px solid #ccfbf1; }
+        .cf-table tbody td { padding: 5px 3px; font-size: 12px; vertical-align: middle; }
+
+        /* Tabla principal */
+        .products-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+        .products-table thead th {
+            font-size: 12px; font-weight: 600; color: #5f6368;
+            padding: 6px 4px; text-align: left; border-bottom: 1px solid #e8eaed;
         }
 
-        .tab {
-            flex: 1; text-align: center; padding: 10px 4px;
-            font-size: 13px; font-weight: 600; color: #5f6368;
-            cursor: pointer; border-bottom: 3px solid transparent;
-            transition: all 0.15s;
+        .products-table thead th.col-inv,
+        .products-table thead th.col-merma { text-align: center; width: 62px; }
+        .products-table thead th.col-razon { width: 105px; }
+
+        .products-table tbody tr { border-top: 1px solid #f1f3f4; }
+        .products-table tbody td { padding: 6px 3px; font-size: 12px; vertical-align: middle; }
+
+        .product-name-cell { font-size: 12px; color: #202124; font-weight: 500; word-break: break-word; }
+
+        .num-input {
+            width: 56px; border: 1.5px solid #dadce0; border-radius: 6px;
+            padding: 6px 4px; font-size: 13px; text-align: right; color: #202124;
+            outline: none; display: block; margin: 0 auto; -moz-appearance: textfield; background: #fff;
         }
+        .num-input::-webkit-outer-spin-button,
+        .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .num-input:focus { border-color: #1a73e8; }
 
-        .tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
-        .tab.active-cf { color: #0d9488; border-bottom-color: #0d9488; }
-
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
-
-        /* Lista */
-        .lista { padding: 8px 10px 20px; display: flex; flex-direction: column; gap: 5px; }
-
-        .empty-state { text-align: center; color: #9aa0a6; margin-top: 50px; font-size: 13px; }
-
-        /* Fila merma */
-        .row-reg {
-            border: 1px solid #e8eaed; border-radius: 8px;
-            padding: 8px 10px; background: #fff;
+        .cf-num-input {
+            width: 72px; border: 1.5px solid #99f6e4; border-radius: 6px;
+            padding: 6px 4px; font-size: 13px; text-align: right; color: #202124;
+            outline: none; display: block; margin: 0 auto; -moz-appearance: textfield; background: #fff;
         }
+        .cf-num-input::-webkit-outer-spin-button,
+        .cf-num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .cf-num-input:focus { border-color: #0d9488; }
 
-        .row-line1 {
-            display: flex; justify-content: space-between;
-            align-items: baseline; margin-bottom: 2px;
-        }
-
-        .row-tienda { font-weight: 700; font-size: 12px; color: #1a73e8; }
-        .row-fecha  { font-size: 11px; color: #9aa0a6; }
-
-        .row-producto { font-size: 13px; font-weight: 600; color: #202124; margin-bottom: 3px; }
-
-        .row-nums { display: flex; gap: 10px; margin-bottom: 2px; }
-        .num-badge { font-size: 12px; color: #5f6368; }
-        .num-badge b { color: #202124; }
-
-        .row-razon { font-size: 11px; color: #5f6368; margin-bottom: 2px; }
-
-        .row-bottom {
-            display: flex; justify-content: space-between;
-            align-items: center; margin-top: 4px;
-        }
-
-        .row-meta { font-size: 10px; color: #bdc1c6; }
-
-        .row-actions { display: flex; gap: 6px; }
-
-        .btn-editar {
-            border: 1px solid #1a73e8; background: #fff; color: #1a73e8;
-            border-radius: 5px; padding: 3px 10px; font-size: 12px;
-            font-weight: 600; cursor: pointer; text-decoration: none;
-        }
-
-        .btn-borrar {
-            border: 1px solid #d93025; background: #fff; color: #d93025;
-            border-radius: 5px; padding: 3px 10px; font-size: 12px;
-            font-weight: 600; cursor: pointer;
-        }
-
-        /* Fila cuarto frío */
-        .row-cf {
-            border: 1px solid #99f6e4; border-radius: 8px;
-            padding: 8px 10px; background: #f0fdfa;
-        }
-
-        .row-cf .row-tienda { color: #0d9488; }
-        .row-cf .num-badge b { color: #0d9488; }
-
-        .btn-borrar-cf {
-            border: 1px solid #d93025; background: #f0fdfa; color: #d93025;
-            border-radius: 5px; padding: 3px 10px; font-size: 12px;
-            font-weight: 600; cursor: pointer;
-        }
-
-        /* Modal */
-        .modal-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.45); z-index: 100;
-            justify-content: center; align-items: center;
-        }
-        .modal-overlay.active { display: flex; }
-
-        .modal-box {
-            background: #fff; border-radius: 12px; padding: 20px 18px;
-            width: 290px; max-width: 90vw;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-        }
-
-        .modal-box h6 { font-weight: 700; font-size: 15px; color: #202124; margin-bottom: 4px; }
-        .modal-box p  { font-size: 12px; color: #5f6368; margin-bottom: 12px; }
-
-        .modal-box input {
+        .razon-input {
             width: 100%; border: 1.5px solid #dadce0; border-radius: 6px;
-            padding: 8px 12px; font-size: 14px; color: #202124; outline: none; margin-bottom: 8px;
+            padding: 6px 6px; font-size: 12px; color: #202124; outline: none; background: #fff;
         }
-        .modal-box input:focus { border-color: #d93025; }
+        .razon-input:focus { border-color: #1a73e8; }
 
-        .modal-error { color: #d93025; font-size: 12px; margin-bottom: 8px; display: none; }
-
-        .modal-actions { display: flex; gap: 8px; }
-
-        .modal-btn-cancel {
-            flex: 1; border: 1.5px solid #dadce0; background: #fff;
-            color: #202124; border-radius: 6px; padding: 8px; font-size: 13px; cursor: pointer;
+        .bottom-bar {
+            display: flex; gap: 12px; padding: 16px;
+            border-top: 1px solid #e8eaed; background: #fff;
         }
 
-        .modal-btn-confirm {
-            flex: 1; background: #d93025; color: #fff; border: none;
-            border-radius: 6px; padding: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+        .btn-cancelar {
+            flex: 1; border: 1.5px solid #dadce0; background: #fff; color: #202124;
+            border-radius: 6px; padding: 11px; font-size: 15px; font-weight: 500; cursor: pointer;
         }
+
+        .btn-guardar {
+            flex: 1; background: #1a73e8; color: #fff; border: none;
+            border-radius: 6px; padding: 11px; font-size: 15px; font-weight: 600; cursor: pointer;
+        }
+        .btn-guardar:hover { background: #1557b0; }
     </style>
 </head>
 <body>
 <div class="phone-wrapper">
 
     <div class="app-header">
-        <h5>Registros</h5>
-        <a href="/" class="btn-nuevo">+ Nuevo</a>
+        <a href="/registros" class="back-arrow">&#8592;</a>
+        <h5>Registro de Merma e Inventario</h5>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-        <div class="tab active" id="tab-merma" onclick="switchTab('merma')">Merma / Inventario</div>
-        <div class="tab" id="tab-cf" onclick="switchTab('cf')">❄️ Cuarto Frío</div>
-    </div>
+    <form method="POST" action="/" id="mainForm" class="form-body">
 
-    <!-- Panel merma -->
-    <div class="tab-panel active" id="panel-merma">
-        <div class="lista">
-            {% if not registros %}
-            <div class="empty-state">No hay registros aún.</div>
-            {% endif %}
+        <span class="field-label">Tienda:</span>
+        <div class="tienda-select-wrapper">
+            <select name="tienda" id="tiendaSelect" required tabindex="1">
+                <option value="" disabled>Selecciona una tienda…</option>
+                <option value="5041 Nuevo Mexicali" selected>5041 Nuevo Mexicali</option>
+                <option value="4155 Tijuana 2000">4155 Tijuana 2000</option>
+                <option value="3015 Ensenada">3015 Ensenada</option>
+                <option value="2947 Ensenada Centro">2947 Ensenada Centro</option>
+                <option value="1613 Playas De Tijuana">1613 Playas De Tijuana</option>
+                <option value="190 Lomas de Santa Fe">190 Lomas de Santa Fe</option>
+                <option value="4187 Rosarito">4187 Rosarito</option>
+                <option value="2023 Macro Plaza Insurgentes">2023 Macro Plaza Insurgentes</option>
+                <option value="3664 Diaz Ordaz">3664 Diaz Ordaz</option>
+                <option value="4011 Tijuana Hipodromo">4011 Tijuana Hipodromo</option>
+                <option value="1616 Pacifico">1616 Pacifico</option>
+                <option value="1617 Novena">1617 Novena</option>
+                <option value="1140 Plaza San Pedro">1140 Plaza San Pedro</option>
+                <option value="4026 Galerías Del Valle">4026 Galerías Del Valle</option>
+                <option value="2304 Mexicali">2304 Mexicali</option>
+                <option value="5295 Tecate Garita">5295 Tecate Garita</option>
+            </select>
+        </div>
 
-            {% for r in registros %}
-            {# id(0) tienda(1) fecha(2) usuario(3) producto(4) inv(5) merma(6) razon(7) fecha_mod(8) #}
-            <div class="row-reg">
-                <div class="row-line1">
-                    <span class="row-tienda">{{ r[1] }}</span>
-                    <span class="row-fecha">{{ r[2] }}</span>
-                </div>
-                <div class="row-producto">{{ r[4] }}</div>
-                <div class="row-nums">
-                    <span class="num-badge">Inv: <b>{{ r[5] }}</b></span>
-                    <span class="num-badge">Merma: <b>{{ r[6] }}</b></span>
-                </div>
-                {% if r[7] %}<div class="row-razon">Razón: {{ r[7] }}</div>{% endif %}
-                <div class="row-bottom">
-                    <div class="row-meta">
-                        {{ r[3] }}{% if r[8] %} · Mod: {{ r[8] }}{% endif %}
-                    </div>
-                    <div class="row-actions">
-                        <a href="/editar/{{ r[0] }}" class="btn-editar">Editar</a>
-                        <button class="btn-borrar" onclick="pedirPassword({{ r[0] }}, 'merma')">Borrar</button>
-                    </div>
-                </div>
+        <div class="field-row">
+            <span class="field-row-label">Fecha:</span>
+            <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required tabindex="2">
+        </div>
+
+        <div class="field-row">
+            <span class="field-row-label">Usuario:</span>
+            <input type="text" name="usuario" id="usuarioInput" placeholder="Usuario" required tabindex="3">
+        </div>
+
+        <!-- Cajita Cuarto Frío -->
+        <div class="cf-toggle" onclick="toggleCF()">
+            <div class="cf-toggle-left">
+                <span class="cf-icon">❄️</span>
+                <span class="cf-toggle-label">Inventario Cuarto Frío</span>
             </div>
-            {% endfor %}
+            <span class="cf-arrow" id="cfArrow">▼</span>
         </div>
+
+        <div class="cf-panel" id="cfPanel">
+            <table class="cf-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th class="col-exist">Existencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set productos = [
+                        'BQT ALSTROEMERI 8T','BQT GIRASOL 6T','BQT LILI ASIATIC 6T',
+                        'BQT MINI CLAVEL 8T','BQT MIXTO 12T','BQT MIXTO 15T',
+                        'BQT MIXTO 18 T','BQT MIXTO 9T','BQT ROSAS 12T',
+                        'BQT ROSAS 12T BAJA','BQT ROSAS 6T','BQT SNAPDRAGON 8T'
+                    ] %}
+                    {% for p in productos %}
+                    <tr>
+                        <td class="product-name-cell">{{ p }}</td>
+                        <td>
+                            <input class="cf-num-input" type="number" name="cf_existencia[]"
+                                value="" min="0" inputmode="numeric" placeholder="0">
+                        </td>
+                        <input type="hidden" name="cf_producto[]" value="{{ p }}">
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Productos merma/inventario -->
+        <div class="section-title">Productos Registrados:</div>
+
+        <table class="products-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th class="col-inv">Inv</th>
+                    <th class="col-merma">Merma</th>
+                    <th class="col-razon">Razón merma</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                <tr>
+                    <td class="product-name-cell">{{ p }}</td>
+                    <td>
+                        <input class="num-input" type="number" name="inventario[]"
+                            value="" min="0" inputmode="numeric" placeholder="0"
+                            tabindex="{{ loop.index * 3 + 1 }}" onfocus="this.select()">
+                    </td>
+                    <td>
+                        <input class="num-input" type="number" name="merma[]"
+                            value="" min="0" inputmode="numeric" placeholder="0"
+                            tabindex="{{ loop.index * 3 + 2 }}" onfocus="this.select()">
+                    </td>
+                    <td>
+                        <input class="razon-input" type="text" name="razon[]"
+                            placeholder="—" tabindex="{{ loop.index * 3 + 3 }}">
+                    </td>
+                    <input type="hidden" name="producto[]" value="{{ p }}">
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </form>
+
+    <div class="bottom-bar">
+        <button type="button" class="btn-cancelar" onclick="cancelar()">Cancelar</button>
+        <button type="button" class="btn-guardar" onclick="guardar()">Guardar</button>
     </div>
 
-    <!-- Panel cuarto frío -->
-    <div class="tab-panel" id="panel-cf">
-        <div class="lista">
-            {% if not cf_registros %}
-            <div class="empty-state">No hay registros de cuarto frío.</div>
-            {% endif %}
-
-            {% for r in cf_registros %}
-            {# id(0) tienda(1) fecha(2) usuario(3) producto(4) existencia(5) fecha_mod(6) #}
-            <div class="row-cf">
-                <div class="row-line1">
-                    <span class="row-tienda">{{ r[1] }}</span>
-                    <span class="row-fecha">{{ r[2] }}</span>
-                </div>
-                <div class="row-producto">{{ r[4] }}</div>
-                <div class="row-nums">
-                    <span class="num-badge">Existencia: <b>{{ r[5] }}</b></span>
-                </div>
-                <div class="row-bottom">
-                    <div class="row-meta">
-                        {{ r[3] }}{% if r[6] %} · Mod: {{ r[6] }}{% endif %}
-                    </div>
-                    <div class="row-actions">
-                        <button class="btn-borrar-cf" onclick="pedirPassword({{ r[0] }}, 'cf')">Borrar</button>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-</div>
-
-<!-- Modal contraseña -->
-<div class="modal-overlay" id="modalOverlay">
-    <div class="modal-box">
-        <h6>Confirmar eliminación</h6>
-        <p>Ingresa la contraseña para borrar este registro.</p>
-        <input type="password" id="passInput" placeholder="Contraseña" autocomplete="off">
-        <div class="modal-error" id="modalError">Contraseña incorrecta.</div>
-        <div class="modal-actions">
-            <button class="modal-btn-cancel" onclick="cerrarModal()">Cancelar</button>
-            <button class="modal-btn-confirm" onclick="confirmarBorrar()">Borrar</button>
-        </div>
-    </div>
 </div>
 
 <script>
-    let idABorrar  = null;
-    let tipoABorrar = null;
+    const today = new Date();
+    document.getElementById('fechaInput').value =
+        String(today.getDate()).padStart(2,'0') + '/' +
+        String(today.getMonth()+1).padStart(2,'0') + '/' +
+        today.getFullYear();
 
-    function switchTab(tab) {
-        document.getElementById('panel-merma').classList.toggle('active', tab === 'merma');
-        document.getElementById('panel-cf').classList.toggle('active', tab === 'cf');
-        document.getElementById('tab-merma').className = 'tab' + (tab === 'merma' ? ' active' : '');
-        document.getElementById('tab-cf').className    = 'tab' + (tab === 'cf' ? ' active-cf' : '');
+    function toggleCF() {
+        document.getElementById('cfPanel').classList.toggle('open');
+        document.getElementById('cfArrow').classList.toggle('open');
     }
 
-    function pedirPassword(id, tipo) {
-        idABorrar   = id;
-        tipoABorrar = tipo;
-        document.getElementById('passInput').value = '';
-        document.getElementById('modalError').style.display = 'none';
-        document.getElementById('modalOverlay').classList.add('active');
-        setTimeout(() => document.getElementById('passInput').focus(), 100);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const focusable = Array.from(
+                document.querySelectorAll('input[tabindex], select[tabindex]')
+            ).filter(el => !el.disabled && el.tabIndex > 0)
+             .sort((a, b) => a.tabIndex - b.tabIndex);
+            const idx = focusable.indexOf(document.activeElement);
+            if (idx !== -1 && idx < focusable.length - 1) {
+                const next = focusable[idx + 1];
+                next.focus();
+                if (next.select) next.select();
+            }
+        }
+    });
+
+    function guardar() {
+        const tienda  = document.getElementById('tiendaSelect').value;
+        const usuario = document.getElementById('usuarioInput').value.trim();
+        const fecha   = document.getElementById('fechaInput').value.trim();
+        if (!tienda)  { alert('Selecciona una tienda.'); return; }
+        if (!usuario) { alert('Escribe el nombre del usuario.'); document.getElementById('usuarioInput').focus(); return; }
+        if (!fecha)   { alert('Ingresa la fecha.'); document.getElementById('fechaInput').focus(); return; }
+        document.getElementById('mainForm').submit();
     }
 
-    function cerrarModal() {
-        idABorrar = tipoABorrar = null;
-        document.getElementById('modalOverlay').classList.remove('active');
-    }
-
-    async function confirmarBorrar() {
-        const pass  = document.getElementById('passInput').value;
-        const errEl = document.getElementById('modalError');
-        errEl.style.display = 'none';
-
-        const ruta = tipoABorrar === 'cf' ? `/borrar_cf/${idABorrar}` : `/borrar/${idABorrar}`;
-        const fd   = new FormData();
-        fd.append('password', pass);
-
-        try {
-            const res = await fetch(ruta, { method: 'POST', body: fd });
-            if (res.ok) { cerrarModal(); location.reload(); }
-            else { errEl.style.display = 'block'; document.getElementById('passInput').focus(); }
-        } catch(e) {
-            errEl.textContent = 'Error de red.';
-            errEl.style.display = 'block';
+    function cancelar() {
+        if (confirm('¿Descartar los cambios?')) {
+            document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"], input[name="cf_existencia[]"]')
+                .forEach(i => i.value = '');
+            document.querySelectorAll('input[name="razon[]"]')
+                .forEach(i => i.value = '');
         }
     }
 
-    document.getElementById('passInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter') confirmarBorrar();
-    });
-
-    document.getElementById('modalOverlay').addEventListener('click', function(e) {
-        if (e.target === this) cerrarModal();
-    });
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/service-worker.js');
+    }
 </script>
 </body>
 </html>
