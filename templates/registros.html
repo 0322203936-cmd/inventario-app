@@ -14,247 +14,146 @@
             display: flex;
             justify-content: center;
             min-height: 100vh;
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
         }
 
         .phone-wrapper {
-            width: 100%;
-            max-width: 480px;
-            min-height: 100vh;
-            background: #fff;
-            display: flex;
-            flex-direction: column;
+            width: 100%; max-width: 480px; min-height: 100vh;
+            background: #fff; display: flex; flex-direction: column;
         }
 
         .app-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 14px 12px;
-            border-bottom: 1px solid #e8eaed;
-            position: sticky;
-            top: 0;
-            background: #fff;
-            z-index: 10;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 13px 14px; border-bottom: 1px solid #e8eaed;
+            position: sticky; top: 0; background: #fff; z-index: 10;
         }
 
-        .app-header h5 {
-            color: #1a73e8;
-            font-size: 16px;
-            font-weight: 700;
-            margin: 0;
-        }
+        .app-header h5 { color: #1a73e8; font-size: 16px; font-weight: 700; margin: 0; }
 
         .btn-nuevo {
-            background: #1a73e8;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 7px 13px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
+            background: #1a73e8; color: #fff; border: none;
+            border-radius: 6px; padding: 7px 13px; font-size: 13px;
+            font-weight: 600; text-decoration: none;
         }
 
-        .btn-nuevo:hover { background: #1557b0; color: #fff; }
-
-        .lista {
-            flex: 1;
-            padding: 8px 10px 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        /* Tabs */
+        .tabs {
+            display: flex; border-bottom: 1px solid #e8eaed;
+            position: sticky; top: 45px; background: #fff; z-index: 9;
         }
 
-        .empty-state {
-            text-align: center;
-            color: #9aa0a6;
-            margin-top: 60px;
-            font-size: 14px;
+        .tab {
+            flex: 1; text-align: center; padding: 10px 4px;
+            font-size: 13px; font-weight: 600; color: #5f6368;
+            cursor: pointer; border-bottom: 3px solid transparent;
+            transition: all 0.15s;
         }
 
-        /* Fila compacta */
+        .tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+        .tab.active-cf { color: #0d9488; border-bottom-color: #0d9488; }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Lista */
+        .lista { padding: 8px 10px 20px; display: flex; flex-direction: column; gap: 5px; }
+
+        .empty-state { text-align: center; color: #9aa0a6; margin-top: 50px; font-size: 13px; }
+
+        /* Fila merma */
         .row-reg {
-            border: 1px solid #e8eaed;
-            border-radius: 8px;
-            padding: 8px 10px;
-            background: #fff;
+            border: 1px solid #e8eaed; border-radius: 8px;
+            padding: 8px 10px; background: #fff;
         }
 
         .row-line1 {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 2px;
+            display: flex; justify-content: space-between;
+            align-items: baseline; margin-bottom: 2px;
         }
 
-        .row-tienda {
-            font-weight: 700;
-            font-size: 12px;
-            color: #1a73e8;
-        }
+        .row-tienda { font-weight: 700; font-size: 12px; color: #1a73e8; }
+        .row-fecha  { font-size: 11px; color: #9aa0a6; }
 
-        .row-fecha {
-            font-size: 11px;
-            color: #9aa0a6;
-        }
+        .row-producto { font-size: 13px; font-weight: 600; color: #202124; margin-bottom: 3px; }
 
-        .row-producto {
-            font-size: 13px;
-            font-weight: 600;
-            color: #202124;
-            margin-bottom: 3px;
-        }
-
-        .row-nums {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 2px;
-        }
-
-        .num-badge {
-            font-size: 12px;
-            color: #5f6368;
-        }
-
+        .row-nums { display: flex; gap: 10px; margin-bottom: 2px; }
+        .num-badge { font-size: 12px; color: #5f6368; }
         .num-badge b { color: #202124; }
 
-        .row-razon {
-            font-size: 11px;
-            color: #5f6368;
-            margin-bottom: 2px;
-        }
+        .row-razon { font-size: 11px; color: #5f6368; margin-bottom: 2px; }
 
         .row-bottom {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 4px;
+            display: flex; justify-content: space-between;
+            align-items: center; margin-top: 4px;
         }
 
-        .row-meta {
-            font-size: 10px;
-            color: #bdc1c6;
-        }
+        .row-meta { font-size: 10px; color: #bdc1c6; }
 
-        .row-actions {
-            display: flex;
-            gap: 6px;
-        }
+        .row-actions { display: flex; gap: 6px; }
 
         .btn-editar {
-            border: 1px solid #1a73e8;
-            background: #fff;
-            color: #1a73e8;
-            border-radius: 5px;
-            padding: 3px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
+            border: 1px solid #1a73e8; background: #fff; color: #1a73e8;
+            border-radius: 5px; padding: 3px 10px; font-size: 12px;
+            font-weight: 600; cursor: pointer; text-decoration: none;
         }
-
-        .btn-editar:hover { background: #e8f0fe; }
 
         .btn-borrar {
-            border: 1px solid #d93025;
-            background: #fff;
-            color: #d93025;
-            border-radius: 5px;
-            padding: 3px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
+            border: 1px solid #d93025; background: #fff; color: #d93025;
+            border-radius: 5px; padding: 3px 10px; font-size: 12px;
+            font-weight: 600; cursor: pointer;
         }
 
-        .btn-borrar:hover { background: #fce8e6; }
+        /* Fila cuarto frío */
+        .row-cf {
+            border: 1px solid #99f6e4; border-radius: 8px;
+            padding: 8px 10px; background: #f0fdfa;
+        }
+
+        .row-cf .row-tienda { color: #0d9488; }
+        .row-cf .num-badge b { color: #0d9488; }
+
+        .btn-borrar-cf {
+            border: 1px solid #d93025; background: #f0fdfa; color: #d93025;
+            border-radius: 5px; padding: 3px 10px; font-size: 12px;
+            font-weight: 600; cursor: pointer;
+        }
 
         /* Modal */
         .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.45);
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45); z-index: 100;
+            justify-content: center; align-items: center;
         }
-
         .modal-overlay.active { display: flex; }
 
         .modal-box {
-            background: #fff;
-            border-radius: 12px;
-            padding: 20px 18px;
-            width: 290px;
-            max-width: 90vw;
+            background: #fff; border-radius: 12px; padding: 20px 18px;
+            width: 290px; max-width: 90vw;
             box-shadow: 0 8px 32px rgba(0,0,0,0.18);
         }
 
-        .modal-box h6 {
-            font-weight: 700;
-            font-size: 15px;
-            color: #202124;
-            margin-bottom: 4px;
-        }
-
-        .modal-box p {
-            font-size: 12px;
-            color: #5f6368;
-            margin-bottom: 12px;
-        }
+        .modal-box h6 { font-weight: 700; font-size: 15px; color: #202124; margin-bottom: 4px; }
+        .modal-box p  { font-size: 12px; color: #5f6368; margin-bottom: 12px; }
 
         .modal-box input {
-            width: 100%;
-            border: 1.5px solid #dadce0;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 14px;
-            color: #202124;
-            outline: none;
-            margin-bottom: 8px;
+            width: 100%; border: 1.5px solid #dadce0; border-radius: 6px;
+            padding: 8px 12px; font-size: 14px; color: #202124; outline: none; margin-bottom: 8px;
         }
-
         .modal-box input:focus { border-color: #d93025; }
 
-        .modal-error {
-            color: #d93025;
-            font-size: 12px;
-            margin-bottom: 8px;
-            display: none;
-        }
+        .modal-error { color: #d93025; font-size: 12px; margin-bottom: 8px; display: none; }
 
-        .modal-actions {
-            display: flex;
-            gap: 8px;
-        }
+        .modal-actions { display: flex; gap: 8px; }
 
         .modal-btn-cancel {
-            flex: 1;
-            border: 1.5px solid #dadce0;
-            background: #fff;
-            color: #202124;
-            border-radius: 6px;
-            padding: 8px;
-            font-size: 13px;
-            cursor: pointer;
+            flex: 1; border: 1.5px solid #dadce0; background: #fff;
+            color: #202124; border-radius: 6px; padding: 8px; font-size: 13px; cursor: pointer;
         }
 
         .modal-btn-confirm {
-            flex: 1;
-            background: #d93025;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 8px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
+            flex: 1; background: #d93025; color: #fff; border: none;
+            border-radius: 6px; padding: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
         }
-
-        .modal-btn-confirm:hover { background: #b0261c; }
     </style>
 </head>
 <body>
@@ -265,35 +164,75 @@
         <a href="/" class="btn-nuevo">+ Nuevo</a>
     </div>
 
-    <div class="lista">
-        {% if not registros %}
-        <div class="empty-state">No hay registros aún.</div>
-        {% endif %}
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" id="tab-merma" onclick="switchTab('merma')">Merma / Inventario</div>
+        <div class="tab" id="tab-cf" onclick="switchTab('cf')">❄️ Cuarto Frío</div>
+    </div>
 
-        {% for r in registros %}
-        {# id(0) tienda(1) fecha(2) usuario(3) producto(4) inventario(5) merma(6) razon(7) fecha_mod(8) #}
-        <div class="row-reg">
-            <div class="row-line1">
-                <span class="row-tienda">{{ r[1] }}</span>
-                <span class="row-fecha">{{ r[2] }}</span>
-            </div>
-            <div class="row-producto">{{ r[4] }}</div>
-            <div class="row-nums">
-                <span class="num-badge">Inv: <b>{{ r[5] }}</b></span>
-                <span class="num-badge">Merma: <b>{{ r[6] }}</b></span>
-            </div>
-            {% if r[7] %}<div class="row-razon">Razón: {{ r[7] }}</div>{% endif %}
-            <div class="row-bottom">
-                <div class="row-meta">
-                    {{ r[3] }}{% if r[8] %} · Mod: {{ r[8] }}{% endif %}
+    <!-- Panel merma -->
+    <div class="tab-panel active" id="panel-merma">
+        <div class="lista">
+            {% if not registros %}
+            <div class="empty-state">No hay registros aún.</div>
+            {% endif %}
+
+            {% for r in registros %}
+            {# id(0) tienda(1) fecha(2) usuario(3) producto(4) inv(5) merma(6) razon(7) fecha_mod(8) #}
+            <div class="row-reg">
+                <div class="row-line1">
+                    <span class="row-tienda">{{ r[1] }}</span>
+                    <span class="row-fecha">{{ r[2] }}</span>
                 </div>
-                <div class="row-actions">
-                    <a href="/editar/{{ r[0] }}" class="btn-editar">Editar</a>
-                    <button class="btn-borrar" onclick="pedirPassword({{ r[0] }})">Borrar</button>
+                <div class="row-producto">{{ r[4] }}</div>
+                <div class="row-nums">
+                    <span class="num-badge">Inv: <b>{{ r[5] }}</b></span>
+                    <span class="num-badge">Merma: <b>{{ r[6] }}</b></span>
+                </div>
+                {% if r[7] %}<div class="row-razon">Razón: {{ r[7] }}</div>{% endif %}
+                <div class="row-bottom">
+                    <div class="row-meta">
+                        {{ r[3] }}{% if r[8] %} · Mod: {{ r[8] }}{% endif %}
+                    </div>
+                    <div class="row-actions">
+                        <a href="/editar/{{ r[0] }}" class="btn-editar">Editar</a>
+                        <button class="btn-borrar" onclick="pedirPassword({{ r[0] }}, 'merma')">Borrar</button>
+                    </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+    </div>
+
+    <!-- Panel cuarto frío -->
+    <div class="tab-panel" id="panel-cf">
+        <div class="lista">
+            {% if not cf_registros %}
+            <div class="empty-state">No hay registros de cuarto frío.</div>
+            {% endif %}
+
+            {% for r in cf_registros %}
+            {# id(0) tienda(1) fecha(2) usuario(3) producto(4) existencia(5) fecha_mod(6) #}
+            <div class="row-cf">
+                <div class="row-line1">
+                    <span class="row-tienda">{{ r[1] }}</span>
+                    <span class="row-fecha">{{ r[2] }}</span>
+                </div>
+                <div class="row-producto">{{ r[4] }}</div>
+                <div class="row-nums">
+                    <span class="num-badge">Existencia: <b>{{ r[5] }}</b></span>
+                </div>
+                <div class="row-bottom">
+                    <div class="row-meta">
+                        {{ r[3] }}{% if r[6] %} · Mod: {{ r[6] }}{% endif %}
+                    </div>
+                    <div class="row-actions">
+                        <button class="btn-borrar-cf" onclick="pedirPassword({{ r[0] }}, 'cf')">Borrar</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
 </div>
@@ -313,10 +252,19 @@
 </div>
 
 <script>
-    let idABorrar = null;
+    let idABorrar  = null;
+    let tipoABorrar = null;
 
-    function pedirPassword(id) {
-        idABorrar = id;
+    function switchTab(tab) {
+        document.getElementById('panel-merma').classList.toggle('active', tab === 'merma');
+        document.getElementById('panel-cf').classList.toggle('active', tab === 'cf');
+        document.getElementById('tab-merma').className = 'tab' + (tab === 'merma' ? ' active' : '');
+        document.getElementById('tab-cf').className    = 'tab' + (tab === 'cf' ? ' active-cf' : '');
+    }
+
+    function pedirPassword(id, tipo) {
+        idABorrar   = id;
+        tipoABorrar = tipo;
         document.getElementById('passInput').value = '';
         document.getElementById('modalError').style.display = 'none';
         document.getElementById('modalOverlay').classList.add('active');
@@ -324,24 +272,25 @@
     }
 
     function cerrarModal() {
-        idABorrar = null;
+        idABorrar = tipoABorrar = null;
         document.getElementById('modalOverlay').classList.remove('active');
     }
 
     async function confirmarBorrar() {
-        const pass = document.getElementById('passInput').value;
+        const pass  = document.getElementById('passInput').value;
         const errEl = document.getElementById('modalError');
         errEl.style.display = 'none';
 
-        const formData = new FormData();
-        formData.append('password', pass);
+        const ruta = tipoABorrar === 'cf' ? `/borrar_cf/${idABorrar}` : `/borrar/${idABorrar}`;
+        const fd   = new FormData();
+        fd.append('password', pass);
 
         try {
-            const res = await fetch(`/borrar/${idABorrar}`, { method: 'POST', body: formData });
+            const res = await fetch(ruta, { method: 'POST', body: fd });
             if (res.ok) { cerrarModal(); location.reload(); }
             else { errEl.style.display = 'block'; document.getElementById('passInput').focus(); }
         } catch(e) {
-            errEl.textContent = 'Error de red. Intenta de nuevo.';
+            errEl.textContent = 'Error de red.';
             errEl.style.display = 'block';
         }
     }
@@ -350,7 +299,7 @@
         if (e.key === 'Enter') confirmarBorrar();
     });
 
-    document.getElementById('modalOverlay').addEventListener('click', e => {
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
         if (e.target === this) cerrarModal();
     });
 </script>
