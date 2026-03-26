@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, jsonify
 import psycopg2
 import os
 from datetime import datetime
 
 app = Flask(__name__)
+
+DELETE_PASSWORD = "CFBCWALMEX"
 
 def get_db():
     url = os.environ.get("DATABASE_URL")
@@ -27,8 +29,19 @@ def init_db():
                 usuario TEXT,
                 producto TEXT,
                 inventario INTEGER,
-                merma INTEGER
+                merma INTEGER,
+                razon TEXT,
+                fecha_modificacion TEXT
             )
+        """)
+        # Agregar columnas si ya existía la tabla sin ellas
+        cur.execute("""
+            ALTER TABLE merma_inventario
+            ADD COLUMN IF NOT EXISTS razon TEXT;
+        """)
+        cur.execute("""
+            ALTER TABLE merma_inventario
+            ADD COLUMN IF NOT EXISTS fecha_modificacion TEXT;
         """)
         conn.commit()
     except Exception as e:
@@ -40,11 +53,12 @@ def init_db():
 init_db()
 
 TIENDAS = [
-    "Sucursal Centro",
-    "Sucursal Norte",
-    "Sucursal Sur",
-    "Sucursal Este",
-    "Sucursal Oeste"
+    "5041 Nuevo Mexicali","4155 Tijuana 2000","3015 Ensenada",
+    "2947 Ensenada Centro","1613 Playas De Tijuana","190 Lomas de Santa Fe",
+    "4187 Rosarito","2023 Macro Plaza Insurgentes","3664 Diaz Ordaz",
+    "4011 Tijuana Hipodromo","1616 Pacifico","1617 Novena",
+    "1140 Plaza San Pedro","4026 Galerías Del Valle","2304 Mexicali",
+    "5295 Tecate Garita"
 ]
 
 @app.route("/", methods=["GET", "POST"])
@@ -56,18 +70,27 @@ def index():
         cur = conn.cursor()
 
         if request.method == "POST":
-            tienda = request.form.get("tienda")
-            fecha = request.form.get("fecha")
-            usuario = request.form.get("usuario")
+            tienda    = request.form.get("tienda")
+            fecha     = request.form.get("fecha")
+            usuario   = request.form.get("usuario")
             productos = request.form.getlist("producto[]")
             inventarios = request.form.getlist("inventario[]")
-            mermas = request.form.getlist("merma[]")
+            mermas    = request.form.getlist("merma[]")
+            razones   = request.form.getlist("razon[]")
 
             for i in range(len(productos)):
                 if productos[i].strip():
                     cur.execute(
-                        "INSERT INTO merma_inventario (tienda, fecha, usuario, producto, inventario, merma) VALUES (%s, %s, %s, %s, %s, %s)",
-                        (tienda, fecha, usuario, productos[i], inventarios[i] or 0, mermas[i] or 0)
+                        """INSERT INTO merma_inventario
+                           (tienda, fecha, usuario, producto, inventario, merma, razon)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                        (
+                            tienda, fecha, usuario,
+                            productos[i],
+                            inventarios[i] or 0,
+                            mermas[i] or 0,
+                            razones[i] if i < len(razones) else ""
+                        )
                     )
             conn.commit()
             return redirect("/registros")
@@ -80,6 +103,7 @@ def index():
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
 
 @app.route("/registros")
 def registros():
@@ -96,6 +120,68 @@ def registros():
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+@app.route("/editar/<int:id>", methods=["GET", "POST"])
+def editar(id):
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        if request.method == "POST":
+            tienda      = request.form.get("tienda")
+            fecha       = request.form.get("fecha")
+            usuario     = request.form.get("usuario")
+            producto    = request.form.get("producto")
+            inventario  = request.form.get("inventario") or 0
+            merma       = request.form.get("merma") or 0
+            razon       = request.form.get("razon") or ""
+            fecha_mod   = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+            cur.execute("""
+                UPDATE merma_inventario
+                SET tienda=%s, fecha=%s, usuario=%s, producto=%s,
+                    inventario=%s, merma=%s, razon=%s, fecha_modificacion=%s
+                WHERE id=%s
+            """, (tienda, fecha, usuario, producto, inventario, merma, razon, fecha_mod, id))
+            conn.commit()
+            return redirect("/registros")
+
+        cur.execute("SELECT * FROM merma_inventario WHERE id=%s", (id,))
+        reg = cur.fetchone()
+        if not reg:
+            return redirect("/registros")
+        return render_template("editar.html", reg=reg, tiendas=TIENDAS)
+
+    except Exception as e:
+        return f"<h2>Error:</h2><pre>{e}</pre>"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@app.route("/borrar/<int:id>", methods=["POST"])
+def borrar(id):
+    password = request.form.get("password")
+    if password != DELETE_PASSWORD:
+        return jsonify({"ok": False, "msg": "Contraseña incorrecta"}), 403
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM merma_inventario WHERE id=%s", (id,))
+        conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
