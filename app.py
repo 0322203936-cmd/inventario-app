@@ -5,15 +5,14 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Conexión a PostgreSQL usando la variable de entorno
+# Conexión a PostgreSQL usando variable de entorno DATABASE_URL
 def get_db():
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("No se encontró la variable de entorno DATABASE_URL")
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
-    conn = psycopg2.connect(url)
-    return conn
+    return psycopg2.connect(url)
 
 # Crear tabla si no existe
 def init_db():
@@ -33,39 +32,41 @@ def init_db():
     except Exception as e:
         print("Error al inicializar la base de datos:", e)
     finally:
-        cur.close()
-        conn.close()
+        if cur: cur.close()
+        if conn: conn.close()
 
 # Inicializamos la base de datos al importar la app
 init_db()
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    conn = get_db()
-    cur = conn.cursor()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    if request.method == "POST":
-        chofer = request.form["chofer"]
-        producto = request.form["producto"]
-        cantidad = request.form["cantidad"]
-        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if request.method == "POST":
+            chofer = request.form.get("chofer")
+            producto = request.form.get("producto")
+            cantidad = request.form.get("cantidad")
+            fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        cur.execute(
-            "INSERT INTO inventario (chofer, producto, cantidad, fecha) VALUES (%s, %s, %s, %s)",
-            (chofer, producto, cantidad, fecha)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        return redirect("/")
+            cur.execute(
+                "INSERT INTO inventario (chofer, producto, cantidad, fecha) VALUES (%s, %s, %s, %s)",
+                (chofer, producto, cantidad, fecha)
+            )
+            conn.commit()
+            return redirect("/")
 
-    cur.execute("SELECT * FROM inventario ORDER BY id DESC")
-    registros = cur.fetchall()
+        cur.execute("SELECT * FROM inventario ORDER BY id DESC")
+        registros = cur.fetchall()
+        return render_template("index.html", registros=registros)
 
-    cur.close()
-    conn.close()
+    except Exception as e:
+        return f"<h2>Error en la aplicación:</h2><pre>{e}</pre>"
 
-    return render_template("index.html", registros=registros)
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 # Para desarrollo local
 if __name__ == "__main__":
