@@ -63,7 +63,7 @@
             display: block;
         }
 
-        /* ── Dropdown de tienda ── */
+        /* Dropdown tienda */
         .tienda-select-wrapper {
             position: relative;
             margin-bottom: 16px;
@@ -90,7 +90,6 @@
             box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
         }
 
-        /* Flecha personalizada */
         .tienda-select-wrapper::after {
             content: '';
             position: absolute;
@@ -185,6 +184,14 @@
             outline: none;
             display: block;
             margin: 0 auto;
+            -moz-appearance: textfield;
+        }
+
+        /* Ocultar flechas arriba/abajo en number inputs */
+        .num-input::-webkit-outer-spin-button,
+        .num-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
 
         .num-input:focus { border-color: #1a73e8; }
@@ -235,12 +242,13 @@
         <h5>Registro de Merma e Inventario</h5>
     </div>
 
+    <!-- Sin onsubmit: solo se envía desde guardar() -->
     <form method="POST" action="/" id="mainForm" class="form-body">
 
         <!-- Tienda dropdown -->
         <span class="field-label">Tienda:</span>
         <div class="tienda-select-wrapper">
-            <select name="tienda" id="tiendaSelect" required>
+            <select name="tienda" id="tiendaSelect" required tabindex="1">
                 <option value="" disabled>Selecciona una tienda…</option>
                 <option value="5041 Nuevo Mexicali" selected>5041 Nuevo Mexicali</option>
                 <option value="4155 Tijuana 2000">4155 Tijuana 2000</option>
@@ -264,13 +272,13 @@
         <!-- Fecha -->
         <div class="field-row">
             <span class="field-row-label">Fecha:</span>
-            <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required>
+            <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required tabindex="2">
         </div>
 
         <!-- Usuario -->
         <div class="field-row">
             <span class="field-row-label">Usuario:</span>
-            <input type="text" name="usuario" placeholder="Usuario" required>
+            <input type="text" name="usuario" id="usuarioInput" placeholder="Usuario" required tabindex="3">
         </div>
 
         <!-- Productos pre-cargados -->
@@ -302,8 +310,32 @@
                 {% for p in productos %}
                 <tr>
                     <td class="product-name-cell">{{ p }}</td>
-                    <td><input class="num-input" type="number" name="inventario[]" value="0" min="0"></td>
-                    <td><input class="num-input" type="number" name="merma[]" value="0" min="0"></td>
+                    <td>
+                        <input
+                            class="num-input"
+                            type="number"
+                            name="inventario[]"
+                            value="0"
+                            min="0"
+                            inputmode="numeric"
+                            tabindex="{{ loop.index * 2 + 2 }}"
+                            onfocus="clearZero(this)"
+                            onblur="restoreZero(this)"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            class="num-input"
+                            type="number"
+                            name="merma[]"
+                            value="0"
+                            min="0"
+                            inputmode="numeric"
+                            tabindex="{{ loop.index * 2 + 3 }}"
+                            onfocus="clearZero(this)"
+                            onblur="restoreZero(this)"
+                        >
+                    </td>
                     <input type="hidden" name="producto[]" value="{{ p }}">
                 </tr>
                 {% endfor %}
@@ -314,22 +346,81 @@
 
     <div class="bottom-bar">
         <button type="button" class="btn-cancelar" onclick="cancelar()">Cancelar</button>
-        <button type="submit" form="mainForm" class="btn-guardar">Guardar</button>
+        <!-- type="button" para que no haga submit solo, guardar() lo maneja -->
+        <button type="button" class="btn-guardar" onclick="guardar()">Guardar</button>
     </div>
 
 </div>
 
 <script>
-    // Fecha de hoy automática
+    // ── Fecha de hoy automática ──
     const today = new Date();
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd   = String(today.getDate()).padStart(2, '0');
+    const mm   = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
     document.getElementById('fechaInput').value = dd + '/' + mm + '/' + yyyy;
 
+    // ── Limpiar el 0 al tocar el campo ──
+    function clearZero(el) {
+        if (el.value === '0') el.value = '';
+    }
+
+    // ── Restaurar 0 si se deja vacío ──
+    function restoreZero(el) {
+        if (el.value === '') el.value = '0';
+    }
+
+    // ── Bloquear Enter/Go para que NO envíe el form;
+    //    en su lugar mueve al siguiente campo de la tabla ──
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // Obtener todos los campos con tabindex en orden
+            const focusable = Array.from(
+                document.querySelectorAll('input[tabindex], select[tabindex]')
+            ).filter(el => !el.disabled && el.tabIndex > 0)
+             .sort((a, b) => a.tabIndex - b.tabIndex);
+
+            const idx = focusable.indexOf(document.activeElement);
+            if (idx !== -1 && idx < focusable.length - 1) {
+                const next = focusable[idx + 1];
+                next.focus();
+                // Seleccionar todo el texto para reemplazar rápido
+                if (next.select) next.select();
+            }
+        }
+    });
+
+    // ── Guardar: SOLO desde el botón ──
+    function guardar() {
+        // Validación básica antes de enviar
+        const tienda  = document.getElementById('tiendaSelect').value;
+        const usuario = document.getElementById('usuarioInput').value.trim();
+        const fecha   = document.getElementById('fechaInput').value.trim();
+
+        if (!tienda || tienda === '') {
+            alert('Selecciona una tienda.');
+            return;
+        }
+        if (!usuario) {
+            alert('Escribe el nombre del usuario.');
+            document.getElementById('usuarioInput').focus();
+            return;
+        }
+        if (!fecha) {
+            alert('Ingresa la fecha.');
+            document.getElementById('fechaInput').focus();
+            return;
+        }
+
+        document.getElementById('mainForm').submit();
+    }
+
+    // ── Cancelar ──
     function cancelar() {
         if (confirm('¿Descartar los cambios?')) {
-            document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"]').forEach(i => i.value = 0);
+            document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"]')
+                .forEach(i => i.value = 0);
         }
     }
 
