@@ -64,6 +64,7 @@
             display: block;
         }
 
+        /* Dropdown tienda */
         .tienda-select-wrapper {
             position: relative;
             margin-bottom: 16px;
@@ -136,7 +137,116 @@
             margin: 16px 0 10px;
         }
 
-        /* Tabla */
+        /* ── Cajita Cuarto Frío ── */
+        .cf-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1.5px solid #0d9488;
+            border-radius: 10px;
+            padding: 11px 14px;
+            margin-bottom: 14px;
+            cursor: pointer;
+            background: #f0fdfa;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .cf-toggle:active { background: #ccfbf1; }
+
+        .cf-toggle-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cf-icon {
+            font-size: 18px;
+        }
+
+        .cf-toggle-label {
+            font-weight: 700;
+            font-size: 14px;
+            color: #0d9488;
+        }
+
+        .cf-toggle-arrow {
+            font-size: 13px;
+            color: #0d9488;
+            transition: transform 0.2s;
+        }
+
+        .cf-toggle-arrow.open { transform: rotate(180deg); }
+
+        .cf-panel {
+            display: none;
+            border: 1.5px solid #0d9488;
+            border-radius: 10px;
+            padding: 12px 10px;
+            margin-bottom: 14px;
+            background: #f0fdfa;
+        }
+
+        .cf-panel.open { display: block; }
+
+        .cf-temp-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .cf-temp-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #0d9488;
+            min-width: 90px;
+        }
+
+        .cf-temp-input {
+            flex: 1;
+            border: 1.5px solid #99f6e4;
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 14px;
+            color: #202124;
+            outline: none;
+            background: #fff;
+        }
+
+        .cf-temp-input:focus { border-color: #0d9488; }
+
+        /* Tabla cuarto frío */
+        .cf-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .cf-table thead th {
+            font-size: 12px;
+            font-weight: 600;
+            color: #0d9488;
+            padding: 5px 4px;
+            text-align: left;
+            border-bottom: 1px solid #99f6e4;
+        }
+
+        .cf-table thead th.col-exist {
+            text-align: center;
+            width: 80px;
+        }
+
+        .cf-table tbody tr { border-top: 1px solid #ccfbf1; }
+
+        .cf-table tbody td {
+            padding: 5px 3px;
+            font-size: 12px;
+            color: #202124;
+            vertical-align: middle;
+        }
+
+        /* Tabla principal */
         .products-table {
             width: 100%;
             border-collapse: collapse;
@@ -160,10 +270,6 @@
 
         .products-table thead th.col-razon {
             width: 105px;
-        }
-
-        .products-table thead th.col-producto {
-            /* ocupa el resto */
         }
 
         .products-table tbody tr { border-top: 1px solid #f1f3f4; }
@@ -194,15 +300,33 @@
             display: block;
             margin: 0 auto;
             -moz-appearance: textfield;
+            background: #fff;
         }
 
         .num-input::-webkit-outer-spin-button,
-        .num-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+        .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
         .num-input:focus { border-color: #1a73e8; }
+
+        .cf-num-input {
+            width: 72px;
+            border: 1.5px solid #99f6e4;
+            border-radius: 6px;
+            padding: 6px 4px;
+            font-size: 13px;
+            text-align: right;
+            color: #202124;
+            outline: none;
+            display: block;
+            margin: 0 auto;
+            -moz-appearance: textfield;
+            background: #fff;
+        }
+
+        .cf-num-input::-webkit-outer-spin-button,
+        .cf-num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+        .cf-num-input:focus { border-color: #0d9488; }
 
         .razon-input {
             width: 100%;
@@ -212,6 +336,7 @@
             font-size: 12px;
             color: #202124;
             outline: none;
+            background: #fff;
         }
 
         .razon-input:focus { border-color: #1a73e8; }
@@ -263,6 +388,7 @@
 
     <form method="POST" action="/" id="mainForm" class="form-body">
 
+        <!-- Tienda -->
         <span class="field-label">Tienda:</span>
         <div class="tienda-select-wrapper">
             <select name="tienda" id="tiendaSelect" required tabindex="1">
@@ -286,16 +412,68 @@
             </select>
         </div>
 
+        <!-- Fecha -->
         <div class="field-row">
             <span class="field-row-label">Fecha:</span>
             <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required tabindex="2">
         </div>
 
+        <!-- Usuario -->
         <div class="field-row">
             <span class="field-row-label">Usuario:</span>
             <input type="text" name="usuario" id="usuarioInput" placeholder="Usuario" required tabindex="3">
         </div>
 
+        <!-- ── Cajita Cuarto Frío ── -->
+        <div class="cf-toggle" onclick="toggleCF()" id="cfToggle">
+            <div class="cf-toggle-left">
+                <span class="cf-icon">❄️</span>
+                <span class="cf-toggle-label">Inventario Cuarto Frío</span>
+            </div>
+            <span class="cf-toggle-arrow" id="cfArrow">▼</span>
+        </div>
+
+        <div class="cf-panel" id="cfPanel">
+            <div class="cf-temp-row">
+                <span class="cf-temp-label">🌡️ Temperatura:</span>
+                <input class="cf-temp-input" type="text" name="cf_temperatura" placeholder="Ej. 2°C" inputmode="decimal">
+            </div>
+            <table class="cf-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th class="col-exist">Existencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set productos = [
+                        'BQT ALSTROEMERI 8T','BQT GIRASOL 6T','BQT LILI ASIATIC 6T',
+                        'BQT MINI CLAVEL 8T','BQT MIXTO 12T','BQT MIXTO 15T',
+                        'BQT MIXTO 18 T','BQT MIXTO 9T','BQT ROSAS 12T',
+                        'BQT ROSAS 12T BAJA','BQT ROSAS 6T','BQT SNAPDRAGON 8T'
+                    ] %}
+                    {% for p in productos %}
+                    <tr>
+                        <td class="product-name-cell">{{ p }}</td>
+                        <td>
+                            <input
+                                class="cf-num-input"
+                                type="number"
+                                name="cf_existencia[]"
+                                value=""
+                                min="0"
+                                inputmode="numeric"
+                                placeholder="0"
+                            >
+                        </td>
+                        <input type="hidden" name="cf_producto[]" value="{{ p }}">
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Productos merma/inventario -->
         <div class="section-title">Productos Registrados:</div>
 
         <table class="products-table">
@@ -308,20 +486,6 @@
                 </tr>
             </thead>
             <tbody>
-                {% set productos = [
-                    'BQT ALSTROEMERI 8T',
-                    'BQT GIRASOL 6T',
-                    'BQT LILI ASIATIC 6T',
-                    'BQT MINI CLAVEL 8T',
-                    'BQT MIXTO 12T',
-                    'BQT MIXTO 15T',
-                    'BQT MIXTO 18 T',
-                    'BQT MIXTO 9T',
-                    'BQT ROSAS 12T',
-                    'BQT ROSAS 12T BAJA',
-                    'BQT ROSAS 6T',
-                    'BQT SNAPDRAGON 8T'
-                ] %}
                 {% for p in productos %}
                 <tr>
                     <td class="product-name-cell">{{ p }}</td>
@@ -330,12 +494,12 @@
                             class="num-input"
                             type="number"
                             name="inventario[]"
-                            value="0"
+                            value=""
                             min="0"
                             inputmode="numeric"
+                            placeholder="0"
                             tabindex="{{ loop.index * 3 + 1 }}"
-                            onfocus="clearZero(this)"
-                            onblur="restoreZero(this)"
+                            onfocus="selectAll(this)"
                         >
                     </td>
                     <td>
@@ -343,12 +507,12 @@
                             class="num-input"
                             type="number"
                             name="merma[]"
-                            value="0"
+                            value=""
                             min="0"
                             inputmode="numeric"
+                            placeholder="0"
                             tabindex="{{ loop.index * 3 + 2 }}"
-                            onfocus="clearZero(this)"
-                            onblur="restoreZero(this)"
+                            onfocus="selectAll(this)"
                         >
                     </td>
                     <td>
@@ -376,20 +540,27 @@
 </div>
 
 <script>
+    // Fecha automática
     const today = new Date();
     const dd   = String(today.getDate()).padStart(2, '0');
     const mm   = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
     document.getElementById('fechaInput').value = dd + '/' + mm + '/' + yyyy;
 
-    function clearZero(el) {
-        if (el.value === '0') el.value = '';
+    // Toggle cuarto frío
+    function toggleCF() {
+        const panel = document.getElementById('cfPanel');
+        const arrow = document.getElementById('cfArrow');
+        panel.classList.toggle('open');
+        arrow.classList.toggle('open');
     }
 
-    function restoreZero(el) {
-        if (el.value === '') el.value = '0';
+    // Seleccionar todo al enfocar
+    function selectAll(el) {
+        el.select();
     }
 
+    // Bloquear Enter — avanza al siguiente campo
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -407,6 +578,7 @@
         }
     });
 
+    // Guardar: solo desde el botón
     function guardar() {
         const tienda  = document.getElementById('tiendaSelect').value;
         const usuario = document.getElementById('usuarioInput').value.trim();
@@ -432,8 +604,10 @@
     function cancelar() {
         if (confirm('¿Descartar los cambios?')) {
             document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"]')
-                .forEach(i => i.value = 0);
+                .forEach(i => i.value = '');
             document.querySelectorAll('input[name="razon[]"]')
+                .forEach(i => i.value = '');
+            document.querySelectorAll('input[name="cf_existencia[]"]')
                 .forEach(i => i.value = '');
         }
     }
