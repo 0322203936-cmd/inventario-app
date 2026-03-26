@@ -7,19 +7,16 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="manifest" href="/static/manifest.json">
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             background: #f0f2f5;
             font-family: 'Segoe UI', sans-serif;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
             min-height: 100vh;
-            padding: 0;
             margin: 0;
+            padding: 0;
         }
 
         .phone-wrapper {
@@ -31,7 +28,6 @@
             flex-direction: column;
         }
 
-        /* Header */
         .app-header {
             display: flex;
             align-items: center;
@@ -44,7 +40,6 @@
             color: #1a73e8;
             font-size: 20px;
             cursor: pointer;
-            line-height: 1;
             text-decoration: none;
         }
 
@@ -55,66 +50,89 @@
             margin: 0;
         }
 
-        /* Form fields */
         .form-body {
             padding: 16px;
             flex: 1;
         }
 
+        /* Segmentador de tiendas */
+        .field-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #202124;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .tienda-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            margin-bottom: 14px;
+        }
+
+        .tienda-scroll::-webkit-scrollbar { display: none; }
+
+        .tienda-pill {
+            flex-shrink: 0;
+            padding: 7px 13px;
+            border-radius: 20px;
+            border: 1.5px solid #dadce0;
+            background: #fff;
+            color: #5f6368;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+            user-select: none;
+        }
+
+        .tienda-pill.active {
+            background: #1a73e8;
+            border-color: #1a73e8;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* Fecha y Usuario */
         .field-row {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
             gap: 10px;
+            margin-bottom: 12px;
         }
 
-        .field-label {
+        .field-row-label {
             font-weight: 600;
             font-size: 14px;
             color: #202124;
             min-width: 70px;
         }
 
-        .field-input {
+        .field-row input {
             flex: 1;
-        }
-
-        .field-input select,
-        .field-input input[type="text"],
-        .field-input input[type="date"] {
-            width: 100%;
             border: 1.5px solid #dadce0;
             border-radius: 6px;
             padding: 8px 12px;
             font-size: 14px;
             color: #202124;
-            background: #fff;
             outline: none;
-            appearance: none;
-            -webkit-appearance: none;
         }
 
-        .field-input select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            padding-right: 30px;
-        }
+        .field-row input:focus { border-color: #1a73e8; }
 
-        .field-input select:focus,
-        .field-input input:focus {
-            border-color: #1a73e8;
-        }
-
-        /* Products section */
         .section-title {
             font-size: 14px;
             font-weight: 700;
             color: #202124;
-            margin: 18px 0 10px;
+            margin: 16px 0 10px;
         }
 
-        /* Products table */
+        /* Tabla de productos */
         .products-table {
             width: 100%;
             border-collapse: collapse;
@@ -126,6 +144,7 @@
             color: #5f6368;
             padding: 6px 8px;
             text-align: left;
+            border-bottom: 1px solid #e8eaed;
         }
 
         .products-table thead th:nth-child(2),
@@ -133,27 +152,26 @@
             text-align: center;
         }
 
-        .products-table tbody tr {
-            border-top: 1px solid #f1f3f4;
-        }
+        .products-table tbody tr { border-top: 1px solid #f1f3f4; }
 
         .products-table tbody td {
-            padding: 8px 4px;
-            font-size: 14px;
+            padding: 7px 4px;
+            font-size: 13px;
             color: #202124;
         }
 
-        .product-name {
-            font-size: 14px;
+        .product-name-cell {
+            font-size: 13px;
             color: #202124;
             padding-left: 4px;
+            font-weight: 500;
         }
 
         .num-input {
-            width: 72px;
+            width: 68px;
             border: 1.5px solid #dadce0;
             border-radius: 6px;
-            padding: 6px 8px;
+            padding: 6px 6px;
             font-size: 14px;
             text-align: right;
             color: #202124;
@@ -162,45 +180,9 @@
             margin: 0 auto;
         }
 
-        .num-input:focus {
-            border-color: #1a73e8;
-        }
+        .num-input:focus { border-color: #1a73e8; }
 
-        .product-text-input {
-            width: 100%;
-            border: 1.5px solid #dadce0;
-            border-radius: 6px;
-            padding: 6px 8px;
-            font-size: 14px;
-            color: #202124;
-            outline: none;
-        }
-
-        .product-text-input:focus {
-            border-color: #1a73e8;
-        }
-
-        /* Add product button */
-        .btn-add {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #1a73e8;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 9px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-top: 14px;
-        }
-
-        .btn-add:hover {
-            background: #1557b0;
-        }
-
-        /* Bottom buttons */
+        /* Bottom bar */
         .bottom-bar {
             display: flex;
             gap: 12px;
@@ -221,9 +203,7 @@
             cursor: pointer;
         }
 
-        .btn-cancelar:hover {
-            background: #f8f9fa;
-        }
+        .btn-cancelar:hover { background: #f8f9fa; }
 
         .btn-guardar {
             flex: 1;
@@ -237,62 +217,55 @@
             cursor: pointer;
         }
 
-        .btn-guardar:hover {
-            background: #1557b0;
-        }
-
-        .delete-row-btn {
-            background: none;
-            border: none;
-            color: #ea4335;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 0 4px;
-            line-height: 1;
-        }
+        .btn-guardar:hover { background: #1557b0; }
     </style>
 </head>
 <body>
-
 <div class="phone-wrapper">
-    <!-- Header -->
+
     <div class="app-header">
         <a href="/registros" class="back-arrow">&#8592;</a>
         <h5>Registro de Merma e Inventario</h5>
     </div>
 
-    <!-- Form -->
-    <form method="POST" action="/" class="form-body" id="mainForm">
+    <form method="POST" action="/" id="mainForm" class="form-body">
 
-        <!-- Tienda -->
-        <div class="field-row">
-            <span class="field-label">Tienda:</span>
-            <div class="field-input">
-                <select name="tienda" required>
-                    {% for t in tiendas %}
-                    <option value="{{ t }}" {% if t == 'Sucursal Centro' %}selected{% endif %}>{{ t }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+        <input type="hidden" name="tienda" id="tiendaHidden" value="5041 Nuevo Mexicali">
+
+        <!-- Tienda segmentador -->
+        <span class="field-label">Tienda:</span>
+        <div class="tienda-scroll">
+            <div class="tienda-pill active"  onclick="selectTienda(this, '5041 Nuevo Mexicali')">5041 Nuevo Mexicali</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '4155 Tijuana 2000')">4155 Tijuana 2000</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '3015 Ensenada')">3015 Ensenada</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '2947 Ensenada Centro')">2947 Ensenada Centro</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '1613 Playas De Tijuana')">1613 Playas De Tijuana</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '190 Lomas de Santa Fe')">190 Lomas de Santa Fe</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '4187 Rosarito')">4187 Rosarito</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '2023 Macro Plaza Insurgentes')">2023 Macro Plaza Insurgentes</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '3664 Diaz Ordaz')">3664 Diaz Ordaz</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '4011 Tijuana Hipodromo')">4011 Tijuana Hipodromo</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '1616 Pacifico')">1616 Pacifico</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '1617 Novena')">1617 Novena</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '1140 Plaza San Pedro')">1140 Plaza San Pedro</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '4026 Galerías Del Valle')">4026 Galerías Del Valle</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '2304 Mexicali')">2304 Mexicali</div>
+            <div class="tienda-pill" onclick="selectTienda(this, '5295 Tecate Garita')">5295 Tecate Garita</div>
         </div>
 
         <!-- Fecha -->
         <div class="field-row">
-            <span class="field-label">Fecha:</span>
-            <div class="field-input">
-                <input type="text" name="fecha" value="{{ today }}" placeholder="DD/MM/YYYY" required>
-            </div>
+            <span class="field-row-label">Fecha:</span>
+            <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required>
         </div>
 
         <!-- Usuario -->
         <div class="field-row">
-            <span class="field-label">Usuario:</span>
-            <div class="field-input">
-                <input type="text" name="usuario" placeholder="Usuario" required>
-            </div>
+            <span class="field-row-label">Usuario:</span>
+            <input type="text" name="usuario" placeholder="Usuario" required>
         </div>
 
-        <!-- Productos -->
+        <!-- Productos pre-cargados -->
         <div class="section-title">Productos Registrados:</div>
 
         <table class="products-table">
@@ -301,67 +274,67 @@
                     <th>Producto</th>
                     <th>Inventario</th>
                     <th>Merma</th>
-                    <th></th>
                 </tr>
             </thead>
-            <tbody id="productosBody">
+            <tbody>
+                {% set productos = [
+                    'BQT ALSTROEMERI 8T',
+                    'BQT GIRASOL 6T',
+                    'BQT LILI ASIATIC 6T',
+                    'BQT MINI CLAVEL 8T',
+                    'BQT MIXTO 12T',
+                    'BQT MIXTO 15T',
+                    'BQT MIXTO 18 T',
+                    'BQT MIXTO 9T',
+                    'BQT ROSAS 12T',
+                    'BQT ROSAS 12T BAJA',
+                    'BQT ROSAS 6T',
+                    'BQT SNAPDRAGON 8T'
+                ] %}
+                {% for p in productos %}
                 <tr>
-                    <td><input class="product-text-input" type="text" name="producto[]" placeholder="Producto" required></td>
-                    <td><input class="num-input" type="number" name="inventario[]" value="0" min="0" required></td>
-                    <td><input class="num-input" type="number" name="merma[]" value="0" min="0" required></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><input class="product-text-input" type="text" name="producto[]" placeholder="Producto"></td>
+                    <td class="product-name-cell">{{ p }}</td>
                     <td><input class="num-input" type="number" name="inventario[]" value="0" min="0"></td>
                     <td><input class="num-input" type="number" name="merma[]" value="0" min="0"></td>
-                    <td></td>
+                    <input type="hidden" name="producto[]" value="{{ p }}">
                 </tr>
-                <tr>
-                    <td><input class="product-text-input" type="text" name="producto[]" placeholder="Producto"></td>
-                    <td><input class="num-input" type="number" name="inventario[]" value="0" min="0"></td>
-                    <td><input class="num-input" type="number" name="merma[]" value="0" min="0"></td>
-                    <td></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
 
-        <button type="button" class="btn-add" onclick="agregarFila()">
-            + Añadir Producto
-        </button>
-
     </form>
 
-    <!-- Bottom bar -->
     <div class="bottom-bar">
         <button type="button" class="btn-cancelar" onclick="cancelar()">Cancelar</button>
         <button type="submit" form="mainForm" class="btn-guardar">Guardar</button>
     </div>
+
 </div>
 
 <script>
-function agregarFila() {
-    const tbody = document.getElementById('productosBody');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td><input class="product-text-input" type="text" name="producto[]" placeholder="Producto"></td>
-        <td><input class="num-input" type="number" name="inventario[]" value="0" min="0"></td>
-        <td><input class="num-input" type="number" name="merma[]" value="0" min="0"></td>
-        <td><button type="button" class="delete-row-btn" onclick="this.closest('tr').remove()">×</button></td>
-    `;
-    tbody.appendChild(tr);
-    tr.querySelector('input').focus();
-}
+    // Fecha de hoy automática
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    document.getElementById('fechaInput').value = dd + '/' + mm + '/' + yyyy;
 
-function cancelar() {
-    if (confirm('¿Descartar los cambios?')) {
-        document.getElementById('mainForm').reset();
+    function selectTienda(el, valor) {
+        document.querySelectorAll('.tienda-pill').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('tiendaHidden').value = valor;
+        el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
-}
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/service-worker.js');
-}
+    function cancelar() {
+        if (confirm('¿Descartar los cambios?')) {
+            document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"]').forEach(i => i.value = 0);
+        }
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/service-worker.js');
+    }
 </script>
 </body>
 </html>
