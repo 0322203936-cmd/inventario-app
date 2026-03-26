@@ -21,7 +21,7 @@
 
         .phone-wrapper {
             width: 100%;
-            max-width: 420px;
+            max-width: 480px;
             min-height: 100vh;
             background: #fff;
             display: flex;
@@ -53,6 +53,7 @@
         .form-body {
             padding: 16px;
             flex: 1;
+            overflow-x: hidden;
         }
 
         .field-label {
@@ -63,7 +64,6 @@
             display: block;
         }
 
-        /* Dropdown tienda */
         .tienda-select-wrapper {
             position: relative;
             margin-bottom: 16px;
@@ -87,7 +87,7 @@
 
         .tienda-select-wrapper select:focus {
             border-color: #1a73e8;
-            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.12);
         }
 
         .tienda-select-wrapper::after {
@@ -96,15 +96,13 @@
             right: 14px;
             top: 50%;
             transform: translateY(-50%);
-            width: 0;
-            height: 0;
+            width: 0; height: 0;
             border-left: 5px solid transparent;
             border-right: 5px solid transparent;
             border-top: 6px solid #5f6368;
             pointer-events: none;
         }
 
-        /* Fecha y Usuario */
         .field-row {
             display: flex;
             align-items: center;
@@ -138,47 +136,58 @@
             margin: 16px 0 10px;
         }
 
-        /* Tabla de productos */
+        /* Tabla */
         .products-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
 
         .products-table thead th {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: #5f6368;
-            padding: 6px 8px;
+            padding: 6px 4px;
             text-align: left;
             border-bottom: 1px solid #e8eaed;
         }
 
-        .products-table thead th:nth-child(2),
-        .products-table thead th:nth-child(3) {
+        .products-table thead th.col-inv,
+        .products-table thead th.col-merma {
             text-align: center;
+            width: 62px;
+        }
+
+        .products-table thead th.col-razon {
+            width: 105px;
+        }
+
+        .products-table thead th.col-producto {
+            /* ocupa el resto */
         }
 
         .products-table tbody tr { border-top: 1px solid #f1f3f4; }
 
         .products-table tbody td {
-            padding: 7px 4px;
-            font-size: 13px;
+            padding: 6px 3px;
+            font-size: 12px;
             color: #202124;
+            vertical-align: middle;
         }
 
         .product-name-cell {
-            font-size: 13px;
+            font-size: 12px;
             color: #202124;
-            padding-left: 4px;
             font-weight: 500;
+            word-break: break-word;
         }
 
         .num-input {
-            width: 68px;
+            width: 56px;
             border: 1.5px solid #dadce0;
             border-radius: 6px;
-            padding: 6px 6px;
-            font-size: 14px;
+            padding: 6px 4px;
+            font-size: 13px;
             text-align: right;
             color: #202124;
             outline: none;
@@ -187,7 +196,6 @@
             -moz-appearance: textfield;
         }
 
-        /* Ocultar flechas arriba/abajo en number inputs */
         .num-input::-webkit-outer-spin-button,
         .num-input::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -196,7 +204,18 @@
 
         .num-input:focus { border-color: #1a73e8; }
 
-        /* Bottom bar */
+        .razon-input {
+            width: 100%;
+            border: 1.5px solid #dadce0;
+            border-radius: 6px;
+            padding: 6px 6px;
+            font-size: 12px;
+            color: #202124;
+            outline: none;
+        }
+
+        .razon-input:focus { border-color: #1a73e8; }
+
         .bottom-bar {
             display: flex;
             gap: 12px;
@@ -242,10 +261,8 @@
         <h5>Registro de Merma e Inventario</h5>
     </div>
 
-    <!-- Sin onsubmit: solo se envía desde guardar() -->
     <form method="POST" action="/" id="mainForm" class="form-body">
 
-        <!-- Tienda dropdown -->
         <span class="field-label">Tienda:</span>
         <div class="tienda-select-wrapper">
             <select name="tienda" id="tiendaSelect" required tabindex="1">
@@ -269,27 +286,25 @@
             </select>
         </div>
 
-        <!-- Fecha -->
         <div class="field-row">
             <span class="field-row-label">Fecha:</span>
             <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required tabindex="2">
         </div>
 
-        <!-- Usuario -->
         <div class="field-row">
             <span class="field-row-label">Usuario:</span>
             <input type="text" name="usuario" id="usuarioInput" placeholder="Usuario" required tabindex="3">
         </div>
 
-        <!-- Productos pre-cargados -->
         <div class="section-title">Productos Registrados:</div>
 
         <table class="products-table">
             <thead>
                 <tr>
-                    <th>Producto</th>
-                    <th>Inventario</th>
-                    <th>Merma</th>
+                    <th class="col-producto">Producto</th>
+                    <th class="col-inv">Inv</th>
+                    <th class="col-merma">Merma</th>
+                    <th class="col-razon">Razón merma</th>
                 </tr>
             </thead>
             <tbody>
@@ -318,7 +333,7 @@
                             value="0"
                             min="0"
                             inputmode="numeric"
-                            tabindex="{{ loop.index * 2 + 2 }}"
+                            tabindex="{{ loop.index * 3 + 1 }}"
                             onfocus="clearZero(this)"
                             onblur="restoreZero(this)"
                         >
@@ -331,9 +346,18 @@
                             value="0"
                             min="0"
                             inputmode="numeric"
-                            tabindex="{{ loop.index * 2 + 3 }}"
+                            tabindex="{{ loop.index * 3 + 2 }}"
                             onfocus="clearZero(this)"
                             onblur="restoreZero(this)"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            class="razon-input"
+                            type="text"
+                            name="razon[]"
+                            placeholder="—"
+                            tabindex="{{ loop.index * 3 + 3 }}"
                         >
                     </td>
                     <input type="hidden" name="producto[]" value="{{ p }}">
@@ -346,36 +370,29 @@
 
     <div class="bottom-bar">
         <button type="button" class="btn-cancelar" onclick="cancelar()">Cancelar</button>
-        <!-- type="button" para que no haga submit solo, guardar() lo maneja -->
         <button type="button" class="btn-guardar" onclick="guardar()">Guardar</button>
     </div>
 
 </div>
 
 <script>
-    // ── Fecha de hoy automática ──
     const today = new Date();
     const dd   = String(today.getDate()).padStart(2, '0');
     const mm   = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
     document.getElementById('fechaInput').value = dd + '/' + mm + '/' + yyyy;
 
-    // ── Limpiar el 0 al tocar el campo ──
     function clearZero(el) {
         if (el.value === '0') el.value = '';
     }
 
-    // ── Restaurar 0 si se deja vacío ──
     function restoreZero(el) {
         if (el.value === '') el.value = '0';
     }
 
-    // ── Bloquear Enter/Go para que NO envíe el form;
-    //    en su lugar mueve al siguiente campo de la tabla ──
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // Obtener todos los campos con tabindex en orden
             const focusable = Array.from(
                 document.querySelectorAll('input[tabindex], select[tabindex]')
             ).filter(el => !el.disabled && el.tabIndex > 0)
@@ -385,20 +402,17 @@
             if (idx !== -1 && idx < focusable.length - 1) {
                 const next = focusable[idx + 1];
                 next.focus();
-                // Seleccionar todo el texto para reemplazar rápido
                 if (next.select) next.select();
             }
         }
     });
 
-    // ── Guardar: SOLO desde el botón ──
     function guardar() {
-        // Validación básica antes de enviar
         const tienda  = document.getElementById('tiendaSelect').value;
         const usuario = document.getElementById('usuarioInput').value.trim();
         const fecha   = document.getElementById('fechaInput').value.trim();
 
-        if (!tienda || tienda === '') {
+        if (!tienda) {
             alert('Selecciona una tienda.');
             return;
         }
@@ -412,15 +426,15 @@
             document.getElementById('fechaInput').focus();
             return;
         }
-
         document.getElementById('mainForm').submit();
     }
 
-    // ── Cancelar ──
     function cancelar() {
         if (confirm('¿Descartar los cambios?')) {
             document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"]')
                 .forEach(i => i.value = 0);
+            document.querySelectorAll('input[name="razon[]"]')
+                .forEach(i => i.value = '');
         }
     }
 
