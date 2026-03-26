@@ -21,6 +21,7 @@ def init_db():
     try:
         conn = get_db()
         cur = conn.cursor()
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS merma_inventario (
                 id SERIAL PRIMARY KEY,
@@ -34,15 +35,22 @@ def init_db():
                 fecha_modificacion TEXT
             )
         """)
-        # Agregar columnas si ya existía la tabla sin ellas
+        cur.execute("ALTER TABLE merma_inventario ADD COLUMN IF NOT EXISTS razon TEXT;")
+        cur.execute("ALTER TABLE merma_inventario ADD COLUMN IF NOT EXISTS fecha_modificacion TEXT;")
+
         cur.execute("""
-            ALTER TABLE merma_inventario
-            ADD COLUMN IF NOT EXISTS razon TEXT;
+            CREATE TABLE IF NOT EXISTS cuarto_frio (
+                id SERIAL PRIMARY KEY,
+                tienda TEXT,
+                fecha TEXT,
+                usuario TEXT,
+                temperatura TEXT,
+                producto TEXT,
+                existencia INTEGER,
+                fecha_modificacion TEXT
+            )
         """)
-        cur.execute("""
-            ALTER TABLE merma_inventario
-            ADD COLUMN IF NOT EXISTS fecha_modificacion TEXT;
-        """)
+
         conn.commit()
     except Exception as e:
         print("Error al inicializar la base de datos:", e)
@@ -70,28 +78,58 @@ def index():
         cur = conn.cursor()
 
         if request.method == "POST":
-            tienda    = request.form.get("tienda")
-            fecha     = request.form.get("fecha")
-            usuario   = request.form.get("usuario")
-            productos = request.form.getlist("producto[]")
+            tienda      = request.form.get("tienda")
+            fecha       = request.form.get("fecha")
+            usuario     = request.form.get("usuario")
+            productos   = request.form.getlist("producto[]")
             inventarios = request.form.getlist("inventario[]")
-            mermas    = request.form.getlist("merma[]")
-            razones   = request.form.getlist("razon[]")
+            mermas      = request.form.getlist("merma[]")
+            razones     = request.form.getlist("razon[]")
 
+            # ── Merma/inventario: solo guarda si inventario > 0 O merma > 0 ──
             for i in range(len(productos)):
-                if productos[i].strip():
+                if not productos[i].strip():
+                    continue
+                try:
+                    inv = int(inventarios[i]) if inventarios[i] else 0
+                except ValueError:
+                    inv = 0
+                try:
+                    mer = int(mermas[i]) if mermas[i] else 0
+                except ValueError:
+                    mer = 0
+
+                if inv > 0 or mer > 0:
                     cur.execute(
                         """INSERT INTO merma_inventario
                            (tienda, fecha, usuario, producto, inventario, merma, razon)
                            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
                         (
                             tienda, fecha, usuario,
-                            productos[i],
-                            inventarios[i] or 0,
-                            mermas[i] or 0,
+                            productos[i], inv, mer,
                             razones[i] if i < len(razones) else ""
                         )
                     )
+
+            # ── Cuarto frío: solo guarda si existencia > 0 ──
+            temperatura    = request.form.get("cf_temperatura", "").strip()
+            cf_productos   = request.form.getlist("cf_producto[]")
+            cf_existencias = request.form.getlist("cf_existencia[]")
+
+            for i in range(len(cf_productos)):
+                try:
+                    existencia = int(cf_existencias[i]) if cf_existencias[i] else 0
+                except ValueError:
+                    existencia = 0
+
+                if existencia > 0:
+                    cur.execute(
+                        """INSERT INTO cuarto_frio
+                           (tienda, fecha, usuario, temperatura, producto, existencia)
+                           VALUES (%s, %s, %s, %s, %s, %s)""",
+                        (tienda, fecha, usuario, temperatura, cf_productos[i], existencia)
+                    )
+
             conn.commit()
             return redirect("/registros")
 
@@ -131,14 +169,14 @@ def editar(id):
         cur = conn.cursor()
 
         if request.method == "POST":
-            tienda      = request.form.get("tienda")
-            fecha       = request.form.get("fecha")
-            usuario     = request.form.get("usuario")
-            producto    = request.form.get("producto")
-            inventario  = request.form.get("inventario") or 0
-            merma       = request.form.get("merma") or 0
-            razon       = request.form.get("razon") or ""
-            fecha_mod   = datetime.now().strftime("%d/%m/%Y %H:%M")
+            tienda     = request.form.get("tienda")
+            fecha      = request.form.get("fecha")
+            usuario    = request.form.get("usuario")
+            producto   = request.form.get("producto")
+            inventario = request.form.get("inventario") or 0
+            merma      = request.form.get("merma") or 0
+            razon      = request.form.get("razon") or ""
+            fecha_mod  = datetime.now().strftime("%d/%m/%Y %H:%M")
 
             cur.execute("""
                 UPDATE merma_inventario
@@ -167,7 +205,6 @@ def borrar(id):
     password = request.form.get("password")
     if password != DELETE_PASSWORD:
         return jsonify({"ok": False, "msg": "Contraseña incorrecta"}), 403
-
     conn = None
     cur = None
     try:
