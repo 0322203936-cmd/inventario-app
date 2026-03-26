@@ -7,7 +7,10 @@ app = Flask(__name__)
 
 # Conexión a PostgreSQL usando la variable de entorno
 def get_db():
-    conn = psycopg2.connect(os.environ.get("postgresql://inventario_db_seuw_user:BPdXtyGskgIBvDmL8zV8Lcu9ukqrmm1W@dpg-d72e7uoule4c73e3aj8g-a.oregon-postgres.render.com/inventario_db_seuw"))
+    url = os.environ.get("DATABASE_URL")
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    conn = psycopg2.connect(url)
     return conn
 
 # Crear tabla si no existe
