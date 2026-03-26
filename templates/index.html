@@ -55,7 +55,6 @@
             flex: 1;
         }
 
-        /* Segmentador de tiendas */
         .field-label {
             font-weight: 600;
             font-size: 14px;
@@ -64,38 +63,46 @@
             display: block;
         }
 
-        .tienda-scroll {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            margin-bottom: 14px;
+        /* ── Dropdown de tienda ── */
+        .tienda-select-wrapper {
+            position: relative;
+            margin-bottom: 16px;
         }
 
-        .tienda-scroll::-webkit-scrollbar { display: none; }
-
-        .tienda-pill {
-            flex-shrink: 0;
-            padding: 7px 13px;
-            border-radius: 20px;
+        .tienda-select-wrapper select {
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
             border: 1.5px solid #dadce0;
-            background: #fff;
-            color: #5f6368;
-            font-size: 13px;
+            border-radius: 8px;
+            padding: 10px 40px 10px 14px;
+            font-size: 14px;
             font-weight: 500;
+            color: #202124;
+            background: #fff;
             cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.15s;
-            user-select: none;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
 
-        .tienda-pill.active {
-            background: #1a73e8;
+        .tienda-select-wrapper select:focus {
             border-color: #1a73e8;
-            color: #fff;
-            font-weight: 600;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
+        }
+
+        /* Flecha personalizada */
+        .tienda-select-wrapper::after {
+            content: '';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #5f6368;
+            pointer-events: none;
         }
 
         /* Fecha y Usuario */
@@ -230,27 +237,28 @@
 
     <form method="POST" action="/" id="mainForm" class="form-body">
 
-        <input type="hidden" name="tienda" id="tiendaHidden" value="5041 Nuevo Mexicali">
-
-        <!-- Tienda segmentador -->
+        <!-- Tienda dropdown -->
         <span class="field-label">Tienda:</span>
-        <div class="tienda-scroll">
-            <div class="tienda-pill active"  onclick="selectTienda(this, '5041 Nuevo Mexicali')">5041 Nuevo Mexicali</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '4155 Tijuana 2000')">4155 Tijuana 2000</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '3015 Ensenada')">3015 Ensenada</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '2947 Ensenada Centro')">2947 Ensenada Centro</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '1613 Playas De Tijuana')">1613 Playas De Tijuana</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '190 Lomas de Santa Fe')">190 Lomas de Santa Fe</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '4187 Rosarito')">4187 Rosarito</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '2023 Macro Plaza Insurgentes')">2023 Macro Plaza Insurgentes</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '3664 Diaz Ordaz')">3664 Diaz Ordaz</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '4011 Tijuana Hipodromo')">4011 Tijuana Hipodromo</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '1616 Pacifico')">1616 Pacifico</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '1617 Novena')">1617 Novena</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '1140 Plaza San Pedro')">1140 Plaza San Pedro</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '4026 Galerías Del Valle')">4026 Galerías Del Valle</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '2304 Mexicali')">2304 Mexicali</div>
-            <div class="tienda-pill" onclick="selectTienda(this, '5295 Tecate Garita')">5295 Tecate Garita</div>
+        <div class="tienda-select-wrapper">
+            <select name="tienda" id="tiendaSelect" required>
+                <option value="" disabled>Selecciona una tienda…</option>
+                <option value="5041 Nuevo Mexicali" selected>5041 Nuevo Mexicali</option>
+                <option value="4155 Tijuana 2000">4155 Tijuana 2000</option>
+                <option value="3015 Ensenada">3015 Ensenada</option>
+                <option value="2947 Ensenada Centro">2947 Ensenada Centro</option>
+                <option value="1613 Playas De Tijuana">1613 Playas De Tijuana</option>
+                <option value="190 Lomas de Santa Fe">190 Lomas de Santa Fe</option>
+                <option value="4187 Rosarito">4187 Rosarito</option>
+                <option value="2023 Macro Plaza Insurgentes">2023 Macro Plaza Insurgentes</option>
+                <option value="3664 Diaz Ordaz">3664 Diaz Ordaz</option>
+                <option value="4011 Tijuana Hipodromo">4011 Tijuana Hipodromo</option>
+                <option value="1616 Pacifico">1616 Pacifico</option>
+                <option value="1617 Novena">1617 Novena</option>
+                <option value="1140 Plaza San Pedro">1140 Plaza San Pedro</option>
+                <option value="4026 Galerías Del Valle">4026 Galerías Del Valle</option>
+                <option value="2304 Mexicali">2304 Mexicali</option>
+                <option value="5295 Tecate Garita">5295 Tecate Garita</option>
+            </select>
         </div>
 
         <!-- Fecha -->
@@ -318,13 +326,6 @@
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
     document.getElementById('fechaInput').value = dd + '/' + mm + '/' + yyyy;
-
-    function selectTienda(el, valor) {
-        document.querySelectorAll('.tienda-pill').forEach(p => p.classList.remove('active'));
-        el.classList.add('active');
-        document.getElementById('tiendaHidden').value = valor;
-        el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
 
     function cancelar() {
         if (confirm('¿Descartar los cambios?')) {
