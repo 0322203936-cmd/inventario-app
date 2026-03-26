@@ -8,6 +8,8 @@ app = Flask(__name__)
 # Conexión a PostgreSQL usando la variable de entorno
 def get_db():
     url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("No se encontró la variable de entorno DATABASE_URL")
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
     conn = psycopg2.connect(url)
@@ -15,22 +17,27 @@ def get_db():
 
 # Crear tabla si no existe
 def init_db():
-    conn = get_db()
-    cur = conn.cursor()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS inventario (
+                id SERIAL PRIMARY KEY,
+                chofer TEXT,
+                producto TEXT,
+                cantidad INTEGER,
+                fecha TEXT
+            )
+        """)
+        conn.commit()
+    except Exception as e:
+        print("Error al inicializar la base de datos:", e)
+    finally:
+        cur.close()
+        conn.close()
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS inventario (
-            id SERIAL PRIMARY KEY,
-            chofer TEXT,
-            producto TEXT,
-            cantidad INTEGER,
-            fecha TEXT
-        )
-    """)
-
-    conn.commit()
-    cur.close()
-    conn.close()
+# Inicializamos la base de datos al importar la app
+init_db()
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -48,7 +55,8 @@ def index():
             (chofer, producto, cantidad, fecha)
         )
         conn.commit()
-
+        cur.close()
+        conn.close()
         return redirect("/")
 
     cur.execute("SELECT * FROM inventario ORDER BY id DESC")
@@ -59,6 +67,6 @@ def index():
 
     return render_template("index.html", registros=registros)
 
+# Para desarrollo local
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
