@@ -5,7 +5,6 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Conexión a PostgreSQL usando variable de entorno DATABASE_URL
 def get_db():
     url = os.environ.get("DATABASE_URL")
     if not url:
@@ -14,18 +13,21 @@ def get_db():
         url = url.replace("postgres://", "postgresql://", 1)
     return psycopg2.connect(url)
 
-# Crear tabla si no existe
 def init_db():
+    conn = None
+    cur = None
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS inventario (
+            CREATE TABLE IF NOT EXISTS merma_inventario (
                 id SERIAL PRIMARY KEY,
-                chofer TEXT,
+                tienda TEXT,
+                fecha TEXT,
+                usuario TEXT,
                 producto TEXT,
-                cantidad INTEGER,
-                fecha TEXT
+                inventario INTEGER,
+                merma INTEGER
             )
         """)
         conn.commit()
@@ -35,39 +37,65 @@ def init_db():
         if cur: cur.close()
         if conn: conn.close()
 
-# Inicializamos la base de datos al importar la app
 init_db()
+
+TIENDAS = [
+    "Sucursal Centro",
+    "Sucursal Norte",
+    "Sucursal Sur",
+    "Sucursal Este",
+    "Sucursal Oeste"
+]
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    conn = None
+    cur = None
     try:
         conn = get_db()
         cur = conn.cursor()
 
         if request.method == "POST":
-            chofer = request.form.get("chofer")
-            producto = request.form.get("producto")
-            cantidad = request.form.get("cantidad")
-            fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+            tienda = request.form.get("tienda")
+            fecha = request.form.get("fecha")
+            usuario = request.form.get("usuario")
+            productos = request.form.getlist("producto[]")
+            inventarios = request.form.getlist("inventario[]")
+            mermas = request.form.getlist("merma[]")
 
-            cur.execute(
-                "INSERT INTO inventario (chofer, producto, cantidad, fecha) VALUES (%s, %s, %s, %s)",
-                (chofer, producto, cantidad, fecha)
-            )
+            for i in range(len(productos)):
+                if productos[i].strip():
+                    cur.execute(
+                        "INSERT INTO merma_inventario (tienda, fecha, usuario, producto, inventario, merma) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (tienda, fecha, usuario, productos[i], inventarios[i] or 0, mermas[i] or 0)
+                    )
             conn.commit()
-            return redirect("/")
+            return redirect("/registros")
 
-        cur.execute("SELECT * FROM inventario ORDER BY id DESC")
-        registros = cur.fetchall()
-        return render_template("index.html", registros=registros)
+        today = datetime.now().strftime("%d/%m/%Y")
+        return render_template("index.html", tiendas=TIENDAS, today=today)
 
     except Exception as e:
         return f"<h2>Error en la aplicación:</h2><pre>{e}</pre>"
-
     finally:
         if cur: cur.close()
         if conn: conn.close()
 
-# Para desarrollo local
+@app.route("/registros")
+def registros():
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM merma_inventario ORDER BY id DESC")
+        registros = cur.fetchall()
+        return render_template("registros.html", registros=registros)
+    except Exception as e:
+        return f"<h2>Error:</h2><pre>{e}</pre>"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
