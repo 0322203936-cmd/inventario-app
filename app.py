@@ -44,7 +44,6 @@ def init_db():
                 tienda TEXT,
                 fecha TEXT,
                 usuario TEXT,
-                temperatura TEXT,
                 producto TEXT,
                 existencia INTEGER,
                 fecha_modificacion TEXT
@@ -86,7 +85,7 @@ def index():
             mermas      = request.form.getlist("merma[]")
             razones     = request.form.getlist("razon[]")
 
-            # ── Merma/inventario: solo guarda si inventario > 0 O merma > 0 ──
+            # Merma/inventario: solo guarda si inventario > 0 O merma > 0
             for i in range(len(productos)):
                 if not productos[i].strip():
                     continue
@@ -104,15 +103,11 @@ def index():
                         """INSERT INTO merma_inventario
                            (tienda, fecha, usuario, producto, inventario, merma, razon)
                            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-                        (
-                            tienda, fecha, usuario,
-                            productos[i], inv, mer,
-                            razones[i] if i < len(razones) else ""
-                        )
+                        (tienda, fecha, usuario, productos[i], inv, mer,
+                         razones[i] if i < len(razones) else "")
                     )
 
-            # ── Cuarto frío: solo guarda si existencia > 0 ──
-            temperatura    = request.form.get("cf_temperatura", "").strip()
+            # Cuarto frío: solo guarda si existencia > 0
             cf_productos   = request.form.getlist("cf_producto[]")
             cf_existencias = request.form.getlist("cf_existencia[]")
 
@@ -121,13 +116,12 @@ def index():
                     existencia = int(cf_existencias[i]) if cf_existencias[i] else 0
                 except ValueError:
                     existencia = 0
-
                 if existencia > 0:
                     cur.execute(
                         """INSERT INTO cuarto_frio
-                           (tienda, fecha, usuario, temperatura, producto, existencia)
-                           VALUES (%s, %s, %s, %s, %s, %s)""",
-                        (tienda, fecha, usuario, temperatura, cf_productos[i], existencia)
+                           (tienda, fecha, usuario, producto, existencia)
+                           VALUES (%s, %s, %s, %s, %s)""",
+                        (tienda, fecha, usuario, cf_productos[i], existencia)
                     )
 
             conn.commit()
@@ -151,8 +145,10 @@ def registros():
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT * FROM merma_inventario ORDER BY id DESC")
-        registros = cur.fetchall()
-        return render_template("registros.html", registros=registros)
+        merma_rows = cur.fetchall()
+        cur.execute("SELECT * FROM cuarto_frio ORDER BY id DESC")
+        cf_rows = cur.fetchall()
+        return render_template("registros.html", registros=merma_rows, cf_registros=cf_rows)
     except Exception as e:
         return f"<h2>Error:</h2><pre>{e}</pre>"
     finally:
@@ -211,6 +207,26 @@ def borrar(id):
         conn = get_db()
         cur = conn.cursor()
         cur.execute("DELETE FROM merma_inventario WHERE id=%s", (id,))
+        conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@app.route("/borrar_cf/<int:id>", methods=["POST"])
+def borrar_cf(id):
+    password = request.form.get("password")
+    if password != DELETE_PASSWORD:
+        return jsonify({"ok": False, "msg": "Contraseña incorrecta"}), 403
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM cuarto_frio WHERE id=%s", (id,))
         conn.commit()
         return jsonify({"ok": True})
     except Exception as e:
