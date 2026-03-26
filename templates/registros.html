@@ -30,8 +30,8 @@
         .app-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 18px 16px 14px;
+            justify-content: space-between;
+            padding: 14px 14px 12px;
             border-bottom: 1px solid #e8eaed;
             position: sticky;
             top: 0;
@@ -41,10 +41,9 @@
 
         .app-header h5 {
             color: #1a73e8;
-            font-size: 17px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
             margin: 0;
-            flex: 1;
         }
 
         .btn-nuevo {
@@ -52,120 +51,106 @@
             color: #fff;
             border: none;
             border-radius: 6px;
-            padding: 8px 14px;
+            padding: 7px 13px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
-            white-space: nowrap;
         }
 
         .btn-nuevo:hover { background: #1557b0; color: #fff; }
 
         .lista {
             flex: 1;
-            padding: 12px 12px 24px;
+            padding: 8px 10px 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 6px;
         }
 
         .empty-state {
             text-align: center;
             color: #9aa0a6;
             margin-top: 60px;
-            font-size: 15px;
+            font-size: 14px;
         }
 
-        /* Tarjeta por registro */
-        .card-reg {
+        /* Fila compacta */
+        .row-reg {
             border: 1px solid #e8eaed;
-            border-radius: 10px;
-            padding: 12px 14px;
+            border-radius: 8px;
+            padding: 8px 10px;
             background: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
 
-        .card-top {
+        .row-line1 {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 6px;
+            align-items: baseline;
+            margin-bottom: 2px;
         }
 
-        .card-tienda {
+        .row-tienda {
             font-weight: 700;
-            font-size: 13px;
+            font-size: 12px;
             color: #1a73e8;
         }
 
-        .card-fecha {
+        .row-fecha {
             font-size: 11px;
             color: #9aa0a6;
-            white-space: nowrap;
-            margin-left: 8px;
         }
 
-        .card-producto {
-            font-size: 14px;
+        .row-producto {
+            font-size: 13px;
             font-weight: 600;
             color: #202124;
-            margin-bottom: 6px;
+            margin-bottom: 3px;
         }
 
-        .card-meta {
+        .row-nums {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 6px;
+            gap: 10px;
+            margin-bottom: 2px;
         }
 
-        .badge-meta {
-            background: #f1f3f4;
-            border-radius: 6px;
-            padding: 3px 9px;
-            font-size: 12px;
-            color: #202124;
-        }
-
-        .badge-meta span {
-            font-weight: 700;
-        }
-
-        .card-razon {
+        .num-badge {
             font-size: 12px;
             color: #5f6368;
-            margin-bottom: 6px;
         }
 
-        .card-razon b { color: #202124; }
+        .num-badge b { color: #202124; }
 
-        .card-usuario {
+        .row-razon {
             font-size: 11px;
-            color: #9aa0a6;
-            margin-bottom: 4px;
+            color: #5f6368;
+            margin-bottom: 2px;
         }
 
-        .card-fecha-mod {
+        .row-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .row-meta {
             font-size: 10px;
             color: #bdc1c6;
-            font-style: italic;
-            margin-bottom: 8px;
         }
 
-        .card-actions {
+        .row-actions {
             display: flex;
-            gap: 8px;
-            justify-content: flex-end;
+            gap: 6px;
         }
 
         .btn-editar {
-            border: 1.5px solid #1a73e8;
+            border: 1px solid #1a73e8;
             background: #fff;
             color: #1a73e8;
-            border-radius: 6px;
-            padding: 6px 14px;
-            font-size: 13px;
+            border-radius: 5px;
+            padding: 3px 10px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
@@ -174,19 +159,19 @@
         .btn-editar:hover { background: #e8f0fe; }
 
         .btn-borrar {
-            border: 1.5px solid #d93025;
+            border: 1px solid #d93025;
             background: #fff;
             color: #d93025;
-            border-radius: 6px;
-            padding: 6px 14px;
-            font-size: 13px;
+            border-radius: 5px;
+            padding: 3px 10px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
         }
 
         .btn-borrar:hover { background: #fce8e6; }
 
-        /* Modal contraseña */
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -202,34 +187,34 @@
         .modal-box {
             background: #fff;
             border-radius: 12px;
-            padding: 24px 20px;
-            width: 300px;
+            padding: 20px 18px;
+            width: 290px;
             max-width: 90vw;
             box-shadow: 0 8px 32px rgba(0,0,0,0.18);
         }
 
         .modal-box h6 {
             font-weight: 700;
-            font-size: 16px;
+            font-size: 15px;
             color: #202124;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         .modal-box p {
-            font-size: 13px;
+            font-size: 12px;
             color: #5f6368;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
 
         .modal-box input {
             width: 100%;
             border: 1.5px solid #dadce0;
             border-radius: 6px;
-            padding: 9px 12px;
+            padding: 8px 12px;
             font-size: 14px;
             color: #202124;
             outline: none;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .modal-box input:focus { border-color: #d93025; }
@@ -243,7 +228,7 @@
 
         .modal-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .modal-btn-cancel {
@@ -252,8 +237,8 @@
             background: #fff;
             color: #202124;
             border-radius: 6px;
-            padding: 9px;
-            font-size: 14px;
+            padding: 8px;
+            font-size: 13px;
             cursor: pointer;
         }
 
@@ -263,9 +248,9 @@
             color: #fff;
             border: none;
             border-radius: 6px;
-            padding: 9px;
-            font-size: 14px;
-            font-weight: 600;
+            padding: 8px;
+            font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
         }
 
@@ -286,27 +271,26 @@
         {% endif %}
 
         {% for r in registros %}
-        {# columnas: id(0) tienda(1) fecha(2) usuario(3) producto(4) inventario(5) merma(6) razon(7) fecha_mod(8) #}
-        <div class="card-reg">
-            <div class="card-top">
-                <span class="card-tienda">{{ r[1] }}</span>
-                <span class="card-fecha">{{ r[2] }}</span>
+        {# id(0) tienda(1) fecha(2) usuario(3) producto(4) inventario(5) merma(6) razon(7) fecha_mod(8) #}
+        <div class="row-reg">
+            <div class="row-line1">
+                <span class="row-tienda">{{ r[1] }}</span>
+                <span class="row-fecha">{{ r[2] }}</span>
             </div>
-            <div class="card-producto">{{ r[4] }}</div>
-            <div class="card-meta">
-                <div class="badge-meta">Inv: <span>{{ r[5] }}</span></div>
-                <div class="badge-meta">Merma: <span>{{ r[6] }}</span></div>
+            <div class="row-producto">{{ r[4] }}</div>
+            <div class="row-nums">
+                <span class="num-badge">Inv: <b>{{ r[5] }}</b></span>
+                <span class="num-badge">Merma: <b>{{ r[6] }}</b></span>
             </div>
-            {% if r[7] %}
-            <div class="card-razon">Razón: <b>{{ r[7] }}</b></div>
-            {% endif %}
-            <div class="card-usuario">Usuario: {{ r[3] }}</div>
-            {% if r[8] %}
-            <div class="card-fecha-mod">Modificado: {{ r[8] }}</div>
-            {% endif %}
-            <div class="card-actions">
-                <a href="/editar/{{ r[0] }}" class="btn-editar">Editar</a>
-                <button class="btn-borrar" onclick="pedirPassword({{ r[0] }})">Borrar</button>
+            {% if r[7] %}<div class="row-razon">Razón: {{ r[7] }}</div>{% endif %}
+            <div class="row-bottom">
+                <div class="row-meta">
+                    {{ r[3] }}{% if r[8] %} · Mod: {{ r[8] }}{% endif %}
+                </div>
+                <div class="row-actions">
+                    <a href="/editar/{{ r[0] }}" class="btn-editar">Editar</a>
+                    <button class="btn-borrar" onclick="pedirPassword({{ r[0] }})">Borrar</button>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -353,31 +337,20 @@
         formData.append('password', pass);
 
         try {
-            const res = await fetch(`/borrar/${idABorrar}`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (res.ok) {
-                cerrarModal();
-                location.reload();
-            } else {
-                errEl.style.display = 'block';
-                document.getElementById('passInput').focus();
-            }
+            const res = await fetch(`/borrar/${idABorrar}`, { method: 'POST', body: formData });
+            if (res.ok) { cerrarModal(); location.reload(); }
+            else { errEl.style.display = 'block'; document.getElementById('passInput').focus(); }
         } catch(e) {
             errEl.textContent = 'Error de red. Intenta de nuevo.';
             errEl.style.display = 'block';
         }
     }
 
-    // Enter en el modal confirma
-    document.getElementById('passInput').addEventListener('keydown', function(e) {
+    document.getElementById('passInput').addEventListener('keydown', e => {
         if (e.key === 'Enter') confirmarBorrar();
     });
 
-    // Clic fuera del modal lo cierra
-    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    document.getElementById('modalOverlay').addEventListener('click', e => {
         if (e.target === this) cerrarModal();
     });
 </script>
