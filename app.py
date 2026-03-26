@@ -1,32 +1,38 @@
 from flask import Flask, render_template, request, redirect
-import sqlite3
-from datetime import datetime
+import psycopg2
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
+# Conexión a PostgreSQL usando la variable de entorno
 def get_db():
-    conn = sqlite3.connect("inventario.db")
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
     return conn
 
+# Crear tabla si no existe
 def init_db():
     conn = get_db()
-    conn.execute("""
+    cur = conn.cursor()
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS inventario (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             chofer TEXT,
             producto TEXT,
             cantidad INTEGER,
             fecha TEXT
         )
     """)
+
     conn.commit()
+    cur.close()
     conn.close()
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     conn = get_db()
+    cur = conn.cursor()
 
     if request.method == "POST":
         chofer = request.form["chofer"]
@@ -34,15 +40,18 @@ def index():
         cantidad = request.form["cantidad"]
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        conn.execute(
-            "INSERT INTO inventario (chofer, producto, cantidad, fecha) VALUES (?, ?, ?, ?)",
+        cur.execute(
+            "INSERT INTO inventario (chofer, producto, cantidad, fecha) VALUES (%s, %s, %s, %s)",
             (chofer, producto, cantidad, fecha)
         )
         conn.commit()
 
         return redirect("/")
 
-    registros = conn.execute("SELECT * FROM inventario ORDER BY id DESC").fetchall()
+    cur.execute("SELECT * FROM inventario ORDER BY id DESC")
+    registros = cur.fetchall()
+
+    cur.close()
     conn.close()
 
     return render_template("index.html", registros=registros)
