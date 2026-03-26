@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect
 import sqlite3
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
@@ -45,22 +46,6 @@ def index():
     conn.close()
 
     return render_template("index.html", registros=registros)
-
-if __name__ == "__main__":
-    init_db()
-import os
-
-if __name__ == "__main__":
-    init_db()
-   import os
-
-if __name__ == "__main__":
-    init_db()
-import os
-
-if __name__ == "__main__":
-    init_db()
-import os
 
 if __name__ == "__main__":
     init_db()
