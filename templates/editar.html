@@ -182,7 +182,14 @@
 
         <div class="field-group">
             <label>Usuario</label>
-            <input type="text" name="usuario" value="{{ reg[3] }}" placeholder="Usuario" required>
+            <div class="select-wrapper">
+                <select name="usuario" required>
+                    <option value="" disabled>Selecciona usuario…</option>
+                    <option value="Mizael" {% if reg[3] == 'Mizael' %}selected{% endif %}>Mizael</option>
+                    <option value="Esteban" {% if reg[3] == 'Esteban' %}selected{% endif %}>Esteban</option>
+                    <option value="Victor" {% if reg[3] == 'Victor' %}selected{% endif %}>Victor</option>
+                </select>
+            </div>
         </div>
 
         <div class="field-group">
@@ -202,7 +209,13 @@
 
         <div class="field-group">
             <label>Razón de merma</label>
-            <textarea name="razon" placeholder="Escribe la razón…">{{ reg[7] or '' }}</textarea>
+            <div class="select-wrapper">
+                <select name="razon">
+                    <option value="">—</option>
+                    <option value="Fecha" {% if reg[7] == 'Fecha' %}selected{% endif %}>Fecha</option>
+                    <option value="Calidad" {% if reg[7] == 'Calidad' %}selected{% endif %}>Calidad</option>
+                </select>
+            </div>
         </div>
 
     </form>
