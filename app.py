@@ -5,6 +5,7 @@ import requests as req_lib
 import msal
 from datetime import datetime
 
+
 app = Flask(__name__)
 
 DELETE_PASSWORD = "CFBCWALMEX"
