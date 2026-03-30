@@ -322,13 +322,22 @@
         }
     });
 
+    let _enviando = false;
+
     function guardar() {
+        if (_enviando) return;
         const tienda  = document.getElementById('tiendaSelect').value;
         const usuario = document.getElementById('usuarioInput').value.trim();
         const fecha   = document.getElementById('fechaInput').value.trim();
         if (!tienda)  { alert('Selecciona una tienda.'); return; }
         if (!usuario) { alert('Escribe el nombre del usuario.'); document.getElementById('usuarioInput').focus(); return; }
         if (!fecha)   { alert('Ingresa la fecha.'); document.getElementById('fechaInput').focus(); return; }
+
+        _enviando = true;
+        const btn = document.querySelector('.btn-guardar');
+        btn.disabled = true;
+        btn.textContent = 'Guardando…';
+        btn.style.opacity = '0.7';
         document.getElementById('mainForm').submit();
     }
 
