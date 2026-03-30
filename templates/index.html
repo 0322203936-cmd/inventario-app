@@ -148,6 +148,7 @@
         .razon-input {
             width: 100%; border: 1.5px solid #dadce0; border-radius: 6px;
             padding: 6px 6px; font-size: 12px; color: #202124; outline: none; background: #fff;
+            appearance: none; -webkit-appearance: none;
         }
         .razon-input:focus { border-color: #1a73e8; }
 
@@ -208,7 +209,14 @@
 
         <div class="field-row">
             <span class="field-row-label">Usuario:</span>
-            <input type="text" name="usuario" id="usuarioInput" placeholder="Usuario" required tabindex="3">
+            <div class="tienda-select-wrapper" style="flex:1; margin-bottom:0;">
+                <select name="usuario" id="usuarioInput" required tabindex="3">
+                    <option value="" disabled selected>Selecciona usuario…</option>
+                    <option value="Mizael">Mizael</option>
+                    <option value="Esteban">Esteban</option>
+                    <option value="Victor">Victor</option>
+                </select>
+            </div>
         </div>
 
         <!-- Cajita Cuarto Frío -->
@@ -276,8 +284,11 @@
                             tabindex="{{ loop.index * 3 + 2 }}" onfocus="this.select()">
                     </td>
                     <td>
-                        <input class="razon-input" type="text" name="razon[]"
-                            placeholder="—" tabindex="{{ loop.index * 3 + 3 }}">
+                        <select class="razon-input" name="razon[]" tabindex="{{ loop.index * 3 + 3 }}">
+                            <option value="">—</option>
+                            <option value="Fecha">Fecha</option>
+                            <option value="Calidad">Calidad</option>
+                        </select>
                     </td>
                     <input type="hidden" name="producto[]" value="{{ p }}">
                 </tr>
@@ -327,7 +338,7 @@
     function guardar() {
         if (_enviando) return;
         const tienda  = document.getElementById('tiendaSelect').value;
-        const usuario = document.getElementById('usuarioInput').value.trim();
+        const usuario = document.getElementById('usuarioInput').value;
         const fecha   = document.getElementById('fechaInput').value.trim();
         if (!tienda)  { alert('Selecciona una tienda.'); return; }
         if (!usuario) { alert('Escribe el nombre del usuario.'); document.getElementById('usuarioInput').focus(); return; }
