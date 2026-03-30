@@ -140,34 +140,59 @@ def _format_data_row(headers_auth, base_url, sheet_name, row_idx, col_count, alt
 
 
 def _ensure_headers_and_format(headers_auth, base_url, sheet_name, col_headers, bg_color):
-    """Escribe encabezados si la hoja está vacía y aplica formato."""
+    """Siempre verifica que la fila 1 tenga todos los encabezados correctos y con formato."""
     end_col   = _col_letter(len(col_headers))
-    range_url = f"{base_url}/workbook/worksheets/{sheet_name}/range(address='A1')"
+    range_url = (
+        f"{base_url}/workbook/worksheets/{sheet_name}"
+        f"/range(address='A1:{end_col}1')"
+    )
     r = req_lib.get(range_url, headers=headers_auth, timeout=30)
+    needs_write = True
     if r.ok:
         values = r.json().get("values", [[]])
-        val = values[0][0] if values and values[0] else ""
-        if not val:
-            patch_url = (
-                f"{base_url}/workbook/worksheets/{sheet_name}"
-                f"/range(address='A1:{end_col}1')"
-            )
-            req_lib.patch(
-                patch_url,
-                headers={**headers_auth, "Content-Type": "application/json"},
-                json={"values": [col_headers]},
-                timeout=30
-            )
-            _format_header_row(headers_auth, base_url, sheet_name, len(col_headers), bg_color)
+        row = values[0] if values else []
+        if row and all(str(row[i]).strip() == col_headers[i] for i in range(len(col_headers)) if i < len(row)):
+            needs_write = False
+
+    if needs_write:
+        req_lib.patch(
+            range_url,
+            headers={**headers_auth, "Content-Type": "application/json"},
+            json={"values": [col_headers]},
+            timeout=30
+        )
+        _format_header_row(headers_auth, base_url, sheet_name, len(col_headers), bg_color)
 
 
 def _find_next_empty_row(headers_auth, base_url, sheet_name):
+    """
+    Busca la primera fila realmente vacia en columna A,
+    ignorando filas borradas que Excel aun cuenta en usedRange.
+    """
     used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
     r = req_lib.get(used_url, headers=headers_auth, timeout=30)
-    if r.ok:
-        row_count = r.json().get("rowCount", 0)
+    if not r.ok:
+        return 2
+
+    row_count = r.json().get("rowCount", 1)
+    if row_count <= 1:
+        return 2
+
+    col_url = (
+        f"{base_url}/workbook/worksheets/{sheet_name}"
+        f"/range(address='A1:A{row_count}')"
+    )
+    r2 = req_lib.get(col_url, headers=headers_auth, timeout=30)
+    if not r2.ok:
         return row_count + 1
-    return 2
+
+    values = r2.json().get("values", [])
+    last_row_with_data = 1
+    for i, cell in enumerate(values):
+        if cell and str(cell[0]).strip():
+            last_row_with_data = i + 1
+
+    return last_row_with_data + 1
 
 
 def escribir_en_excel(filas_detalle, filas_cf):
