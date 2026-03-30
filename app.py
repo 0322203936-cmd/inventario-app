@@ -16,8 +16,7 @@ SP_CLIENT_ID     = os.environ.get("SP_CLIENT_ID",     "98625318-3270-42ab-ac73-6
 SP_CLIENT_SECRET = os.environ.get("SP_CLIENT_SECRET", "f4R8Q~uEJ4agJag~cIlmBp4LP7BzQhz8jiWs-bMW")
 SP_SITE_URL      = os.environ.get("SP_SITE_URL",      "https://pacificafarms.sharepoint.com/sites/requerimientovsproyeccion")
 SP_FILE_PATH     = os.environ.get("SP_FILE_PATH",     "/requerimiento vs proyeccion/WALMEX/Analisis Walmart.xlsx")
-SP_SHEET_DETALLE   = os.environ.get("SP_SHEET_NAME",       "Detalle")
-SP_SHEET_CF        = os.environ.get("SP_SHEET_NAME_CF",    "CuartoFrio")
+SP_SHEET_DETALLE  = os.environ.get("SP_SHEET_NAME", "Detalle")
 
 HEADERS_DETALLE = [
     "Fecha de registro", "Tienda", "Fecha", "Usuario",
@@ -29,12 +28,18 @@ HEADERS_CF = [
     "Producto", "Existencia"
 ]
 
+# Tabla Detalle: columnas A-H (col 1-8)
+# Separador:    columna I (9) vacia
+# Tabla CF:     columnas J-O (col 10-15)
+COL_DETALLE_START = 1   # A
+COL_CF_START      = 10  # J
+
 # Colores en hex para Graph API (sin #)
-COLOR_HEADER_DETALLE = "1A73E8"   # azul
-COLOR_TEXT_HEADER    = "FFFFFF"   # blanco
-COLOR_HEADER_CF      = "0D9488"   # teal
-COLOR_ROW_ALT        = "EBF3FD"   # azul muy claro para filas pares (Detalle)
-COLOR_ROW_ALT_CF     = "F0FDFA"   # verde muy claro para filas pares (CF)
+COLOR_HEADER_DETALLE = "1A73E8"
+COLOR_TEXT_HEADER    = "FFFFFF"
+COLOR_HEADER_CF      = "0D9488"
+COLOR_ROW_ALT        = "EBF3FD"
+COLOR_ROW_ALT_CF     = "F0FDFA"
 
 
 def _get_sp_token():
@@ -79,97 +84,70 @@ def _col_letter(n):
 
 def _ensure_sheet_exists(headers, base_url, sheet_name):
     """Crea la hoja si no existe."""
-    r = req_lib.get(
-        f"{base_url}/workbook/worksheets",
-        headers=headers, timeout=30
-    )
+    r = req_lib.get(f"{base_url}/workbook/worksheets", headers=headers, timeout=30)
     if r.ok:
         names = [s.get("name", "") for s in r.json().get("value", [])]
         if sheet_name not in names:
             req_lib.post(
                 f"{base_url}/workbook/worksheets",
                 headers={**headers, "Content-Type": "application/json"},
-                json={"name": sheet_name},
-                timeout=30
+                json={"name": sheet_name}, timeout=30
             )
 
 
-def _format_header_row(headers_auth, base_url, sheet_name, col_count, bg_color):
-    """Aplica formato vistoso a la fila de encabezados."""
-    end_col = _col_letter(col_count)
+def _format_range(headers_auth, base_url, address, bg_color, bold=False,
+                  font_color="000000", font_size=10):
+    """Aplica formato de relleno y fuente a un rango dado."""
     fmt_url = (
-        f"{base_url}/workbook/worksheets/{sheet_name}"
-        f"/range(address='A1:{end_col}1')/format"
+        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"/range(address='{address}')/format"
     )
-    # Fondo y texto
     req_lib.patch(fmt_url + "/fill",
         headers={**headers_auth, "Content-Type": "application/json"},
         json={"color": bg_color}, timeout=30)
     req_lib.patch(fmt_url + "/font",
         headers={**headers_auth, "Content-Type": "application/json"},
-        json={"bold": True, "color": COLOR_TEXT_HEADER, "size": 11}, timeout=30)
-    # Altura de fila encabezado
-    req_lib.patch(
-        f"{base_url}/workbook/worksheets/{sheet_name}/rows/itemAt(index=0)/format",
-        headers={**headers_auth, "Content-Type": "application/json"},
-        json={"rowHeight": 22}, timeout=30)
-    # Congelar primera fila
-    req_lib.patch(
-        f"{base_url}/workbook/worksheets/{sheet_name}",
-        headers={**headers_auth, "Content-Type": "application/json"},
-        json={"freezePanes": {"frozenRows": 1}}, timeout=30)
+        json={"bold": bold, "color": font_color, "size": font_size}, timeout=30)
 
 
-def _format_data_row(headers_auth, base_url, sheet_name, row_idx, col_count, alt_color):
-    """Aplica color alternado y bordes a una fila de datos."""
-    end_col = _col_letter(col_count)
-    address = f"A{row_idx}:{end_col}{row_idx}"
-    fmt_url = (
-        f"{base_url}/workbook/worksheets/{sheet_name}"
-        f"/range(address='{address}')/format"
+def _ensure_table_headers(headers_auth, base_url, col_start, col_headers, bg_color):
+    """
+    Verifica y escribe encabezados en la fila 1 a partir de col_start.
+    También aplica formato a esa fila de encabezados.
+    """
+    col_end      = col_start + len(col_headers) - 1
+    start_letter = _col_letter(col_start)
+    end_letter   = _col_letter(col_end)
+    address      = f"{start_letter}1:{end_letter}1"
+    range_url    = (
+        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"/range(address='{address}')"
     )
-    # Fila alternada (par = color suave, impar = blanco)
-    if row_idx % 2 == 0:
-        req_lib.patch(fmt_url + "/fill",
-            headers={**headers_auth, "Content-Type": "application/json"},
-            json={"color": alt_color}, timeout=30)
-    # Fuente datos
-    req_lib.patch(fmt_url + "/font",
-        headers={**headers_auth, "Content-Type": "application/json"},
-        json={"size": 10}, timeout=30)
 
-
-def _ensure_headers_and_format(headers_auth, base_url, sheet_name, col_headers, bg_color):
-    """Siempre verifica que la fila 1 tenga todos los encabezados correctos y con formato."""
-    end_col   = _col_letter(len(col_headers))
-    range_url = (
-        f"{base_url}/workbook/worksheets/{sheet_name}"
-        f"/range(address='A1:{end_col}1')"
-    )
     r = req_lib.get(range_url, headers=headers_auth, timeout=30)
     needs_write = True
     if r.ok:
         values = r.json().get("values", [[]])
         row = values[0] if values else []
-        if row and all(str(row[i]).strip() == col_headers[i] for i in range(len(col_headers)) if i < len(row)):
+        if row and all(str(row[i]).strip() == col_headers[i]
+                       for i in range(len(col_headers)) if i < len(row)):
             needs_write = False
 
     if needs_write:
-        req_lib.patch(
-            range_url,
+        req_lib.patch(range_url,
             headers={**headers_auth, "Content-Type": "application/json"},
-            json={"values": [col_headers]},
-            timeout=30
-        )
-        _format_header_row(headers_auth, base_url, sheet_name, len(col_headers), bg_color)
+            json={"values": [col_headers]}, timeout=30)
+        _format_range(headers_auth, base_url, address,
+                      bg_color=bg_color, bold=True,
+                      font_color=COLOR_TEXT_HEADER, font_size=11)
 
 
-def _find_next_empty_row(headers_auth, base_url, sheet_name):
+def _find_next_empty_row_col(headers_auth, base_url, col_start):
     """
-    Busca la primera fila realmente vacia en columna A,
-    ignorando filas borradas que Excel aun cuenta en usedRange.
+    Busca la primera fila vacia en la columna col_start (1-based),
+    leyendo celda a celda para ignorar filas borradas.
     """
-    used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
+    used_url = f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}/usedRange"
     r = req_lib.get(used_url, headers=headers_auth, timeout=30)
     if not r.ok:
         return 2
@@ -178,9 +156,10 @@ def _find_next_empty_row(headers_auth, base_url, sheet_name):
     if row_count <= 1:
         return 2
 
+    col_letter = _col_letter(col_start)
     col_url = (
-        f"{base_url}/workbook/worksheets/{sheet_name}"
-        f"/range(address='A1:A{row_count}')"
+        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"/range(address='{col_letter}1:{col_letter}{row_count}')"
     )
     r2 = req_lib.get(col_url, headers=headers_auth, timeout=30)
     if not r2.ok:
@@ -197,9 +176,10 @@ def _find_next_empty_row(headers_auth, base_url, sheet_name):
 
 def escribir_en_excel(filas_detalle, filas_cf):
     """
-    Escribe filas en hojas separadas con formato:
-      - filas_detalle → hoja 'Detalle'   (azul)
-      - filas_cf      → hoja 'CuartoFrio' (teal)
+    Escribe ambas tablas en la hoja Detalle:
+      - Tabla Merma/Inventario: columnas A-H (col 1-8)  encabezado azul
+      - Separador:              columna I (9) vacia
+      - Tabla Cuarto Frio:      columnas J-O (col 10-15) encabezado teal
     """
     try:
         token = _get_sp_token()
@@ -211,59 +191,59 @@ def escribir_en_excel(filas_detalle, filas_cf):
         site_id      = _get_site_id(auth_headers)
         base_url     = _get_base_url(site_id)
 
-        # ── Hoja Detalle ──────────────────────────────────────────────────
+        _ensure_sheet_exists(auth_headers, base_url, SP_SHEET_DETALLE)
+
+        # ── Tabla Merma / Inventario (columnas A-H) ───────────────────────
         if filas_detalle:
-            _ensure_sheet_exists(auth_headers, base_url, SP_SHEET_DETALLE)
-            _ensure_headers_and_format(
-                auth_headers, base_url, SP_SHEET_DETALLE,
-                HEADERS_DETALLE, COLOR_HEADER_DETALLE
-            )
-            next_row = _find_next_empty_row(auth_headers, base_url, SP_SHEET_DETALLE)
+            _ensure_table_headers(auth_headers, base_url,
+                                  COL_DETALLE_START, HEADERS_DETALLE,
+                                  COLOR_HEADER_DETALLE)
+            next_row = _find_next_empty_row_col(auth_headers, base_url, COL_DETALLE_START)
             n_cols   = len(HEADERS_DETALLE)
-            end_col  = _col_letter(n_cols)
+            s_col    = _col_letter(COL_DETALLE_START)
+            e_col    = _col_letter(COL_DETALLE_START + n_cols - 1)
             end_row  = next_row + len(filas_detalle) - 1
-            address  = f"A{next_row}:{end_col}{end_row}"
+            address  = f"{s_col}{next_row}:{e_col}{end_row}"
 
             resp = req_lib.patch(
                 f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}/range(address='{address}')",
                 headers={**auth_headers, "Content-Type": "application/json"},
-                json={"values": filas_detalle},
-                timeout=30
+                json={"values": filas_detalle}, timeout=30
             )
             if resp.ok:
-                for i, _ in enumerate(filas_detalle):
-                    _format_data_row(
-                        auth_headers, base_url, SP_SHEET_DETALLE,
-                        next_row + i, n_cols, COLOR_ROW_ALT
-                    )
+                for i in range(len(filas_detalle)):
+                    row_idx = next_row + i
+                    if row_idx % 2 == 0:
+                        _format_range(auth_headers, base_url,
+                                      f"{s_col}{row_idx}:{e_col}{row_idx}",
+                                      bg_color=COLOR_ROW_ALT, font_size=10)
             else:
                 print(f"[SP] Error Detalle: {resp.status_code} {resp.text[:200]}")
 
-        # ── Hoja Cuarto Frío ──────────────────────────────────────────────
+        # ── Tabla Cuarto Frio (columnas J-O) ─────────────────────────────
         if filas_cf:
-            _ensure_sheet_exists(auth_headers, base_url, SP_SHEET_CF)
-            _ensure_headers_and_format(
-                auth_headers, base_url, SP_SHEET_CF,
-                HEADERS_CF, COLOR_HEADER_CF
-            )
-            next_row = _find_next_empty_row(auth_headers, base_url, SP_SHEET_CF)
+            _ensure_table_headers(auth_headers, base_url,
+                                  COL_CF_START, HEADERS_CF,
+                                  COLOR_HEADER_CF)
+            next_row = _find_next_empty_row_col(auth_headers, base_url, COL_CF_START)
             n_cols   = len(HEADERS_CF)
-            end_col  = _col_letter(n_cols)
+            s_col    = _col_letter(COL_CF_START)
+            e_col    = _col_letter(COL_CF_START + n_cols - 1)
             end_row  = next_row + len(filas_cf) - 1
-            address  = f"A{next_row}:{end_col}{end_row}"
+            address  = f"{s_col}{next_row}:{e_col}{end_row}"
 
             resp = req_lib.patch(
-                f"{base_url}/workbook/worksheets/{SP_SHEET_CF}/range(address='{address}')",
+                f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}/range(address='{address}')",
                 headers={**auth_headers, "Content-Type": "application/json"},
-                json={"values": filas_cf},
-                timeout=30
+                json={"values": filas_cf}, timeout=30
             )
             if resp.ok:
-                for i, _ in enumerate(filas_cf):
-                    _format_data_row(
-                        auth_headers, base_url, SP_SHEET_CF,
-                        next_row + i, n_cols, COLOR_ROW_ALT_CF
-                    )
+                for i in range(len(filas_cf)):
+                    row_idx = next_row + i
+                    if row_idx % 2 == 0:
+                        _format_range(auth_headers, base_url,
+                                      f"{s_col}{row_idx}:{e_col}{row_idx}",
+                                      bg_color=COLOR_ROW_ALT_CF, font_size=10)
             else:
                 print(f"[SP] Error CuartoFrio: {resp.status_code} {resp.text[:200]}")
 
