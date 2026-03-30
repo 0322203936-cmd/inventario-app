@@ -4,6 +4,7 @@ import os
 import requests as req_lib
 import msal
 from datetime import datetime
+import threading
 
 
 app = Flask(__name__)
@@ -379,7 +380,12 @@ def index():
             conn.commit()
 
             if filas_detalle or filas_cf:
-                escribir_en_excel(filas_detalle, filas_cf)
+                t = threading.Thread(
+                    target=escribir_en_excel,
+                    args=(filas_detalle, filas_cf),
+                    daemon=True
+                )
+                t.start()
 
             return redirect("/registros")
 
