@@ -297,12 +297,12 @@ def init_db():
 init_db()
 
 TIENDAS = [
-    "SC MEXICALI NOVENA","SC NUEVO MEXICALI","SC PLAZA SAN PEDRO",
-    "SC MEXICALI","SC PLAYAS DE TIJUANA","SC LOMAS DE SANTA FE",
-    "SC GALERIAS DEL VALLE","SC TIJUANA 2000","SC TECATE GARITA",
-    "SC ROSARITO","SC ENSENADA CENTRO","SC MACROPLAZA INSURGENTES",
-    "SC ENSENADA","SC TIJUANA HIPODROMO","SC PACIFICO",
-    "SC DIAZ ORDAZ"
+    "5041 Nuevo Mexicali","4155 Tijuana 2000","3015 Ensenada",
+    "2947 Ensenada Centro","1613 Playas De Tijuana","190 Lomas de Santa Fe",
+    "4187 Rosarito","2023 Macro Plaza Insurgentes","3664 Diaz Ordaz",
+    "4011 Tijuana Hipodromo","1616 Pacifico","1617 Novena",
+    "1140 Plaza San Pedro","4026 Galerías Del Valle","2304 Mexicali",
+    "5295 Tecate Garita"
 ]
 
 
