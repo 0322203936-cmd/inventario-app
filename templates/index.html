@@ -204,7 +204,7 @@
 
         <div class="field-row">
             <span class="field-row-label">Fecha:</span>
-            <input type="text" name="fecha" id="fechaInput" placeholder="DD/MM/YYYY" required tabindex="2">
+            <input type="text" name="fecha" id="fechaInput" placeholder="MM/DD/YY" required tabindex="2">
         </div>
 
         <div class="field-row">
@@ -308,9 +308,9 @@
 <script>
     const today = new Date();
     document.getElementById('fechaInput').value =
-        String(today.getDate()).padStart(2,'0') + '/' +
         String(today.getMonth()+1).padStart(2,'0') + '/' +
-        today.getFullYear();
+        String(today.getDate()).padStart(2,'0') + '/' +
+        String(today.getFullYear()).slice(-2);
 
     function toggleCF() {
         document.getElementById('cfPanel').classList.toggle('open');
