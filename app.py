@@ -74,6 +74,14 @@ def _get_base_url(site_id):
     )
 
 
+def _fmt_fecha_excel(fecha_str):
+    """Convierte fecha de DD/MM/YYYY a MM/DD/YY para el Excel."""
+    try:
+        return datetime.strptime(fecha_str, "%d/%m/%Y").strftime("%m/%d/%y")
+    except Exception:
+        return fecha_str  # si falla, deja el valor original
+
+
 def _col_letter(n):
     """Convierte número de columna (1-based) a letra(s). Ej: 1->A, 27->AA"""
     result = ""
@@ -351,7 +359,7 @@ def index():
                         (tienda, fecha, usuario, productos[i], inv, mer, razon)
                     )
                     filas_detalle.append([
-                        fecha_reg, tienda, fecha, usuario,
+                        fecha_reg, tienda, _fmt_fecha_excel(fecha), usuario,
                         productos[i], inv, mer, razon
                     ])
 
@@ -373,7 +381,7 @@ def index():
                         (tienda, fecha, usuario, cf_productos[i], existencia)
                     )
                     filas_cf.append([
-                        fecha_reg, tienda, fecha, usuario,
+                        fecha_reg, tienda, _fmt_fecha_excel(fecha), usuario,
                         cf_productos[i], existencia
                     ])
 
