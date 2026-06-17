@@ -113,10 +113,12 @@ def _ensure_sheet_exists(headers, base_url, sheet_name):
 
 
 def _format_range(headers_auth, base_url, address, bg_color, bold=False,
-                  font_color="000000", font_size=10):
+                  font_color="000000", font_size=10, sheet_name=None):
     """Aplica formato de relleno y fuente a un rango dado."""
+    if sheet_name is None:
+        sheet_name = SP_SHEET_DETALLE
     fmt_url = (
-        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"{base_url}/workbook/worksheets/{sheet_name}"
         f"/range(address='{address}')/format"
     )
     req_lib.patch(fmt_url + "/fill",
@@ -268,11 +270,11 @@ def escribir_en_excel(filas_detalle, filas_cf):
         print(f"[SP] Excepcion: {e}")
 
 
-# ── Funcion para escribir gastos en hoja "Gastos" ─────────────────────────────
+# ── Funcion para escribir gastos en hoja "REPORTE-GASTOSAPP" ─────────────────
 
 def escribir_gastos_en_excel(filas_gastos):
     """
-    Escribe los montos de gastos en la hoja "Gastos" del Excel.
+    Escribe los montos de gastos en la hoja "REPORTE-GASTOSAPP" del Excel.
     """
     if not filas_gastos:
         return
@@ -315,7 +317,7 @@ def escribir_gastos_en_excel(filas_gastos):
                 json={"values": [HEADERS_GASTOS]}, timeout=30)
             _format_range(auth_headers, base_url, address,
                           bg_color="E67E22", bold=True,
-                          font_color="FFFFFF", font_size=11)
+                          font_color="FFFFFF", font_size=11, sheet_name=sheet_name)
 
         # ── Buscar siguiente fila vacia ───────────────────────────────────
         used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
@@ -347,12 +349,13 @@ def escribir_gastos_en_excel(filas_gastos):
             json={"values": filas_gastos}, timeout=30
         )
         if resp.ok:
+            print(f"[GASTOS] Excel OK: {len(filas_gastos)} filas escritas en {sheet_name}")
             for i in range(len(filas_gastos)):
                 row_idx = next_row + i
                 if row_idx % 2 == 0:
                     _format_range(auth_headers, base_url,
                                   f"{s_col}{row_idx}:{e_col}{row_idx}",
-                                  bg_color="FFF3E0", font_size=10)
+                                  bg_color="FFF3E0", font_size=10, sheet_name=sheet_name)
         else:
             print(f"[GASTOS] Error al escribir Excel: {resp.status_code} {resp.text[:200]}")
 
@@ -360,11 +363,11 @@ def escribir_gastos_en_excel(filas_gastos):
         print(f"[GASTOS] Excepcion al escribir Excel: {e}")
 
 
-# ── Leer gastos desde hoja "Gastos" ───────────────────────────────────────────
+# ── Leer gastos desde hoja "REPORTE-GASTOSAPP" ───────────────────────────────
 
 def leer_gastos_desde_excel():
     """
-    Lee los montos desde la hoja "Gastos" del Excel.
+    Lee los montos desde la hoja "REPORTE-GASTOSAPP" del Excel.
     Retorna una lista de diccionarios con: fecha_reg, tienda, fecha, usuario, categoria, monto
     """
     try:
@@ -379,7 +382,7 @@ def leer_gastos_desde_excel():
         used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
         r = req_lib.get(used_url, headers=auth_headers, timeout=30)
         if not r.ok:
-            print(f"[GASTOS] Hoja 'Gastos' no existe o no tiene datos: {r.status_code}")
+            print(f"[GASTOS] Hoja '{sheet_name}' no existe o no tiene datos: {r.status_code}")
             return []
 
         values = r.json().get("values", [])
@@ -598,14 +601,22 @@ def obtener_gastos_sharepoint():
         
         auth_headers = {"Authorization": f"Bearer {token}"}
         site_id = _get_site_id(auth_headers)
+        print(f"[GASTOS] Site ID obtenido correctamente")
         
-        # ── Leer montos desde hoja Excel "Gastos" ─────────────────────────
+        # ── Leer montos desde hoja Excel "REPORTE-GASTOSAPP" ─────────────
         gastos_excel = leer_gastos_desde_excel()
+        print(f"[GASTOS] Registros leidos del Excel: {len(gastos_excel)}")
 
         # ── Listar fotos recursivamente en todas las subcarpetas ──────────
-        print(f"[GASTOS] Listando archivos recursivamente en: {SP_GASTOS_FOLDER}")
+        print(f"[GASTOS] Buscando fotos en: {SP_GASTOS_FOLDER}")
         files = _listar_archivos_recursivo(auth_headers, site_id, SP_GASTOS_FOLDER)
         print(f"[GASTOS] Archivos de imagen encontrados: {len(files)}")
+        
+        if files:
+            for f in files:
+                fname = f.get('name', '?')
+                parent = f.get('parentReference', {}).get('path', '?')
+                print(f"  - {fname} | ruta: ...{parent[-60:] if len(parent) > 60 else parent}")
         
         gastos = []
         
@@ -621,10 +632,7 @@ def obtener_gastos_sharepoint():
             parts = base_name.split("_")
             
             if len(parts) >= 3:
-                # Reconstruir tienda: puede tener varias partes
-                # Buscar: los primeros partes hasta encontrar un nombre de usuario conocido
-                # Estrategia simple: partes[0] puede ser "SC" o nombre de ciudad
-                # Unir partes que no sean fecha, usuario conocido o timestamp
+                # Buscar la posición del nombre de usuario conocido
                 idx_usuario = -1
                 usuarios_conocidos = ["Mizael", "Esteban", "Victor"]
                 for j, p in enumerate(parts):
@@ -633,12 +641,11 @@ def obtener_gastos_sharepoint():
                         break
                 
                 if idx_usuario >= 2:
-                    tienda = " ".join(parts[:idx_usuario]).replace("_", " ")
+                    tienda = " ".join(parts[:idx_usuario])
                     usuario = parts[idx_usuario]
-                    # La fecha deberia estar en parts[idx_usuario+1]
                     fecha_str = parts[idx_usuario + 1] if len(parts) > idx_usuario + 1 else "01-01-2025"
                 else:
-                    tienda = parts[0].replace("_", " ") if parts[0] else "Desconocido"
+                    tienda = parts[0] if parts[0] else "Desconocido"
                     usuario = parts[1] if len(parts) > 1 else "Desconocido"
                     fecha_str = parts[2] if len(parts) > 2 else "01-01-2025"
                 
@@ -661,13 +668,13 @@ def obtener_gastos_sharepoint():
                 # ── Buscar el monto correspondiente en Excel ──────────────
                 monto = ""
                 for ge in gastos_excel:
-                    if (ge["tienda"].lower().strip() == tienda.lower().strip() and
+                    tienda_excel = ge["tienda"].lower().strip()
+                    tienda_foto  = tienda.lower().strip()
+                    if (tienda_excel == tienda_foto and
                         ge["usuario"].lower().strip() == usuario.lower().strip() and
                         ge["categoria"].lower().strip() == categoria.lower().strip()):
-                        # Verificar fecha aproximada
-                        if fecha_str in ge["fecha"] or ge["fecha"] in fecha_str:
-                            monto = ge["monto"]
-                            break
+                        monto = ge["monto"]
+                        break
                 
                 gasto = {
                     "nombre": name,
@@ -683,7 +690,11 @@ def obtener_gastos_sharepoint():
         
         # ── Ordenar por fecha más reciente ────────────────────────────────
         gastos.sort(key=lambda x: x["timestamp"], reverse=True)
-        print(f"[GASTOS] Total gastos procesados: {len(gastos)}")
+        print(f"[GASTOS] Total gastos procesados para el reporte: {len(gastos)}")
+        if gastos:
+            print(f"[GASTOS] Primer gasto del reporte: tienda={gastos[0]['tienda']}, cat={gastos[0]['categoria']}, monto={gastos[0]['monto']}")
+        else:
+            print(f"[GASTOS] ADVERTENCIA: No se generaron gastos para el reporte!")
         return gastos
         
     except Exception as e:
@@ -879,7 +890,7 @@ def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url):
 def procesar_gastos(pendiente):
     """
     Sube las fotos de un registro de gastos a SharePoint
-    Y guarda los montos en la hoja 'Gastos' del Excel.
+    Y guarda los montos en la hoja 'REPORTE-GASTOSAPP' del Excel.
     Se ejecuta en un hilo separado.
     """
     try:
@@ -935,6 +946,7 @@ def procesar_gastos(pendiente):
 
         # ── Escribir montos en Excel ──────────────────────────────────────
         if filas_gastos:
+            print(f"[GASTOS] Escribiendo {len(filas_gastos)} montos en REPORTE-GASTOSAPP...")
             t_excel = threading.Thread(
                 target=escribir_gastos_en_excel,
                 args=(filas_gastos,),
