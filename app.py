@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file
 import json
 import os
+import base64
 import requests as req_lib
 import msal
 from datetime import datetime
@@ -278,19 +279,25 @@ TIENDAS = [
 def service_worker_root():
     """
     Sirve el Service Worker desde la raiz (/) para que su scope cubra
-    toda la aplicacion y pueda interceptar / y /registros sin internet.
+    toda la aplicacion y pueda interceptar todas las rutas sin internet.
     Sin este header, el navegador limita el scope al directorio /static/.
     """
     sw_path = os.path.join(app.root_path, 'static', 'service-worker.js')
     with open(sw_path, 'r', encoding='utf-8') as f:
         content = f.read()
     resp = make_response(content)
-    resp.headers['Content-Type']         = 'application/javascript; charset=utf-8'
+    resp.headers['Content-Type']           = 'application/javascript; charset=utf-8'
     resp.headers['Service-Worker-Allowed'] = '/'
-    resp.headers['Cache-Control']        = 'no-cache, no-store, must-revalidate'
+    resp.headers['Cache-Control']          = 'no-cache, no-store, must-revalidate'
     return resp
 
-@app.route("/", methods=["GET", "POST"])
+
+@app.route("/")
+def home():
+    """Pantalla de inicio con los dos modulos: Inventario y Gastos."""
+    return render_template("home.html")
+
+@app.route("/inventario", methods=["GET", "POST"])
 def index():
     try:
         if request.method == "POST":
@@ -350,16 +357,23 @@ def index():
                 )
                 t.start()
 
-            return redirect("/?success=1")
+            return redirect("/inventario?success=1")
 
         today = datetime.now().strftime("%d/%m/%Y")
         resp = make_response(render_template("index.html", tiendas=TIENDAS, today=today))
-        # Permitir que el Service Worker cachee la página
-        resp.headers['Cache-Control'] = 'no-cache'  # revalidar, pero cacheable
+        resp.headers['Cache-Control'] = 'no-cache'
         return resp
 
     except Exception as e:
         return f"<h2>Error en la aplicacion:</h2><pre>{e}</pre>"
+
+
+@app.route("/gastos")
+def gastos():
+    """Pantalla de captura de gastos (tickets por categoria)."""
+    resp = make_response(render_template("gastos.html"))
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
 
 
 def leer_desde_excel():
@@ -507,6 +521,112 @@ def ping():
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
+
+
+# ── SharePoint: subida de fotos ───────────────────────────────────────────────
+
+SP_GASTOS_FOLDER = "/requerimiento vs proyeccion/WALMEX/Gastos"
+
+def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url):
+    """
+    Sube una imagen (base64) a SharePoint via Graph API.
+    ruta_destino: ej. 'Gastos/2025-06/CASETAS/Mizael_20250617_083045.jpg'
+    """
+    # Decodificar base64 (puede venir como data:image/jpeg;base64,...)
+    if ',' in imagen_base64:
+        imagen_base64 = imagen_base64.split(',', 1)[1]
+    img_bytes = base64.b64decode(imagen_base64)
+
+    # Construir URL de subida en el drive del sitio
+    site_parts    = SP_SITE_URL.rstrip("/").split("/")
+    sp_hostname   = site_parts[2]
+    sp_site_path  = "/".join(site_parts[3:])
+
+    token    = auth_headers["Authorization"].replace("Bearer ", "")
+    site_url = f"https://graph.microsoft.com/v1.0/sites/{sp_hostname}:/{sp_site_path}"
+    r = req_lib.get(site_url, headers=auth_headers, timeout=30)
+    r.raise_for_status()
+    site_id = r.json()["id"]
+
+    upload_url = (
+        f"https://graph.microsoft.com/v1.0/sites/{site_id}"
+        f"/drive/root:/{ruta_destino}:/content"
+    )
+    resp = req_lib.put(
+        upload_url,
+        headers={**auth_headers, "Content-Type": "image/jpeg"},
+        data=img_bytes,
+        timeout=60
+    )
+    return resp.ok
+
+
+def procesar_gastos(pendiente):
+    """
+    Sube las fotos de un registro de gastos a SharePoint.
+    Se ejecuta en un hilo separado.
+    """
+    try:
+        token = _get_sp_token()
+        if not token:
+            print("[GASTOS] No se pudo obtener token.")
+            return
+
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id  = _get_site_id(auth_headers)
+        base_url = _get_base_url(site_id)
+
+        tienda   = pendiente.get("tienda", "SinTienda").replace(" ", "_")
+        usuario  = pendiente.get("usuario", "SinUsuario")
+        fecha    = pendiente.get("fecha", "").replace("/", "-")  # DD-MM-YYYY
+        fecha_reg = datetime.now()
+        timestamp = fecha_reg.strftime("%Y%m%d_%H%M%S")
+        mes_folder = fecha_reg.strftime("%Y-%m")
+
+        categorias = ["casetas", "comida", "otros"]
+        for cat in categorias:
+            cat_data = pendiente.get(cat, {})
+            fotos = cat_data.get("fotos", [])
+            for i, foto_b64 in enumerate(fotos):
+                nombre_archivo = f"{tienda}_{usuario}_{fecha}_{timestamp}_{i+1}.jpg"
+                ruta = (
+                    f"{SP_GASTOS_FOLDER.lstrip('/')}/"
+                    f"{mes_folder}/{cat.upper()}/{nombre_archivo}"
+                )
+                ok = subir_foto_sharepoint(foto_b64, ruta, auth_headers, base_url)
+                if ok:
+                    print(f"[GASTOS] Subida: {ruta}")
+                else:
+                    print(f"[GASTOS] Error al subir: {ruta}")
+
+    except Exception as e:
+        print(f"[GASTOS] Excepcion: {e}")
+
+
+@app.route("/gastos/sync", methods=["POST"])
+def gastos_sync():
+    """
+    Recibe registros de gastos (fotos en base64) y los sube a SharePoint.
+    Body JSON: { "pendientes": [ { tipo, tienda, usuario, fecha, casetas, comida, otros }, ... ] }
+    """
+    try:
+        data = request.get_json(force=True)
+        if not data or "pendientes" not in data:
+            return jsonify({"ok": False, "msg": "Formato invalido"}), 400
+
+        pendientes = data["pendientes"]
+        if not pendientes:
+            return jsonify({"ok": True, "sincronizados": 0})
+
+        for p in pendientes:
+            t = threading.Thread(target=procesar_gastos, args=(p,), daemon=True)
+            t.start()
+
+        return jsonify({"ok": True, "sincronizados": len(pendientes)})
+
+    except Exception as e:
+        print(f"[GASTOS SYNC] Error: {e}")
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 @app.route("/sync", methods=["POST"])

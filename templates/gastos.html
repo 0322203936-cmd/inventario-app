@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gastos — Pacífica Farms</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="manifest" href="/static/manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            background: #f0f2f5;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0; padding: 0;
+        }
+
+        .phone-wrapper {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 16px 14px;
+            border-bottom: 1px solid #e8eaed;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-arrow {
+            color: #e67e22;
+            font-size: 22px;
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .header-title {
+            flex: 1;
+        }
+
+        .header-title h5 {
+            color: #e67e22;
+            font-size: 17px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header-title small {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        /* ── Banner offline ── */
+        #offlineBanner { display: none; }
+
+        /* ── Formulario ── */
+        .form-body {
+            padding: 16px;
+            flex: 1;
+        }
+
+        .field-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 6px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .styled-select {
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+            border: 1.5px solid #dadce0;
+            border-radius: 10px;
+            padding: 11px 36px 11px 14px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #202124;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235f6368' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+            outline: none;
+            cursor: pointer;
+            margin-bottom: 14px;
+        }
+
+        .styled-select:focus { border-color: #e67e22; }
+
+        .field-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .field-row-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #6b7280;
+            min-width: 60px;
+            text-transform: uppercase;
+        }
+
+        .field-row input {
+            flex: 1;
+            border: 1.5px solid #dadce0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #202124;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .field-row input:focus { border-color: #e67e22; }
+
+        /* ── Secciones de categoría ── */
+        .cat-section {
+            margin-bottom: 14px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 2px solid transparent;
+        }
+
+        .cat-section.casetas { border-color: #3b82f6; }
+        .cat-section.comida  { border-color: #f59e0b; }
+        .cat-section.otros   { border-color: #6b7280; }
+
+        .cat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 16px;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cat-section.casetas .cat-header { background: #eff6ff; }
+        .cat-section.comida  .cat-header { background: #fffbeb; }
+        .cat-section.otros   .cat-header { background: #f9fafb; }
+
+        .cat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cat-icon { font-size: 22px; }
+
+        .cat-title {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .cat-section.casetas .cat-title { color: #1d4ed8; }
+        .cat-section.comida  .cat-title { color: #b45309; }
+        .cat-section.otros   .cat-title { color: #374151; }
+
+        .cat-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            color: #fff;
+        }
+
+        .cat-section.casetas .cat-badge { background: #3b82f6; }
+        .cat-section.comida  .cat-badge { background: #f59e0b; }
+        .cat-section.otros   .cat-badge { background: #6b7280; }
+
+        .cat-arrow {
+            font-size: 13px;
+            transition: transform 0.2s;
+        }
+        .cat-section.casetas .cat-arrow { color: #3b82f6; }
+        .cat-section.comida  .cat-arrow { color: #f59e0b; }
+        .cat-section.otros   .cat-arrow { color: #6b7280; }
+        .cat-arrow.open { transform: rotate(180deg); }
+
+        .cat-body {
+            display: none;
+            padding: 14px 14px 16px;
+        }
+
+        .cat-section.casetas .cat-body { background: #f8fbff; }
+        .cat-section.comida  .cat-body { background: #fffef5; }
+        .cat-section.otros   .cat-body { background: #fafafa; }
+
+        .cat-body.open { display: block; }
+
+        /* ── Fotos ── */
+        .fotos-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .foto-thumb {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        .foto-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .foto-del {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* Botón agregar foto */
+        .btn-foto {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px dashed;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-foto:active { opacity: 0.7; }
+
+        .cat-section.casetas .btn-foto { border-color: #93c5fd; color: #1d4ed8; }
+        .cat-section.comida  .btn-foto { border-color: #fcd34d; color: #b45309; }
+        .cat-section.otros   .btn-foto { border-color: #d1d5db; color: #374151; }
+
+        /* Campo monto opcional */
+        .monto-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .monto-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+
+        .monto-input {
+            flex: 1;
+            border: 1.5px solid #dadce0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #202124;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .monto-input:focus { border-color: #e67e22; }
+
+        /* ── Botón Guardar ── */
+        .bottom-bar {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-top: 1px solid #e8eaed;
+            background: #fff;
+            position: sticky;
+            bottom: 0;
+        }
+
+        .btn-cancelar {
+            flex: 1;
+            border: 1.5px solid #dadce0;
+            background: #fff;
+            color: #202124;
+            border-radius: 10px;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn-guardar {
+            flex: 2;
+            background: linear-gradient(135deg, #e67e22, #c0392b);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 4px 14px rgba(230,126,34,0.35);
+            transition: opacity 0.15s;
+        }
+
+        .btn-guardar:disabled { opacity: 0.6; }
+        .btn-guardar:active   { opacity: 0.8; }
+
+        /* ── Input file oculto ── */
+        .file-input { display: none; }
+    </style>
+</head>
+<body>
+<div class="phone-wrapper">
+
+    <!-- Header -->
+    <div class="app-header">
+        <a href="/" class="back-arrow">←</a>
+        <div class="header-title">
+            <h5>🧾 Registro de Gastos</h5>
+            <small>Captura tickets por categoría</small>
+        </div>
+    </div>
+
+    <!-- Banner offline -->
+    <div id="offlineBanner" class="offline-banner"></div>
+
+    <!-- Formulario -->
+    <div class="form-body" id="formBody">
+
+        <!-- Tienda -->
+        <span class="field-label">Tienda</span>
+        <select class="styled-select" id="tiendaSelect">
+            <option value="" disabled selected>Selecciona una tienda…</option>
+            <option>SC MEXICALI NOVENA</option>
+            <option>SC NUEVO MEXICALI</option>
+            <option>SC PLAZA SAN PEDRO</option>
+            <option>SC MEXICALI</option>
+            <option>SC PLAYAS DE TIJUANA</option>
+            <option>SC LOMAS DE SANTA FE</option>
+            <option>SC GALERIAS DEL VALLE</option>
+            <option>SC TIJUANA 2000</option>
+            <option>SC TECATE GARITA</option>
+            <option>SC ROSARITO</option>
+            <option>SC ENSENADA CENTRO</option>
+            <option>SC MACROPLAZA INSURGENTES</option>
+            <option>SC ENSENADA</option>
+            <option>SC TIJUANA HIPODROMO</option>
+            <option>SC PACIFICO</option>
+            <option>SC DIAZ ORDAZ</option>
+        </select>
+
+        <!-- Usuario -->
+        <span class="field-label">Usuario</span>
+        <select class="styled-select" id="usuarioSelect">
+            <option value="" disabled selected>Selecciona usuario…</option>
+            <option>Mizael</option>
+            <option>Esteban</option>
+            <option>Victor</option>
+        </select>
+
+        <!-- Fecha -->
+        <div class="field-row">
+            <span class="field-row-label">Fecha</span>
+            <input type="text" id="fechaInput" placeholder="DD/MM/YYYY" readonly>
+        </div>
+
+        <!-- ── CASETAS ── -->
+        <div class="cat-section casetas" id="sec-casetas">
+            <div class="cat-header" onclick="toggleCat('casetas')">
+                <div class="cat-header-left">
+                    <span class="cat-icon">🛣️</span>
+                    <span class="cat-title">CASETAS</span>
+                    <span class="cat-badge" id="badge-casetas">0</span>
+                </div>
+                <span class="cat-arrow" id="arrow-casetas">▼</span>
+            </div>
+            <div class="cat-body" id="body-casetas">
+                <div class="fotos-grid" id="grid-casetas"></div>
+                <button class="btn-foto" onclick="tomarFoto('casetas')">
+                    📷 Agregar foto de ticket
+                </button>
+                <div class="monto-row">
+                    <span class="monto-label">Total $</span>
+                    <input class="monto-input" type="number" id="monto-casetas" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+            </div>
+        </div>
+
+        <!-- ── COMIDA ── -->
+        <div class="cat-section comida" id="sec-comida">
+            <div class="cat-header" onclick="toggleCat('comida')">
+                <div class="cat-header-left">
+                    <span class="cat-icon">🍽️</span>
+                    <span class="cat-title">COMIDA</span>
+                    <span class="cat-badge" id="badge-comida">0</span>
+                </div>
+                <span class="cat-arrow" id="arrow-comida">▼</span>
+            </div>
+            <div class="cat-body" id="body-comida">
+                <div class="fotos-grid" id="grid-comida"></div>
+                <button class="btn-foto" onclick="tomarFoto('comida')">
+                    📷 Agregar foto de ticket
+                </button>
+                <div class="monto-row">
+                    <span class="monto-label">Total $</span>
+                    <input class="monto-input" type="number" id="monto-comida" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+            </div>
+        </div>
+
+        <!-- ── OTROS ── -->
+        <div class="cat-section otros" id="sec-otros">
+            <div class="cat-header" onclick="toggleCat('otros')">
+                <div class="cat-header-left">
+                    <span class="cat-icon">📦</span>
+                    <span class="cat-title">OTROS</span>
+                    <span class="cat-badge" id="badge-otros">0</span>
+                </div>
+                <span class="cat-arrow" id="arrow-otros">▼</span>
+            </div>
+            <div class="cat-body" id="body-otros">
+                <div class="fotos-grid" id="grid-otros"></div>
+                <button class="btn-foto" onclick="tomarFoto('otros')">
+                    📷 Agregar foto de ticket
+                </button>
+                <div class="monto-row">
+                    <span class="monto-label">Total $</span>
+                    <input class="monto-input" type="number" id="monto-otros" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /form-body -->
+
+    <!-- Inputs de cámara (ocultos) -->
+    <input class="file-input" type="file" accept="image/*" capture="environment" id="camara-casetas" onchange="onFoto('casetas', this)">
+    <input class="file-input" type="file" accept="image/*" capture="environment" id="camara-comida" onchange="onFoto('comida', this)">
+    <input class="file-input" type="file" accept="image/*" capture="environment" id="camara-otros"  onchange="onFoto('otros', this)">
+
+    <!-- Barra inferior -->
+    <div class="bottom-bar">
+        <button class="btn-cancelar" onclick="cancelar()">Cancelar</button>
+        <button class="btn-guardar" id="btnGuardar" onclick="guardarGastos()">Guardar</button>
+    </div>
+
+</div><!-- /phone-wrapper -->
+
+<script src="/static/offline.js"></script>
+<script>
+// ── Estado en memoria ─────────────────────────────────────────────────────────
+const fotos = { casetas: [], comida: [], otros: [] };
+
+// ── Fecha automática ──────────────────────────────────────────────────────────
+(function() {
+    const hoy = new Date();
+    document.getElementById('fechaInput').value =
+        String(hoy.getDate()).padStart(2,'0') + '/' +
+        String(hoy.getMonth()+1).padStart(2,'0') + '/' +
+        hoy.getFullYear();
+})();
+
+// ── Colapsar/expandir sección ─────────────────────────────────────────────────
+function toggleCat(cat) {
+    const body  = document.getElementById(`body-${cat}`);
+    const arrow = document.getElementById(`arrow-${cat}`);
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+}
+
+// ── Tomar foto (abre cámara) ──────────────────────────────────────────────────
+function tomarFoto(cat) {
+    document.getElementById(`camara-${cat}`).click();
+}
+
+// ── Al seleccionar/tomar foto ─────────────────────────────────────────────────
+function onFoto(cat, input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const base64 = e.target.result;
+        fotos[cat].push(base64);
+        renderFotos(cat);
+        actualizarBadge(cat);
+    };
+    reader.readAsDataURL(file);
+
+    // Limpiar input para poder volver a seleccionar la misma foto si se quiere
+    input.value = '';
+}
+
+// ── Renderizar miniaturas ─────────────────────────────────────────────────────
+function renderFotos(cat) {
+    const grid = document.getElementById(`grid-${cat}`);
+    grid.innerHTML = '';
+    fotos[cat].forEach((b64, idx) => {
+        const div = document.createElement('div');
+        div.className = 'foto-thumb';
+        div.innerHTML = `
+            <img src="${b64}" alt="Ticket ${idx+1}">
+            <button class="foto-del" onclick="eliminarFoto('${cat}', ${idx})" title="Eliminar">✕</button>
+        `;
+        grid.appendChild(div);
+    });
+}
+
+// ── Eliminar foto ─────────────────────────────────────────────────────────────
+function eliminarFoto(cat, idx) {
+    fotos[cat].splice(idx, 1);
+    renderFotos(cat);
+    actualizarBadge(cat);
+}
+
+// ── Badge con cantidad de fotos ───────────────────────────────────────────────
+function actualizarBadge(cat) {
+    const n = fotos[cat].length;
+    const badge = document.getElementById(`badge-${cat}`);
+    badge.textContent = n;
+    badge.style.display = n > 0 ? 'inline-block' : 'none';
+}
+
+// Ocultar badges en 0 al inicio
+['casetas','comida','otros'].forEach(c => actualizarBadge(c));
+
+// ── Guardar ───────────────────────────────────────────────────────────────────
+let _enviando = false;
+
+async function guardarGastos() {
+    if (_enviando) return;
+
+    const tienda  = document.getElementById('tiendaSelect').value;
+    const usuario = document.getElementById('usuarioSelect').value;
+    const fecha   = document.getElementById('fechaInput').value;
+
+    if (!tienda)  { alert('Selecciona una tienda.');  return; }
+    if (!usuario) { alert('Selecciona el usuario.');  return; }
+
+    const totalFotos = fotos.casetas.length + fotos.comida.length + fotos.otros.length;
+    if (totalFotos === 0) {
+        alert('Agrega al menos una foto de ticket.');
+        return;
+    }
+
+    _enviando = true;
+    const btn = document.getElementById('btnGuardar');
+    btn.disabled    = true;
+    btn.textContent = 'Verificando…';
+
+    try {
+        const fecha_reg = (() => {
+            const n = new Date();
+            return String(n.getDate()).padStart(2,'0') + '/' +
+                   String(n.getMonth()+1).padStart(2,'0') + '/' +
+                   n.getFullYear() + ' ' +
+                   String(n.getHours()).padStart(2,'0') + ':' +
+                   String(n.getMinutes()).padStart(2,'0');
+        })();
+
+        const monto_casetas = parseFloat(document.getElementById('monto-casetas').value) || 0;
+        const monto_comida  = parseFloat(document.getElementById('monto-comida').value)  || 0;
+        const monto_otros   = parseFloat(document.getElementById('monto-otros').value)   || 0;
+
+        const payload = {
+            tipo: 'gastos',
+            tienda, usuario, fecha, fecha_reg,
+            casetas: { fotos: fotos.casetas, monto: monto_casetas },
+            comida:  { fotos: fotos.comida,  monto: monto_comida  },
+            otros:   { fotos: fotos.otros,   monto: monto_otros   }
+        };
+
+        const { internet, serverUp } = await offlineApp.checkConectividad();
+
+        if (serverUp) {
+            // Subir directamente
+            btn.textContent = 'Subiendo…';
+            const res = await fetch('/gastos/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pendientes: [payload] }),
+                signal: AbortSignal.timeout(60000)
+            });
+            const data = await res.json();
+            if (data.ok) {
+                offlineApp.mostrarToast(`✅ ${totalFotos} foto${totalFotos !== 1 ? 's' : ''} subida${totalFotos !== 1 ? 's' : ''} a SharePoint`);
+                limpiarFormulario();
+            } else {
+                throw new Error(data.msg || 'Error del servidor');
+            }
+
+        } else if (internet && !serverUp) {
+            // Internet pero servidor dormido → guardar y reintentar
+            await offlineApp.guardarGastoPendiente(payload);
+            const total = await offlineApp.contarGastosPendientes();
+            offlineApp.mostrarToast(`⏳ Guardado (${total} pendiente${total !== 1 ? 's' : ''}, servidor iniciando…)`, 'info');
+            offlineApp.actualizarBannerOffline();
+            limpiarFormulario();
+
+            setTimeout(async () => {
+                const n = await offlineApp.syncGastosPendientes();
+                if (n > 0) {
+                    offlineApp.mostrarToast(`✅ ${n} gasto${n !== 1 ? 's' : ''} sincronizado${n !== 1 ? 's' : ''} con SharePoint`);
+                    offlineApp.actualizarBannerOffline();
+                }
+            }, 20000);
+
+        } else {
+            // Sin internet
+            await offlineApp.guardarGastoPendiente(payload);
+            const total = await offlineApp.contarGastosPendientes();
+            offlineApp.mostrarToast(`📵 Guardado sin conexión (${total} pendiente${total !== 1 ? 's' : ''})`);
+            offlineApp.actualizarBannerOffline();
+            limpiarFormulario();
+        }
+
+    } catch (err) {
+        console.error('[Gastos]', err);
+        offlineApp.mostrarToast('Error al guardar: ' + err.message, 'error');
+    } finally {
+        _enviando = false;
+        btn.disabled    = false;
+        btn.textContent = 'Guardar';
+    }
+}
+
+// ── Limpiar formulario ────────────────────────────────────────────────────────
+function limpiarFormulario() {
+    fotos.casetas = [];
+    fotos.comida  = [];
+    fotos.otros   = [];
+    ['casetas','comida','otros'].forEach(c => {
+        renderFotos(c);
+        actualizarBadge(c);
+        document.getElementById(`monto-${c}`).value = '';
+    });
+}
+
+function cancelar() {
+    if (confirm('¿Descartar los cambios?')) {
+        limpiarFormulario();
+    }
+}
+
+// ── Banner inicial ────────────────────────────────────────────────────────────
+offlineApp.actualizarBannerOffline();
+
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(r => console.log('[SW] OK'))
+        .catch(e => console.warn('[SW] Error', e));
+}
+</script>
+</body>
+</html>

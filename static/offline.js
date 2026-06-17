@@ -7,8 +7,9 @@
  */
 
 const DB_NAME    = 'inventario-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;          // subimos version para agregar el nuevo store
 const STORE_NAME = 'pendientes';
+const STORE_GASTOS = 'gastos-pendientes';
 
 // ── IndexedDB helpers ──────────────────────────────────────────────────────────
 
@@ -19,6 +20,10 @@ function abrirDB() {
             const db = e.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            }
+            // Nuevo store para gastos (fotos)
+            if (!db.objectStoreNames.contains(STORE_GASTOS)) {
+                db.createObjectStore(STORE_GASTOS, { keyPath: 'id', autoIncrement: true });
             }
         };
         req.onsuccess = (e) => resolve(e.target.result);
@@ -190,6 +195,103 @@ async function syncPendientes() {
     }
 }
 
+// ── Gastos (fotos de tickets) ───────────────────────────────────────────────
+
+/**
+ * Guarda un gasto pendiente (con fotos) en IndexedDB.
+ */
+async function guardarGastoPendiente(datos) {
+    const db    = await abrirDB();
+    const tx    = db.transaction(STORE_GASTOS, 'readwrite');
+    const store = tx.objectStore(STORE_GASTOS);
+    return new Promise((resolve, reject) => {
+        const req = store.add({ ...datos, _guardadoEn: new Date().toISOString() });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+    });
+}
+
+/**
+ * Lee todos los gastos pendientes de IndexedDB.
+ */
+async function leerGastosPendientes() {
+    const db    = await abrirDB();
+    const tx    = db.transaction(STORE_GASTOS, 'readonly');
+    const store = tx.objectStore(STORE_GASTOS);
+    return new Promise((resolve, reject) => {
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror   = () => reject(req.error);
+    });
+}
+
+/**
+ * Cuenta los gastos pendientes.
+ */
+async function contarGastosPendientes() {
+    const db    = await abrirDB();
+    const tx    = db.transaction(STORE_GASTOS, 'readonly');
+    const store = tx.objectStore(STORE_GASTOS);
+    return new Promise((resolve, reject) => {
+        const req = store.count();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+    });
+}
+
+/**
+ * Limpia todos los gastos pendientes.
+ */
+async function limpiarGastosPendientes() {
+    const db    = await abrirDB();
+    const tx    = db.transaction(STORE_GASTOS, 'readwrite');
+    const store = tx.objectStore(STORE_GASTOS);
+    return new Promise((resolve, reject) => {
+        const req = store.clear();
+        req.onsuccess = () => resolve();
+        req.onerror   = () => reject(req.error);
+    });
+}
+
+let _sincronizandoGastos = false;
+
+/**
+ * Envia los gastos pendientes al servidor (/gastos/sync).
+ */
+async function syncGastosPendientes() {
+    if (_sincronizandoGastos) return 0;
+    _sincronizandoGastos = true;
+
+    try {
+        const pendientes = await leerGastosPendientes();
+        if (!pendientes.length) return 0;
+
+        const online = await isOnline();
+        if (!online) return 0;
+
+        const res = await fetch('/gastos/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pendientes }),
+            signal: AbortSignal.timeout(60000)
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.ok) {
+                await limpiarGastosPendientes();
+                return pendientes.length;
+            }
+        }
+        return 0;
+    } catch (err) {
+        console.warn('[Gastos Offline] Error al sincronizar:', err);
+        return 0;
+    } finally {
+        _sincronizandoGastos = false;
+    }
+}
+
 // ── Banner de estado ───────────────────────────────────────────────────────────
 
 /**
@@ -344,8 +446,10 @@ window.addEventListener('online', async () => {
     const reintentar = setInterval(async () => {
         intentos++;
         const n = await syncPendientes();
-        if (n > 0) {
-            mostrarToast(`✅ ${n} registro${n !== 1 ? 's' : ''} sincronizado${n !== 1 ? 's' : ''} con SharePoint`);
+        const g = await syncGastosPendientes();
+        if (n > 0 || g > 0) {
+            if (n > 0) mostrarToast(`✅ ${n} inventario${n !== 1 ? 's' : ''} sincronizado${n !== 1 ? 's' : ''} con SharePoint`);
+            if (g > 0) mostrarToast(`✅ ${g} gasto${g !== 1 ? 's' : ''} sincronizado${g !== 1 ? 's' : ''} con SharePoint`);
             actualizarBannerOffline();
             clearInterval(reintentar);
         } else if (intentos >= MAX_INTENTOS) {
@@ -371,5 +475,11 @@ window.offlineApp = {
     checkConectividad,
     syncPendientes,
     actualizarBannerOffline,
-    mostrarToast
+    mostrarToast,
+    // Gastos
+    guardarGastoPendiente,
+    leerGastosPendientes,
+    contarGastosPendientes,
+    limpiarGastosPendientes,
+    syncGastosPendientes
 };

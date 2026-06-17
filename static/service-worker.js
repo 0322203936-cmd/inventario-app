@@ -7,20 +7,23 @@
  * - Si no hay red → sirve desde caché sin error
  */
 
-const CACHE_NAME    = 'inventario-v5';
+const CACHE_NAME    = 'inventario-v6';
 const STATIC_ASSETS = [
     '/',
+    '/inventario',
+    '/gastos',
     '/static/offline.js',
     '/static/manifest.json',
     '/static/icon-192.png',
     '/static/icon-512.png',
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+    'https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap'
 ];
 
 // ── Install: pre-cachear assets ────────────────────────────────────────────────
 
 self.addEventListener('install', (event) => {
-    console.log('[SW] Instalando v5…');
+    console.log('[SW] Instalando v6…');
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
             for (const url of STATIC_ASSETS) {
@@ -40,7 +43,7 @@ self.addEventListener('install', (event) => {
 // ── Activate: limpiar cachés viejos ───────────────────────────────────────────
 
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activado v5');
+    console.log('[SW] Activado v6');
     event.waitUntil(
         caches.keys().then((keys) =>
             Promise.all(
@@ -65,7 +68,7 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
 
     // /ping y /sync van siempre a la red (no cachear)
-    if (url.pathname === '/ping' || url.pathname === '/sync') return;
+    if (url.pathname === '/ping' || url.pathname === '/sync' || url.pathname === '/gastos/sync') return;
 
     // Para recursos externos (CDN), usar Cache-First
     if (url.origin !== self.location.origin) {
