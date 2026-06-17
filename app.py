@@ -387,7 +387,7 @@ def reporte():
             session["reporte_auth"] = True
             return redirect("/reporte")
         else:
-            return render_template("reporte.html", error=True)
+            return render_template("reporte.html", error=True, auth_required=True)
     
     if not session.get("reporte_auth"):
         return render_template("reporte.html", auth_required=True)
