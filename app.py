@@ -287,7 +287,7 @@ def escribir_gastos_en_excel(filas_gastos):
         site_id      = _get_site_id(auth_headers)
         base_url     = _get_base_url(site_id)
 
-        sheet_name = "Gastos"
+        sheet_name = "REPORTE-GASTOSAPP"
         _ensure_sheet_exists(auth_headers, base_url, sheet_name)
 
         # ── Escribir encabezados en columna A (1) ─────────────────────────
@@ -375,7 +375,7 @@ def leer_gastos_desde_excel():
         site_id  = _get_site_id(auth_headers)
         base_url = _get_base_url(site_id)
 
-        sheet_name = "Gastos"
+        sheet_name = "REPORTE-GASTOSAPP"
         used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
         r = req_lib.get(used_url, headers=auth_headers, timeout=30)
         if not r.ok:
