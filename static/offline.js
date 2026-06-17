@@ -1,6 +1,6 @@
 /**
  * offline.js — Módulo de soporte offline para Inventario App
- * 
+ *
  * - Almacena registros pendientes en IndexedDB cuando no hay conexión
  * - Sincroniza automáticamente con el servidor al recuperar internet
  * - Expone funciones globales usadas por index.html y registros.html
@@ -103,21 +103,47 @@ async function limpiarPendientes() {
 // ── Conectividad ───────────────────────────────────────────────────────────────
 
 /**
- * Verifica conectividad real haciendo un fetch a /ping.
- * Más confiable que navigator.onLine.
- * @returns {Promise<boolean>}
+ * Verifica conectividad real con el SERVIDOR haciendo un fetch a /ping.
+ * Distingue entre:
+ *   - Servidor accesible (online=true, serverUp=true)
+ *   - Internet pero servidor dormido/caído (online=true, serverUp=false) — puede tardar en despertar
+ *   - Sin internet en absoluto (online=false, serverUp=false)
+ *
+ * NOTA: En Render.com (plan gratuito) el servidor puede tardar ~15-30s en despertar.
+ * Por eso usamos navigator.onLine para saber si hay internet, y /ping para saber
+ * si el servidor ya está despierto.
+ *
+ * @returns {Promise<{internet: boolean, serverUp: boolean}>}
  */
-async function isOnline() {
+async function checkConectividad() {
+    // Paso 1: verificar si el navegador tiene internet (rápido, sin red real)
+    const tieneInternet = navigator.onLine;
+
+    if (!tieneInternet) {
+        return { internet: false, serverUp: false };
+    }
+
+    // Paso 2: intentar llegar al servidor (puede estar dormido en Render)
     try {
         const res = await fetch('/ping', {
             method: 'GET',
             cache: 'no-store',
-            signal: AbortSignal.timeout(4000)
+            signal: AbortSignal.timeout(6000)  // 6 segundos de espera
         });
-        return res.ok;
+        return { internet: true, serverUp: res.ok };
     } catch {
-        return false;
+        // Hay internet pero el servidor no responde (dormido o sin red real)
+        return { internet: tieneInternet, serverUp: false };
     }
+}
+
+/**
+ * Versión simplificada: ¿puede el servidor procesar solicitudes ahora mismo?
+ * @returns {Promise<boolean>}
+ */
+async function isOnline() {
+    const { serverUp } = await checkConectividad();
+    return serverUp;
 }
 
 // ── Sincronización ─────────────────────────────────────────────────────────────
@@ -140,22 +166,11 @@ async function syncPendientes() {
         const online = await isOnline();
         if (!online) return 0;
 
-        // Agrupar en formato que espera /sync
-        const body = { registros: [], cf_registros: [] };
-        for (const p of pendientes) {
-            if (p.tipo === 'merma') body.registros.push(p);
-            else if (p.tipo === 'cf') body.cf_registros.push(p);
-            else {
-                // Formato unificado (un envío puede tener ambos)
-                if (p.filas_detalle && p.filas_detalle.length) body.registros.push(p);
-                if (p.filas_cf && p.filas_cf.length) body.cf_registros.push(p);
-            }
-        }
-
         const res = await fetch('/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pendientes })
+            body: JSON.stringify({ pendientes }),
+            signal: AbortSignal.timeout(30000)  // 30s para subir a SharePoint
         });
 
         if (res.ok) {
@@ -184,12 +199,12 @@ async function actualizarBannerOffline() {
     const banner = document.getElementById('offlineBanner');
     if (!banner) return;
 
-    const online     = await isOnline();
+    const { internet, serverUp } = await checkConectividad();
     const pendientes = await contarPendientes();
 
-    if (online) {
+    if (serverUp) {
+        // Servidor accesible
         if (pendientes > 0) {
-            // Hay internet pero quedan pendientes → sincronizar
             banner.className = 'offline-banner syncing';
             banner.innerHTML = `<span>🔄 Sincronizando ${pendientes} registro${pendientes !== 1 ? 's' : ''}…</span>`;
             banner.style.display = 'flex';
@@ -200,7 +215,17 @@ async function actualizarBannerOffline() {
         } else {
             banner.style.display = 'none';
         }
+    } else if (internet && !serverUp) {
+        // Hay internet pero el servidor está despertando (Render)
+        banner.className = 'offline-banner waking';
+        if (pendientes > 0) {
+            banner.innerHTML = `<span>⏳ Esperando servidor… <b>${pendientes}</b> registro${pendientes !== 1 ? 's' : ''} pendiente${pendientes !== 1 ? 's' : ''}</span>`;
+        } else {
+            banner.innerHTML = `<span>⏳ Conectando con el servidor…</span>`;
+        }
+        banner.style.display = 'flex';
     } else {
+        // Sin internet
         if (pendientes > 0) {
             banner.className = 'offline-banner offline';
             banner.innerHTML = `<span>📵 Sin conexión — <b>${pendientes}</b> registro${pendientes !== 1 ? 's' : ''} pendiente${pendientes !== 1 ? 's' : ''}</span>`;
@@ -266,6 +291,11 @@ function mostrarToast(msg, tipo = 'success') {
             color: #0c5460;
             border-bottom: 1px solid #bee5eb;
         }
+        .offline-banner.waking {
+            background: #e8eaf6;
+            color: #3949ab;
+            border-bottom: 1px solid #9fa8da;
+        }
 
         #offlineToast {
             display: none;
@@ -305,13 +335,24 @@ function mostrarToast(msg, tipo = 'success') {
 // ── Inicialización automática ──────────────────────────────────────────────────
 
 window.addEventListener('online', async () => {
-    console.log('[Offline] Conexión recuperada, sincronizando…');
+    console.log('[Offline] Conexión recuperada, esperando servidor…');
     await actualizarBannerOffline();
-    const n = await syncPendientes();
-    if (n > 0) {
-        mostrarToast(`✅ ${n} registro${n !== 1 ? 's' : ''} sincronizado${n !== 1 ? 's' : ''} con SharePoint`);
-        actualizarBannerOffline();
-    }
+    // Intentar sincronizar — puede fallar si el servidor aún está despertando en Render
+    // Se reintenta cada 15 segundos hasta lograrlo
+    let intentos = 0;
+    const MAX_INTENTOS = 4;
+    const reintentar = setInterval(async () => {
+        intentos++;
+        const n = await syncPendientes();
+        if (n > 0) {
+            mostrarToast(`✅ ${n} registro${n !== 1 ? 's' : ''} sincronizado${n !== 1 ? 's' : ''} con SharePoint`);
+            actualizarBannerOffline();
+            clearInterval(reintentar);
+        } else if (intentos >= MAX_INTENTOS) {
+            clearInterval(reintentar);
+            actualizarBannerOffline();
+        }
+    }, 15000);
 });
 
 window.addEventListener('offline', () => {
@@ -327,6 +368,7 @@ window.offlineApp = {
     borrarPendiente,
     limpiarPendientes,
     isOnline,
+    checkConectividad,
     syncPendientes,
     actualizarBannerOffline,
     mostrarToast

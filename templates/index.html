@@ -45,6 +45,11 @@
         #offlineBanner {
             display: none;
         }
+        .offline-banner.waking {
+            background: #e8eaf6;
+            color: #3949ab;
+            border-bottom: 1px solid #9fa8da;
+        }
 
         .form-body { padding: 16px; flex: 1; overflow-x: hidden; }
 
@@ -355,6 +360,55 @@
     // ── Guardar (online o offline) ─────────────────────────────────────────────
     let _enviando = false;
 
+    function recolectarDatos(tienda, fecha, usuario) {
+        const fecha_reg = (() => {
+            const n = new Date();
+            return String(n.getDate()).padStart(2,'0') + '/' +
+                   String(n.getMonth()+1).padStart(2,'0') + '/' +
+                   n.getFullYear() + ' ' +
+                   String(n.getHours()).padStart(2,'0') + ':' +
+                   String(n.getMinutes()).padStart(2,'0');
+        })();
+
+        const productos   = [...document.querySelectorAll('input[name="producto[]"]')].map(i => i.value);
+        const inventarios = [...document.querySelectorAll('input[name="inventario[]"]')].map(i => parseInt(i.value)||0);
+        const mermas      = [...document.querySelectorAll('input[name="merma[]"]')].map(i => parseInt(i.value)||0);
+        const razones     = [...document.querySelectorAll('select[name="razon[]"]')].map(s => s.value);
+
+        const filas_detalle = [];
+        for (let i = 0; i < productos.length; i++) {
+            if (!productos[i].trim()) continue;
+            if (inventarios[i] > 0 || mermas[i] > 0) {
+                filas_detalle.push([
+                    fecha_reg, tienda, fecha, usuario,
+                    productos[i], inventarios[i], mermas[i], razones[i] || ''
+                ]);
+            }
+        }
+
+        const cf_productos   = [...document.querySelectorAll('input[name="cf_producto[]"]')].map(i => i.value);
+        const cf_existencias = [...document.querySelectorAll('input[name="cf_existencia[]"]')].map(i => parseInt(i.value)||0);
+
+        const filas_cf = [];
+        for (let i = 0; i < cf_productos.length; i++) {
+            if (cf_existencias[i] > 0) {
+                filas_cf.push([
+                    fecha_reg, tienda, fecha, usuario,
+                    cf_productos[i], cf_existencias[i]
+                ]);
+            }
+        }
+
+        return { fecha_reg, filas_detalle, filas_cf };
+    }
+
+    function limpiarFormulario() {
+        document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"], input[name="cf_existencia[]"]')
+            .forEach(i => i.value = '');
+        document.querySelectorAll('select[name="razon[]"]')
+            .forEach(s => s.value = '');
+    }
+
     async function guardar() {
         if (_enviando) return;
 
@@ -372,56 +426,20 @@
         btn.textContent = 'Verificando…';
 
         try {
-            const online = await offlineApp.isOnline();
+            // Verificar conectividad: internet Y servidor disponible
+            const { internet, serverUp } = await offlineApp.checkConectividad();
 
-            if (online) {
-                // ── CON INTERNET: envío normal al servidor ─────────────────
+            if (serverUp) {
+                // ── Servidor accesible: envío normal ──────────────────────
                 btn.textContent = 'Guardando…';
                 document.getElementById('mainForm').submit();
                 // No restablecer _enviando: la página recargará sola
-            } else {
-                // ── SIN INTERNET: guardar en IndexedDB ─────────────────────
+
+            } else if (internet && !serverUp) {
+                // ── Hay internet pero el servidor está despertando (Render)
+                // Guardar en IndexedDB y mostrar mensaje especial
                 btn.textContent = 'Guardando…';
-
-                const fecha_reg = (() => {
-                    const n = new Date();
-                    return String(n.getDate()).padStart(2,'0') + '/' +
-                           String(n.getMonth()+1).padStart(2,'0') + '/' +
-                           n.getFullYear() + ' ' +
-                           String(n.getHours()).padStart(2,'0') + ':' +
-                           String(n.getMinutes()).padStart(2,'0');
-                })();
-
-                // Recolectar filas de merma/inventario
-                const productos   = [...document.querySelectorAll('input[name="producto[]"]')].map(i => i.value);
-                const inventarios = [...document.querySelectorAll('input[name="inventario[]"]')].map(i => parseInt(i.value)||0);
-                const mermas      = [...document.querySelectorAll('input[name="merma[]"]')].map(i => parseInt(i.value)||0);
-                const razones     = [...document.querySelectorAll('select[name="razon[]"]')].map(s => s.value);
-
-                const filas_detalle = [];
-                for (let i = 0; i < productos.length; i++) {
-                    if (!productos[i].trim()) continue;
-                    if (inventarios[i] > 0 || mermas[i] > 0) {
-                        filas_detalle.push([
-                            fecha_reg, tienda, fecha, usuario,
-                            productos[i], inventarios[i], mermas[i], razones[i] || ''
-                        ]);
-                    }
-                }
-
-                // Recolectar filas de Cuarto Frío
-                const cf_productos   = [...document.querySelectorAll('input[name="cf_producto[]"]')].map(i => i.value);
-                const cf_existencias = [...document.querySelectorAll('input[name="cf_existencia[]"]')].map(i => parseInt(i.value)||0);
-
-                const filas_cf = [];
-                for (let i = 0; i < cf_productos.length; i++) {
-                    if (cf_existencias[i] > 0) {
-                        filas_cf.push([
-                            fecha_reg, tienda, fecha, usuario,
-                            cf_productos[i], cf_existencias[i]
-                        ]);
-                    }
-                }
+                const { fecha_reg, filas_detalle, filas_cf } = recolectarDatos(tienda, fecha, usuario);
 
                 if (!filas_detalle.length && !filas_cf.length) {
                     offlineApp.mostrarToast('⚠️ No hay datos para guardar.', 'error');
@@ -431,24 +449,44 @@
                     return;
                 }
 
-                // Guardar en IndexedDB
-                await offlineApp.guardarPendiente({
-                    tipo: 'form',
-                    tienda, fecha, usuario, fecha_reg,
-                    filas_detalle,
-                    filas_cf
-                });
+                await offlineApp.guardarPendiente({ tipo: 'form', tienda, fecha, usuario, fecha_reg, filas_detalle, filas_cf });
+                const total = await offlineApp.contarPendientes();
+                offlineApp.mostrarToast(`⏳ Guardado (${total} pendiente${total !== 1 ? 's' : ''}, servidor iniciando…)`, 'info');
+                offlineApp.actualizarBannerOffline();
 
+                limpiarFormulario();
+                _enviando = false;
+                btn.disabled    = false;
+                btn.textContent = 'Guardar';
+
+                // Intentar sincronizar en segundo plano cuando el servidor despierte
+                setTimeout(async () => {
+                    const n = await offlineApp.syncPendientes();
+                    if (n > 0) {
+                        offlineApp.mostrarToast(`✅ ${n} registro${n !== 1 ? 's' : ''} sincronizado${n !== 1 ? 's' : ''} con SharePoint`);
+                        offlineApp.actualizarBannerOffline();
+                    }
+                }, 20000);  // Esperar 20s para que Render despierte
+
+            } else {
+                // ── SIN INTERNET: guardar en IndexedDB ─────────────────────
+                btn.textContent = 'Guardando…';
+                const { fecha_reg, filas_detalle, filas_cf } = recolectarDatos(tienda, fecha, usuario);
+
+                if (!filas_detalle.length && !filas_cf.length) {
+                    offlineApp.mostrarToast('⚠️ No hay datos para guardar.', 'error');
+                    _enviando = false;
+                    btn.disabled    = false;
+                    btn.textContent = 'Guardar';
+                    return;
+                }
+
+                await offlineApp.guardarPendiente({ tipo: 'form', tienda, fecha, usuario, fecha_reg, filas_detalle, filas_cf });
                 const total = await offlineApp.contarPendientes();
                 offlineApp.mostrarToast(`📵 Guardado sin conexión (${total} pendiente${total !== 1 ? 's' : ''})`);
                 offlineApp.actualizarBannerOffline();
 
-                // Limpiar formulario
-                document.querySelectorAll('input[name="inventario[]"], input[name="merma[]"], input[name="cf_existencia[]"]')
-                    .forEach(i => i.value = '');
-                document.querySelectorAll('select[name="razon[]"]')
-                    .forEach(s => s.value = '');
-
+                limpiarFormulario();
                 _enviando = false;
                 btn.disabled    = false;
                 btn.textContent = 'Guardar';
@@ -480,8 +518,8 @@
 
     // ── Registrar Service Worker ───────────────────────────────────────────────
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/static/service-worker.js')
-            .then(reg => console.log('[SW] Registrado:', reg.scope))
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(reg => console.log('[SW] Registrado con scope raiz:', reg.scope))
             .catch(err => console.warn('[SW] Error al registrar:', err));
     }
 

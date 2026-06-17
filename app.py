@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, jsonify
+from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file
 import json
 import os
 import requests as req_lib
@@ -272,7 +272,23 @@ TIENDAS = [
 ]
 
 
-# ── Rutas ─────────────────────────────────────────────────────────────────────
+# ── Rutas ─────────────────────────────────────────────
+
+@app.route("/sw.js")
+def service_worker_root():
+    """
+    Sirve el Service Worker desde la raiz (/) para que su scope cubra
+    toda la aplicacion y pueda interceptar / y /registros sin internet.
+    Sin este header, el navegador limita el scope al directorio /static/.
+    """
+    sw_path = os.path.join(app.root_path, 'static', 'service-worker.js')
+    with open(sw_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    resp = make_response(content)
+    resp.headers['Content-Type']         = 'application/javascript; charset=utf-8'
+    resp.headers['Service-Worker-Allowed'] = '/'
+    resp.headers['Cache-Control']        = 'no-cache, no-store, must-revalidate'
+    return resp
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -337,7 +353,10 @@ def index():
             return redirect("/?success=1")
 
         today = datetime.now().strftime("%d/%m/%Y")
-        return render_template("index.html", tiendas=TIENDAS, today=today)
+        resp = make_response(render_template("index.html", tiendas=TIENDAS, today=today))
+        # Permitir que el Service Worker cachee la página
+        resp.headers['Cache-Control'] = 'no-cache'  # revalidar, pero cacheable
+        return resp
 
     except Exception as e:
         return f"<h2>Error en la aplicacion:</h2><pre>{e}</pre>"
@@ -484,7 +503,10 @@ def borrar_cf(id):
 @app.route("/ping")
 def ping():
     """Endpoint liviano para verificar conectividad desde el cliente."""
-    return jsonify({"ok": True}), 200
+    resp = make_response(jsonify({"ok": True}), 200)
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
 
 
 @app.route("/sync", methods=["POST"])

@@ -1,16 +1,15 @@
 /**
  * service-worker.js — Service Worker con soporte offline completo
- * 
- * Estrategia: Network-First con fallback a caché
+ *
+ * Estrategia: Cache-First para assets estáticos, Network-First para páginas HTML
  * - Pre-cachea las páginas principales al instalar
  * - Si hay red → sirve desde red y actualiza caché
- * - Si no hay red → sirve desde caché
+ * - Si no hay red → sirve desde caché sin error
  */
 
-const CACHE_NAME    = 'inventario-v3';
+const CACHE_NAME    = 'inventario-v5';
 const STATIC_ASSETS = [
     '/',
-    '/registros',
     '/static/offline.js',
     '/static/manifest.json',
     '/static/icon-192.png',
@@ -21,7 +20,7 @@ const STATIC_ASSETS = [
 // ── Install: pre-cachear assets ────────────────────────────────────────────────
 
 self.addEventListener('install', (event) => {
-    console.log('[SW] Instalando v3…');
+    console.log('[SW] Instalando v5…');
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
             for (const url of STATIC_ASSETS) {
@@ -34,13 +33,14 @@ self.addEventListener('install', (event) => {
             }
         })
     );
+    // Activar inmediatamente sin esperar a que se cierre la pestaña anterior
     self.skipWaiting();
 });
 
 // ── Activate: limpiar cachés viejos ───────────────────────────────────────────
 
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activado v3');
+    console.log('[SW] Activado v5');
     event.waitUntil(
         caches.keys().then((keys) =>
             Promise.all(
@@ -51,9 +51,8 @@ self.addEventListener('activate', (event) => {
                         return caches.delete(k);
                     })
             )
-        )
+        ).then(() => clients.claim())
     );
-    clients.claim();
 });
 
 // ── Fetch: Network-First con fallback a caché ─────────────────────────────────
@@ -62,49 +61,96 @@ self.addEventListener('fetch', (event) => {
     const req = event.request;
     const url = new URL(req.url);
 
-    // Solo manejamos GET (POST/DELETE van directo, son peticiones al servidor)
+    // Solo manejamos GET
     if (req.method !== 'GET') return;
 
-    // No cachear /ping (siempre debe ir a la red para detectar conectividad real)
-    if (url.pathname === '/ping') return;
+    // /ping y /sync van siempre a la red (no cachear)
+    if (url.pathname === '/ping' || url.pathname === '/sync') return;
 
-    // No cachear /sync
-    if (url.pathname === '/sync') return;
+    // Para recursos externos (CDN), usar Cache-First
+    if (url.origin !== self.location.origin) {
+        event.respondWith(cacheFirstExternal(req));
+        return;
+    }
 
-    // Páginas de editar: cachear dinámicamente
+    // Para todo lo demás: Network-First con fallback a caché
     event.respondWith(networkFirstWithCache(req));
 });
 
+// Cache-First para recursos externos (Bootstrap CDN, etc.)
+async function cacheFirstExternal(req) {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    try {
+        const networkRes = await fetch(req);
+        if (networkRes.ok) cache.put(req, networkRes.clone());
+        return networkRes;
+    } catch {
+        return new Response('', { status: 503 });
+    }
+}
+
+// Network-First para páginas propias
 async function networkFirstWithCache(req) {
     const cache = await caches.open(CACHE_NAME);
     try {
-        // Intentar red
-        const networkRes = await fetch(req);
+        // Intentar red con timeout de 5 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const networkRes = await fetch(req, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
         if (networkRes.ok) {
-            // Solo cachear respuestas exitosas
+            // Guardar copia fresca en caché
             cache.put(req, networkRes.clone());
         }
         return networkRes;
     } catch {
-        // Sin red → buscar en caché
+        // Sin red (o timeout) → buscar en caché
         const cached = await cache.match(req);
         if (cached) {
             console.log('[SW] Sirviendo desde caché:', req.url);
             return cached;
         }
-        // Fallback: si es navegación, mostrar la página raíz cacheada
+
+        // Si es navegación y no hay caché exacta, intentar la raíz
         if (req.mode === 'navigate') {
             const root = await cache.match('/');
-            if (root) return root;
+            if (root) {
+                console.log('[SW] Fallback a raíz cacheada');
+                return root;
+            }
         }
-        // Sin caché → devolver error
+
+        // Último recurso: página de error offline
         return new Response(
-            '<html><body style="font-family:sans-serif;text-align:center;padding:40px">' +
-            '<h2>📵 Sin conexión</h2>' +
-            '<p>La página no está disponible sin internet.</p>' +
-            '<button onclick="location.reload()" style="padding:10px 20px;margin-top:16px;' +
-            'background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer">' +
-            'Reintentar</button></body></html>',
+            `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sin conexión</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex;
+           align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .card { background: #fff; border-radius: 16px; padding: 40px 32px; text-align: center;
+            max-width: 340px; box-shadow: 0 4px 24px rgba(0,0,0,0.10); }
+    h2 { color: #202124; margin-bottom: 10px; }
+    p  { color: #5f6368; margin-bottom: 24px; }
+    button { background: #1a73e8; color: #fff; border: none; border-radius: 8px;
+             padding: 12px 28px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size:48px">📵</div>
+    <h2>Sin conexión</h2>
+    <p>La app no pudo cargar. Asegúrate de haber abierto la app con internet al menos una vez para activar el modo offline.</p>
+    <button onclick="location.reload()">Reintentar</button>
+  </div>
+</body>
+</html>`,
             {
                 status: 503,
                 headers: { 'Content-Type': 'text/html; charset=utf-8' }
