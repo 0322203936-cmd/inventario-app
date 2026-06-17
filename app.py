@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file, session
+from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file
 import json
 import os
 import base64
@@ -9,10 +9,8 @@ import threading
 
 
 app = Flask(__name__)
-app.secret_key = "cfbc_secret_key_2026"
 
 DELETE_PASSWORD = "CFBCWALMEX"
-REPORTE_PASSWORD = "cfbc2026"
 
 # ── SharePoint / Excel config ─────────────────────────────────────────────────
 SP_TENANT_ID     = os.environ.get("SP_TENANT_ID",     "073b7d65-a90c-4b41-8300-6555841d361f")
@@ -30,11 +28,6 @@ HEADERS_DETALLE = [
 HEADERS_CF = [
     "Fecha de registro", "Tienda", "Fecha", "Usuario",
     "Producto", "Existencia"
-]
-
-HEADERS_GASTOS = [
-    "Fecha de registro", "Tienda", "Fecha", "Usuario",
-    "Categoria", "Monto"
 ]
 
 # Tabla Detalle: columnas A-H (col 1-8)
@@ -113,12 +106,10 @@ def _ensure_sheet_exists(headers, base_url, sheet_name):
 
 
 def _format_range(headers_auth, base_url, address, bg_color, bold=False,
-                  font_color="000000", font_size=10, sheet_name=None):
+                  font_color="000000", font_size=10):
     """Aplica formato de relleno y fuente a un rango dado."""
-    if sheet_name is None:
-        sheet_name = SP_SHEET_DETALLE
     fmt_url = (
-        f"{base_url}/workbook/worksheets/{sheet_name}"
+        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
         f"/range(address='{address}')/format"
     )
     req_lib.patch(fmt_url + "/fill",
@@ -270,145 +261,6 @@ def escribir_en_excel(filas_detalle, filas_cf):
         print(f"[SP] Excepcion: {e}")
 
 
-# ── Funcion para escribir gastos en hoja "REPORTE-GASTOSAPP" ─────────────────
-
-def escribir_gastos_en_excel(filas_gastos):
-    """
-    Escribe los montos de gastos en la hoja "REPORTE-GASTOSAPP" del Excel.
-    """
-    if not filas_gastos:
-        return
-
-    try:
-        token = _get_sp_token()
-        if not token:
-            print("[GASTOS] No se pudo obtener token.")
-            return
-
-        auth_headers = {"Authorization": f"Bearer {token}"}
-        site_id      = _get_site_id(auth_headers)
-        base_url     = _get_base_url(site_id)
-
-        sheet_name = "REPORTE-GASTOSAPP"
-        _ensure_sheet_exists(auth_headers, base_url, sheet_name)
-
-        # ── Escribir encabezados en columna A (1) ─────────────────────────
-        COL_START = 1
-        n_cols    = len(HEADERS_GASTOS)
-        s_col     = _col_letter(COL_START)
-        e_col     = _col_letter(COL_START + n_cols - 1)
-        address   = f"{s_col}1:{e_col}1"
-
-        range_url = (
-            f"{base_url}/workbook/worksheets/{sheet_name}"
-            f"/range(address='{address}')"
-        )
-        r = req_lib.get(range_url, headers=auth_headers, timeout=30)
-        needs_write = True
-        if r.ok:
-            row = r.json().get("values", [[]])[0] if r.json().get("values") else []
-            if row and all(str(row[i]).strip() == HEADERS_GASTOS[i]
-                           for i in range(n_cols) if i < len(row)):
-                needs_write = False
-
-        if needs_write:
-            req_lib.patch(range_url,
-                headers={**auth_headers, "Content-Type": "application/json"},
-                json={"values": [HEADERS_GASTOS]}, timeout=30)
-            _format_range(auth_headers, base_url, address,
-                          bg_color="E67E22", bold=True,
-                          font_color="FFFFFF", font_size=11, sheet_name=sheet_name)
-
-        # ── Buscar siguiente fila vacia ───────────────────────────────────
-        used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
-        r = req_lib.get(used_url, headers=auth_headers, timeout=30)
-        next_row = 2
-        if r.ok:
-            row_count = r.json().get("rowCount", 1)
-            if row_count >= 1:
-                col_letter = _col_letter(COL_START)
-                col_url = (
-                    f"{base_url}/workbook/worksheets/{sheet_name}"
-                    f"/range(address='{col_letter}1:{col_letter}{row_count}')"
-                )
-                r2 = req_lib.get(col_url, headers=auth_headers, timeout=30)
-                if r2.ok:
-                    values = r2.json().get("values", [])
-                    last_row = 1
-                    for i, cell in enumerate(values):
-                        if cell and str(cell[0]).strip():
-                            last_row = i + 1
-                    next_row = last_row + 1
-
-        end_row  = next_row + len(filas_gastos) - 1
-        address  = f"{s_col}{next_row}:{e_col}{end_row}"
-
-        resp = req_lib.patch(
-            f"{base_url}/workbook/worksheets/{sheet_name}/range(address='{address}')",
-            headers={**auth_headers, "Content-Type": "application/json"},
-            json={"values": filas_gastos}, timeout=30
-        )
-        if resp.ok:
-            print(f"[GASTOS] Excel OK: {len(filas_gastos)} filas escritas en {sheet_name}")
-            for i in range(len(filas_gastos)):
-                row_idx = next_row + i
-                if row_idx % 2 == 0:
-                    _format_range(auth_headers, base_url,
-                                  f"{s_col}{row_idx}:{e_col}{row_idx}",
-                                  bg_color="FFF3E0", font_size=10, sheet_name=sheet_name)
-        else:
-            print(f"[GASTOS] Error al escribir Excel: {resp.status_code} {resp.text[:200]}")
-
-    except Exception as e:
-        print(f"[GASTOS] Excepcion al escribir Excel: {e}")
-
-
-# ── Leer gastos desde hoja "REPORTE-GASTOSAPP" ───────────────────────────────
-
-def leer_gastos_desde_excel():
-    """
-    Lee los montos desde la hoja "REPORTE-GASTOSAPP" del Excel.
-    Retorna una lista de diccionarios con: fecha_reg, tienda, fecha, usuario, categoria, monto
-    """
-    try:
-        token = _get_sp_token()
-        if not token:
-            return []
-        auth_headers = {"Authorization": f"Bearer {token}"}
-        site_id  = _get_site_id(auth_headers)
-        base_url = _get_base_url(site_id)
-
-        sheet_name = "REPORTE-GASTOSAPP"
-        used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
-        r = req_lib.get(used_url, headers=auth_headers, timeout=30)
-        if not r.ok:
-            print(f"[GASTOS] Hoja '{sheet_name}' no existe o no tiene datos: {r.status_code}")
-            return []
-
-        values = r.json().get("values", [])
-        if not values or len(values) <= 1:
-            return []
-
-        gastos_excel = []
-        for i, row in enumerate(values):
-            if i == 0:
-                continue  # saltar encabezados
-            if len(row) >= 6 and str(row[0]).strip():
-                gastos_excel.append({
-                    "fecha_reg": str(row[0]) if len(row) > 0 else "",
-                    "tienda":    str(row[1]) if len(row) > 1 else "",
-                    "fecha":     str(row[2]) if len(row) > 2 else "",
-                    "usuario":   str(row[3]) if len(row) > 3 else "",
-                    "categoria": str(row[4]) if len(row) > 4 else "",
-                    "monto":     str(row[5]) if len(row) > 5 else "0"
-                })
-        return gastos_excel
-
-    except Exception as e:
-        print(f"[GASTOS] Excepcion al leer Excel: {e}")
-        return []
-
-
 # ── Base de datos eliminada ───────────────────────────────────────────────────
 
 TIENDAS = [
@@ -522,184 +374,6 @@ def gastos():
     resp = make_response(render_template("gastos.html"))
     resp.headers['Cache-Control'] = 'no-cache'
     return resp
-
-
-@app.route("/reporte", methods=["GET", "POST"])
-def reporte():
-    """Pantalla de reporte de gastos con autenticación."""
-    if request.method == "POST":
-        password = request.form.get("password")
-        if password == REPORTE_PASSWORD:
-            session["reporte_auth"] = True
-            return redirect("/reporte")
-        else:
-            return render_template("reporte.html", error=True, auth_required=True)
-    
-    if not session.get("reporte_auth"):
-        return render_template("reporte.html", auth_required=True)
-    
-    try:
-        gastos_data = obtener_gastos_sharepoint()
-        return render_template("reporte.html", gastos=gastos_data, auth_required=False)
-    except Exception as e:
-        return f"<h2>Error:</h2><pre>{e}</pre>"
-
-
-def _listar_archivos_recursivo(headers_auth, site_id, folder_path, max_depth=3):
-    """
-    Lista recursivamente todos los archivos de imagen dentro de una carpeta
-    y sus subcarpetas (hasta max_depth niveles de profundidad).
-    Retorna una lista de archivos (dicts de Graph API).
-    """
-    all_files = []
-    seen_ids  = set()
-
-    def _explore(fpath, depth):
-        if depth > max_depth:
-            return
-        if not fpath.startswith("/"):
-            fpath = "/" + fpath
-        children_url = (
-            f"https://graph.microsoft.com/v1.0/sites/{site_id}"
-            f"/drive/root:{fpath}:/children"
-        )
-        try:
-            r = req_lib.get(children_url, headers=headers_auth, timeout=30)
-            if not r.ok:
-                return
-            items = r.json().get("value", [])
-            for item in items:
-                item_id = item.get("id", "")
-                if item_id in seen_ids:
-                    continue
-                seen_ids.add(item_id)
-
-                name = item.get("name", "")
-                # Si es carpeta, explorar recursivamente
-                if item.get("folder"):
-                    _explore(f"{fpath}/{name}", depth + 1)
-                # Si es imagen, agregarla
-                elif name.lower().endswith(('.jpg', '.jpeg', '.png')):
-                    all_files.append(item)
-        except Exception:
-            pass
-
-    _explore(folder_path, 0)
-    return all_files
-
-
-def obtener_gastos_sharepoint():
-    """
-    Obtiene la lista de fotos y montos de gastos de SharePoint.
-    Retorna una lista de diccionarios con: nombre, url, categoria, fecha, tienda, usuario, monto
-    """
-    try:
-        token = _get_sp_token()
-        if not token:
-            print("[GASTOS] No se pudo obtener token")
-            return []
-        
-        auth_headers = {"Authorization": f"Bearer {token}"}
-        site_id = _get_site_id(auth_headers)
-        print(f"[GASTOS] Site ID obtenido correctamente")
-        
-        # ── Leer montos desde hoja Excel "REPORTE-GASTOSAPP" ─────────────
-        gastos_excel = leer_gastos_desde_excel()
-        print(f"[GASTOS] Registros leidos del Excel: {len(gastos_excel)}")
-
-        # ── Listar fotos recursivamente en todas las subcarpetas ──────────
-        print(f"[GASTOS] Buscando fotos en: {SP_GASTOS_FOLDER}")
-        files = _listar_archivos_recursivo(auth_headers, site_id, SP_GASTOS_FOLDER)
-        print(f"[GASTOS] Archivos de imagen encontrados: {len(files)}")
-        
-        if files:
-            for f in files:
-                fname = f.get('name', '?')
-                parent = f.get('parentReference', {}).get('path', '?')
-                print(f"  - {fname} | ruta: ...{parent[-60:] if len(parent) > 60 else parent}")
-        
-        gastos = []
-        
-        for file in files:
-            name = file.get("name", "")
-            if not name.lower().endswith(('.jpg', '.jpeg', '.png')):
-                continue
-                
-            # ── Parsear nombre del archivo ────────────────────────────────
-            # Formato: TIENDA_USUARIO_FECHA_TIMESTAMP_NUMERO.jpg
-            # Ejemplo: SC_Tijuana_Mizael_17-06-2025_20250617_083045_1.jpg
-            base_name = name.rsplit(".", 1)[0]  # quitar extension
-            parts = base_name.split("_")
-            
-            if len(parts) >= 3:
-                # Buscar la posición del nombre de usuario conocido
-                idx_usuario = -1
-                usuarios_conocidos = ["Mizael", "Esteban", "Victor"]
-                for j, p in enumerate(parts):
-                    if p in usuarios_conocidos:
-                        idx_usuario = j
-                        break
-                
-                if idx_usuario >= 2:
-                    tienda = " ".join(parts[:idx_usuario])
-                    usuario = parts[idx_usuario]
-                    fecha_str = parts[idx_usuario + 1] if len(parts) > idx_usuario + 1 else "01-01-2025"
-                else:
-                    tienda = parts[0] if parts[0] else "Desconocido"
-                    usuario = parts[1] if len(parts) > 1 else "Desconocido"
-                    fecha_str = parts[2] if len(parts) > 2 else "01-01-2025"
-                
-                timestamp_parts = [p for p in parts if len(p) == 15 and p[:4].isdigit() and p[4:6].isdigit()]
-                timestamp = timestamp_parts[0] if timestamp_parts else "20250101_000000"
-                
-                # ── Determinar categoría por la ruta ──────────────────────
-                parent_path = file.get("parentReference", {}).get("path", "")
-                categoria = "DESCONOCIDO"
-                if "CASETAS" in parent_path.upper():
-                    categoria = "CASETAS"
-                elif "COMIDA" in parent_path.upper():
-                    categoria = "COMIDA"
-                elif "OTROS" in parent_path.upper():
-                    categoria = "OTROS"
-
-                # URL de descarga
-                download_url = file.get("@microsoft.graph.downloadUrl", "")
-                
-                # ── Buscar el monto correspondiente en Excel ──────────────
-                monto = ""
-                for ge in gastos_excel:
-                    tienda_excel = ge["tienda"].lower().strip()
-                    tienda_foto  = tienda.lower().strip()
-                    if (tienda_excel == tienda_foto and
-                        ge["usuario"].lower().strip() == usuario.lower().strip() and
-                        ge["categoria"].lower().strip() == categoria.lower().strip()):
-                        monto = ge["monto"]
-                        break
-                
-                gasto = {
-                    "nombre": name,
-                    "url": download_url,
-                    "categoria": categoria,
-                    "tienda": tienda,
-                    "usuario": usuario,
-                    "fecha": fecha_str,
-                    "timestamp": timestamp,
-                    "monto": monto
-                }
-                gastos.append(gasto)
-        
-        # ── Ordenar por fecha más reciente ────────────────────────────────
-        gastos.sort(key=lambda x: x["timestamp"], reverse=True)
-        print(f"[GASTOS] Total gastos procesados para el reporte: {len(gastos)}")
-        if gastos:
-            print(f"[GASTOS] Primer gasto del reporte: tienda={gastos[0]['tienda']}, cat={gastos[0]['categoria']}, monto={gastos[0]['monto']}")
-        else:
-            print(f"[GASTOS] ADVERTENCIA: No se generaron gastos para el reporte!")
-        return gastos
-        
-    except Exception as e:
-        print(f"[GASTOS] Excepcion: {e}")
-        return []
 
 
 def leer_desde_excel():
@@ -889,8 +563,7 @@ def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url):
 
 def procesar_gastos(pendiente):
     """
-    Sube las fotos de un registro de gastos a SharePoint
-    Y guarda los montos en la hoja 'REPORTE-GASTOSAPP' del Excel.
+    Sube las fotos de un registro de gastos a SharePoint.
     Se ejecuta en un hilo separado.
     """
     try:
@@ -910,16 +583,10 @@ def procesar_gastos(pendiente):
         timestamp = fecha_reg.strftime("%Y%m%d_%H%M%S")
         mes_folder = fecha_reg.strftime("%Y-%m")
 
-        # ── Filas para el Excel de gastos (montos) ───────────────────────
-        filas_gastos = []
-
         categorias = ["casetas", "comida", "otros"]
         for cat in categorias:
             cat_data = pendiente.get(cat, {})
             fotos = cat_data.get("fotos", [])
-            monto = cat_data.get("monto", 0)
-            
-            # Subir fotos a SharePoint
             for i, foto_b64 in enumerate(fotos):
                 nombre_archivo = f"{tienda}_{usuario}_{fecha}_{timestamp}_{i+1}.jpg"
                 ruta = (
@@ -931,28 +598,6 @@ def procesar_gastos(pendiente):
                     print(f"[GASTOS] Subida: {ruta}")
                 else:
                     print(f"[GASTOS] Error al subir: {ruta}")
-
-            # Guardar el monto en el Excel (una fila por categoria)
-            if monto > 0:
-                fecha_reg_str = fecha_reg.strftime("%d/%m/%Y %H:%M")
-                filas_gastos.append([
-                    fecha_reg_str,
-                    pendiente.get("tienda", ""),
-                    pendiente.get("fecha", ""),
-                    usuario,
-                    cat.upper(),
-                    monto
-                ])
-
-        # ── Escribir montos en Excel ──────────────────────────────────────
-        if filas_gastos:
-            print(f"[GASTOS] Escribiendo {len(filas_gastos)} montos en REPORTE-GASTOSAPP...")
-            t_excel = threading.Thread(
-                target=escribir_gastos_en_excel,
-                args=(filas_gastos,),
-                daemon=True
-            )
-            t_excel.start()
 
     except Exception as e:
         print(f"[GASTOS] Excepcion: {e}")
