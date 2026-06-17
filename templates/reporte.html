@@ -334,16 +334,22 @@
                             <span class="gasto-categoria {{ gasto.categoria.lower() }}">{{ gasto.categoria }}</span>
                             <span class="gasto-fecha">{{ gasto.fecha }}</span>
                         </div>
-                        <div class="gasto-details">
-                            <div class="gasto-detail">
-                                <span class="gasto-detail-icon">🏪</span>
-                                <span>{{ gasto.tienda }}</span>
-                            </div>
-                            <div class="gasto-detail">
-                                <span class="gasto-detail-icon">👤</span>
-                                <span>{{ gasto.usuario }}</span>
-                            </div>
+                    <div class="gasto-details">
+                        <div class="gasto-detail">
+                            <span class="gasto-detail-icon">🏪</span>
+                            <span>{{ gasto.tienda }}</span>
                         </div>
+                        <div class="gasto-detail">
+                            <span class="gasto-detail-icon">👤</span>
+                            <span>{{ gasto.usuario }}</span>
+                        </div>
+                        {% if gasto.monto %}
+                        <div class="gasto-detail">
+                            <span class="gasto-detail-icon">💰</span>
+                            <span><strong>${{ gasto.monto }}</strong></span>
+                        </div>
+                        {% endif %}
+                    </div>
                     </div>
                 </div>
                 {% endfor %}
