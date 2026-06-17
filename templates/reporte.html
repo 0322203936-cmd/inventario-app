@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Gastos — Pacífica Farms</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            background: #f0f2f5;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0; padding: 0;
+        }
+
+        .phone-wrapper {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 16px 14px;
+            border-bottom: 1px solid #e8eaed;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-arrow {
+            color: #0d9488;
+            font-size: 22px;
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .header-title { flex: 1; }
+
+        .header-title h5 {
+            color: #0d9488;
+            font-size: 17px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header-title small {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        /* ── Login Form ── */
+        .login-body {
+            padding: 32px 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #202124;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .password-input {
+            width: 100%;
+            max-width: 280px;
+            padding: 14px 16px;
+            border: 2px solid #dadce0;
+            border-radius: 12px;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .password-input:focus {
+            border-color: #0d9488;
+        }
+
+        .btn-login {
+            width: 100%;
+            max-width: 280px;
+            padding: 14px;
+            background: linear-gradient(135deg, #0d9488, #0f766e);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(13,148,136,0.35);
+        }
+
+        .btn-login:active {
+            opacity: 0.8;
+        }
+
+        .error-msg {
+            color: #dc2626;
+            font-size: 14px;
+            margin-top: 16px;
+            font-weight: 600;
+        }
+
+        /* ── Reporte Body ── */
+        .reporte-body {
+            padding: 16px;
+            flex: 1;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .filter-chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 2px solid #e5e7eb;
+            background: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .filter-chip.active {
+            background: #0d9488;
+            color: #fff;
+            border-color: #0d9488;
+        }
+
+        .filter-chip.casetas.active { background: #3b82f6; border-color: #3b82f6; }
+        .filter-chip.comida.active { background: #f59e0b; border-color: #f59e0b; }
+        .filter-chip.otros.active { background: #6b7280; border-color: #6b7280; }
+
+        .gastos-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .gasto-card {
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: #fff;
+        }
+
+        .gasto-card.casetas { border-left: 4px solid #3b82f6; }
+        .gasto-card.comida { border-left: 4px solid #f59e0b; }
+        .gasto-card.otros { border-left: 4px solid #6b7280; }
+
+        .gasto-img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .gasto-info {
+            padding: 12px 14px;
+        }
+
+        .gasto-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .gasto-categoria {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .gasto-categoria.casetas { background: #eff6ff; color: #1d4ed8; }
+        .gasto-categoria.comida { background: #fffbeb; color: #b45309; }
+        .gasto-categoria.otros { background: #f9fafb; color: #374151; }
+
+        .gasto-fecha {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .gasto-details {
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .gasto-detail {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .gasto-detail-icon {
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #9ca3af;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* ── Modal ── */
+        .foto-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .foto-modal.open { display: flex; }
+
+        .foto-modal img {
+            max-width: 95vw;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+
+        .foto-modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="phone-wrapper">
+
+    <!-- Header -->
+    <div class="app-header">
+        <a href="/" class="back-arrow">←</a>
+        <div class="header-title">
+            <h5>📊 Reporte de Gastos</h5>
+            <small>Fotos y montos registrados</small>
+        </div>
+    </div>
+
+    {% if auth_required %}
+    <!-- Login Form -->
+    <div class="login-body">
+        <div class="login-icon">🔐</div>
+        <div class="login-title">Acceso Restringido</div>
+        <div class="login-subtitle">Ingresa la contraseña para ver el reporte</div>
+        
+        <form method="POST">
+            <input type="password" name="password" class="password-input" placeholder="Contraseña" required autofocus>
+            <button type="submit" class="btn-login">Entrar</button>
+        </form>
+        
+        {% if error %}
+        <div class="error-msg">❌ Contraseña incorrecta</div>
+        {% endif %}
+    </div>
+    {% else %}
+    <!-- Reporte Body -->
+    <div class="reporte-body">
+        <div class="filter-bar">
+            <button class="filter-chip active" onclick="filterGastos('todos')">Todos</button>
+            <button class="filter-chip casetas" onclick="filterGastos('casetas')">Casetas</button>
+            <button class="filter-chip comida" onclick="filterGastos('comida')">Comida</button>
+            <button class="filter-chip otros" onclick="filterGastos('otros')">Otros</button>
+        </div>
+
+        <div class="gastos-grid" id="gastosGrid">
+            {% if gastos %}
+                {% for gasto in gastos %}
+                <div class="gasto-card {{ gasto.categoria.lower() }}" data-categoria="{{ gasto.categoria.lower() }}">
+                    <img src="{{ gasto.url }}" alt="Ticket" class="gasto-img" onclick="abrirModal('{{ gasto.url }}')">
+                    <div class="gasto-info">
+                        <div class="gasto-header">
+                            <span class="gasto-categoria {{ gasto.categoria.lower() }}">{{ gasto.categoria }}</span>
+                            <span class="gasto-fecha">{{ gasto.fecha }}</span>
+                        </div>
+                        <div class="gasto-details">
+                            <div class="gasto-detail">
+                                <span class="gasto-detail-icon">🏪</span>
+                                <span>{{ gasto.tienda }}</span>
+                            </div>
+                            <div class="gasto-detail">
+                                <span class="gasto-detail-icon">👤</span>
+                                <span>{{ gasto.usuario }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <div class="empty-state-text">No hay gastos registrados</div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modal -->
+    <div class="foto-modal" id="fotoModal" onclick="cerrarModal()">
+        <button class="foto-modal-close">✕</button>
+        <img id="fotoModalImg" src="" alt="Ticket">
+    </div>
+
+</div>
+
+<script>
+    function filterGastos(categoria) {
+        // Update chips
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        // Filter cards
+        const cards = document.querySelectorAll('.gasto-card');
+        cards.forEach(card => {
+            if (categoria === 'todos' || card.dataset.categoria === categoria) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function abrirModal(url) {
+        document.getElementById('fotoModalImg').src = url;
+        document.getElementById('fotoModal').classList.add('open');
+    }
+
+    function cerrarModal() {
+        document.getElementById('fotoModal').classList.remove('open');
+    }
+</script>
+
+</body>
+</html>

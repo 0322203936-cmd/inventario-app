@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file
+from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file, session
 import json
 import os
 import base64
@@ -9,8 +9,10 @@ import threading
 
 
 app = Flask(__name__)
+app.secret_key = "cfbc_secret_key_2026"
 
 DELETE_PASSWORD = "CFBCWALMEX"
+REPORTE_PASSWORD = "cfbc2026"
 
 # ── SharePoint / Excel config ─────────────────────────────────────────────────
 SP_TENANT_ID     = os.environ.get("SP_TENANT_ID",     "073b7d65-a90c-4b41-8300-6555841d361f")
@@ -374,6 +376,89 @@ def gastos():
     resp = make_response(render_template("gastos.html"))
     resp.headers['Cache-Control'] = 'no-cache'
     return resp
+
+
+@app.route("/reporte", methods=["GET", "POST"])
+def reporte():
+    """Pantalla de reporte de gastos con autenticación."""
+    if request.method == "POST":
+        password = request.form.get("password")
+        if password == REPORTE_PASSWORD:
+            session["reporte_auth"] = True
+            return redirect("/reporte")
+        else:
+            return render_template("reporte.html", error=True)
+    
+    if not session.get("reporte_auth"):
+        return render_template("reporte.html", auth_required=True)
+    
+    try:
+        gastos_data = obtener_gastos_sharepoint()
+        return render_template("reporte.html", gastos=gastos_data, auth_required=False)
+    except Exception as e:
+        return f"<h2>Error:</h2><pre>{e}</pre>"
+
+
+def obtener_gastos_sharepoint():
+    """
+    Obtiene la lista de fotos de gastos de SharePoint.
+    Retorna una lista de diccionarios con: nombre, url, categoria, fecha, tienda, usuario
+    """
+    token = _get_sp_token()
+    if not token:
+        return []
+    
+    auth_headers = {"Authorization": f"Bearer {token}"}
+    site_id = _get_site_id(auth_headers)
+    
+    # URL para listar archivos en la carpeta Gastos
+    folder_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{SP_GASTOS_FOLDER}:/children"
+    r = req_lib.get(folder_url, headers=auth_headers, timeout=30)
+    if not r.ok:
+        print(f"[GASTOS] Error al listar carpeta: {r.status_code}")
+        return []
+    
+    files = r.json().get("value", [])
+    gastos = []
+    
+    for file in files:
+        name = file.get("name", "")
+        # El formato del nombre es: TIENDA_USUARIO_FECHA_TIMESTAMP_NUMERO.jpg
+        # Ejemplo: Tijuana_Mizael_17-06-2025_20250617_083045_1.jpg
+        parts = name.replace(".jpg", "").split("_")
+        
+        if len(parts) >= 5:
+            tienda = parts[0].replace("_", " ")
+            usuario = parts[1]
+            fecha_str = parts[2]  # DD-MM-YYYY
+            timestamp = parts[3]
+            categoria = "DESCONOCIDO"
+            
+            # Determinar categoría basado en la ruta del archivo
+            parent_path = file.get("parentReference", {}).get("path", "")
+            if "CASETAS" in parent_path.upper():
+                categoria = "CASETAS"
+            elif "COMIDA" in parent_path.upper():
+                categoria = "COMIDA"
+            elif "OTROS" in parent_path.upper():
+                categoria = "OTROS"
+            
+            # URL de descarga de la imagen
+            download_url = file.get("@microsoft.graph.downloadUrl", "")
+            
+            gastos.append({
+                "nombre": name,
+                "url": download_url,
+                "categoria": categoria,
+                "tienda": tienda,
+                "usuario": usuario,
+                "fecha": fecha_str,
+                "timestamp": timestamp
+            })
+    
+    # Ordenar por fecha más reciente
+    gastos.sort(key=lambda x: x["timestamp"], reverse=True)
+    return gastos
 
 
 def leer_desde_excel():
