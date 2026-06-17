@@ -404,61 +404,85 @@ def obtener_gastos_sharepoint():
     Obtiene la lista de fotos de gastos de SharePoint.
     Retorna una lista de diccionarios con: nombre, url, categoria, fecha, tienda, usuario
     """
-    token = _get_sp_token()
-    if not token:
-        return []
-    
-    auth_headers = {"Authorization": f"Bearer {token}"}
-    site_id = _get_site_id(auth_headers)
-    
-    # URL para listar archivos en la carpeta Gastos
-    folder_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{SP_GASTOS_FOLDER}:/children"
-    r = req_lib.get(folder_url, headers=auth_headers, timeout=30)
-    if not r.ok:
-        print(f"[GASTOS] Error al listar carpeta: {r.status_code}")
-        return []
-    
-    files = r.json().get("value", [])
-    gastos = []
-    
-    for file in files:
-        name = file.get("name", "")
-        # El formato del nombre es: TIENDA_USUARIO_FECHA_TIMESTAMP_NUMERO.jpg
-        # Ejemplo: Tijuana_Mizael_17-06-2025_20250617_083045_1.jpg
-        parts = name.replace(".jpg", "").split("_")
+    try:
+        token = _get_sp_token()
+        if not token:
+            print("[GASTOS] No se pudo obtener token")
+            return []
         
-        if len(parts) >= 5:
-            tienda = parts[0].replace("_", " ")
-            usuario = parts[1]
-            fecha_str = parts[2]  # DD-MM-YYYY
-            timestamp = parts[3]
-            categoria = "DESCONOCIDO"
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id = _get_site_id(auth_headers)
+        
+        # Intentar listar archivos en la carpeta Gastos
+        folder_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{SP_GASTOS_FOLDER}:/children"
+        print(f"[GASTOS] Consultando carpeta: {folder_url}")
+        r = req_lib.get(folder_url, headers=auth_headers, timeout=30)
+        
+        if not r.ok:
+            print(f"[GASTOS] Error al listar carpeta: {r.status_code} - {r.text}")
+            # Si la carpeta no existe, intentar crearla o buscar en otra ubicación
+            return []
+        
+        data = r.json()
+        files = data.get("value", [])
+        print(f"[GASTOS] Archivos encontrados: {len(files)}")
+        
+        gastos = []
+        
+        for file in files:
+            name = file.get("name", "")
+            if not name.lower().endswith(('.jpg', '.jpeg', '.png')):
+                continue
+                
+            print(f"[GASTOS] Procesando archivo: {name}")
             
-            # Determinar categoría basado en la ruta del archivo
-            parent_path = file.get("parentReference", {}).get("path", "")
-            if "CASETAS" in parent_path.upper():
-                categoria = "CASETAS"
-            elif "COMIDA" in parent_path.upper():
-                categoria = "COMIDA"
-            elif "OTROS" in parent_path.upper():
-                categoria = "OTROS"
+            # El formato del nombre es: TIENDA_USUARIO_FECHA_TIMESTAMP_NUMERO.jpg
+            # Ejemplo: Tijuana_Mizael_17-06-2025_20250617_083045_1.jpg
+            parts = name.replace(".jpg", "").replace(".jpeg", "").replace(".png", "").split("_")
+            print(f"[GASTOS] Partes del nombre: {parts}")
             
-            # URL de descarga de la imagen
-            download_url = file.get("@microsoft.graph.downloadUrl", "")
-            
-            gastos.append({
-                "nombre": name,
-                "url": download_url,
-                "categoria": categoria,
-                "tienda": tienda,
-                "usuario": usuario,
-                "fecha": fecha_str,
-                "timestamp": timestamp
-            })
-    
-    # Ordenar por fecha más reciente
-    gastos.sort(key=lambda x: x["timestamp"], reverse=True)
-    return gastos
+            if len(parts) >= 3:
+                tienda = parts[0].replace("_", " ") if parts[0] else "Desconocido"
+                usuario = parts[1] if len(parts) > 1 else "Desconocido"
+                fecha_str = parts[2] if len(parts) > 2 else "01-01-2025"
+                timestamp = parts[3] if len(parts) > 3 else "20250101_000000"
+                categoria = "DESCONOCIDO"
+                
+                # Determinar categoría basado en la ruta del archivo
+                parent_path = file.get("parentReference", {}).get("path", "")
+                print(f"[GASTOS] Ruta padre: {parent_path}")
+                if "CASETAS" in parent_path.upper():
+                    categoria = "CASETAS"
+                elif "COMIDA" in parent_path.upper():
+                    categoria = "COMIDA"
+                elif "OTROS" in parent_path.upper():
+                    categoria = "OTROS"
+                
+                # URL de descarga de la imagen
+                download_url = file.get("@microsoft.graph.downloadUrl", "")
+                
+                gasto = {
+                    "nombre": name,
+                    "url": download_url,
+                    "categoria": categoria,
+                    "tienda": tienda,
+                    "usuario": usuario,
+                    "fecha": fecha_str,
+                    "timestamp": timestamp
+                }
+                print(f"[GASTOS] Gasto agregado: {gasto}")
+                gastos.append(gasto)
+            else:
+                print(f"[GASTOS] Nombre no cumple formato: {name}")
+        
+        print(f"[GASTOS] Total gastos procesados: {len(gastos)}")
+        # Ordenar por fecha más reciente
+        gastos.sort(key=lambda x: x["timestamp"], reverse=True)
+        return gastos
+        
+    except Exception as e:
+        print(f"[GASTOS] Excepción: {e}")
+        return []
 
 
 def leer_desde_excel():
