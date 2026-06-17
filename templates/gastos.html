@@ -662,40 +662,61 @@ async function leerMontoOCR(base64img) {
 function parsearMonto(texto) {
     const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
 
-    // Palabras clave de totales en español/inglés
-    const KEYWORDS = [
-        'total a pagar', 'total pagar', 'importe total', 'total importe',
-        'total', 'importe', 'cobrado', 'a pagar', 'total:',
-        'subtotal', 'gran total', 'amount due', 'amount', 'total due'
-    ];
+    // ── Estrategia 1 (ALTA PRIORIDAD): patrón exacto "Total: $123.45" ─────────
+    // Cubre: "Total: $123", "TOTAL: $1,234.56", "Total:$45.00", "Total $ 99.00"
+    const PATRON_TOTAL_PESO = /total\s*:?\s*\$\s*([\d,]+\.?\d{0,2})/i;
+    for (const linea of lineas) {
+        const m = linea.match(PATRON_TOTAL_PESO);
+        if (m) {
+            const val = parseFloat(m[1].replace(/,/g, ''));
+            if (!isNaN(val) && val > 0) return val;
+        }
+    }
 
-    // Regex para capturar cantidades monetarias: 123, 123.45, 1,234.56, $123
-    const REGEX_MONTO = /\$?\s*(\d{1,3}(?:[,\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)/g;
+    // ── Estrategia 2: "Total" seguido de cualquier número en la misma línea ───
+    // Cubre: "Total  123.45", "TOTAL    456"
+    const PATRON_TOTAL_NUM = /total\s*:?\s*([\d,]+\.?\d{0,2})/i;
+    for (const linea of lineas) {
+        const m = linea.match(PATRON_TOTAL_NUM);
+        if (m) {
+            const val = parseFloat(m[1].replace(/,/g, ''));
+            if (!isNaN(val) && val > 0) return val;
+        }
+    }
 
-    // Buscar líneas con palabras clave (de mayor a menor prioridad)
-    for (const kw of KEYWORDS) {
+    // ── Estrategia 3: "Total" en una línea, el número en la siguiente ─────────
+    // Algunos tickets ponen "Total:" y debajo el monto
+    for (let i = 0; i < lineas.length - 1; i++) {
+        if (/total/i.test(lineas[i])) {
+            const siguiente = lineas[i + 1];
+            const m = siguiente.match(/\$?\s*([\d,]+\.?\d{0,2})/);
+            if (m) {
+                const val = parseFloat(m[1].replace(/,/g, ''));
+                if (!isNaN(val) && val > 0) return val;
+            }
+        }
+    }
+
+    // ── Estrategia 4: otras palabras clave de total ───────────────────────────
+    const OTRAS_KEYWORDS = ['importe', 'cobrado', 'a pagar', 'pagar', 'amount'];
+    for (const kw of OTRAS_KEYWORDS) {
         for (const linea of lineas) {
             if (linea.toLowerCase().includes(kw)) {
-                const matches = [...linea.matchAll(REGEX_MONTO)];
-                if (matches.length > 0) {
-                    // Tomar el último número de la línea (es el monto en la mayoría de tickets)
-                    const raw = matches[matches.length - 1][1]
-                        .replace(/\s/g, '')
-                        .replace(',', '.');
-                    const val = parseFloat(raw);
-                    if (!isNaN(val) && val > 0 && val < 1000000) return val;
+                const m = linea.match(/\$?\s*([\d,]+\.?\d{0,2})/);
+                if (m) {
+                    const val = parseFloat(m[1].replace(/,/g, ''));
+                    if (!isNaN(val) && val > 0) return val;
                 }
             }
         }
     }
 
-    // Fallback: tomar el número más grande del ticket (probablemente el total)
+    // ── Estrategia 5 (ÚLTIMO RECURSO): el número más grande del ticket ────────
     let maxVal = null;
     for (const linea of lineas) {
-        const matches = [...linea.matchAll(REGEX_MONTO)];
-        for (const m of matches) {
-            const raw = m[1].replace(/\s/g, '').replace(',', '.');
-            const val = parseFloat(raw);
+        const matches = [...linea.matchAll(/\$?\s*([\d,]+\.?\d{0,2})/g)];
+        for (const match of matches) {
+            const val = parseFloat(match[1].replace(/,/g, ''));
             if (!isNaN(val) && val > 0 && val < 100000) {
                 if (maxVal === null || val > maxVal) maxVal = val;
             }
