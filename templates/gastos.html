@@ -48,9 +48,7 @@
             line-height: 1;
         }
 
-        .header-title {
-            flex: 1;
-        }
+        .header-title { flex: 1; }
 
         .header-title h5 {
             color: #e67e22;
@@ -65,14 +63,26 @@
             font-weight: 500;
         }
 
+        /* ── OCR status chip ── */
+        .ocr-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .ocr-chip.loading { background: #e8eaf6; color: #3949ab; }
+        .ocr-chip.found   { background: #e6f4ea; color: #1e7e34; }
+        .ocr-chip.miss    { background: #fff3cd; color: #856404; }
+
         /* ── Banner offline ── */
         #offlineBanner { display: none; }
 
         /* ── Formulario ── */
-        .form-body {
-            padding: 16px;
-            flex: 1;
-        }
+        .form-body { padding: 16px; flex: 1; }
 
         .field-label {
             font-weight: 600;
@@ -99,7 +109,6 @@
             cursor: pointer;
             margin-bottom: 14px;
         }
-
         .styled-select:focus { border-color: #e67e22; }
 
         .field-row {
@@ -127,7 +136,6 @@
             outline: none;
             font-family: inherit;
         }
-
         .field-row input:focus { border-color: #e67e22; }
 
         /* ── Secciones de categoría ── */
@@ -179,6 +187,7 @@
             padding: 2px 8px;
             border-radius: 20px;
             color: #fff;
+            display: none;
         }
 
         .cat-section.casetas .cat-badge { background: #3b82f6; }
@@ -215,12 +224,13 @@
 
         .foto-thumb {
             position: relative;
-            width: 80px;
-            height: 80px;
+            width: 86px;
+            height: 86px;
             border-radius: 10px;
             overflow: hidden;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+            cursor: pointer;
         }
 
         .foto-thumb img {
@@ -229,32 +239,58 @@
             object-fit: cover;
         }
 
+        /* OCR spinner overlay sobre la miniatura */
+        .foto-thumb .ocr-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+            gap: 4px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         .foto-del {
             position: absolute;
-            top: 3px;
-            right: 3px;
-            background: rgba(0,0,0,0.6);
+            top: 4px;
+            right: 4px;
+            background: rgba(220,38,38,0.85);
             color: #fff;
             border: none;
             border-radius: 50%;
             width: 22px;
             height: 22px;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            line-height: 1;
+            z-index: 2;
         }
 
-        /* Botón agregar foto */
+        /* ── Botón foto ── */
         .btn-foto {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             width: 100%;
-            padding: 12px;
+            padding: 13px;
             border-radius: 10px;
             border: 2px dashed;
             background: transparent;
@@ -263,6 +299,7 @@
             cursor: pointer;
             transition: opacity 0.15s;
             -webkit-tap-highlight-color: transparent;
+            font-family: inherit;
         }
 
         .btn-foto:active { opacity: 0.7; }
@@ -271,33 +308,70 @@
         .cat-section.comida  .btn-foto { border-color: #fcd34d; color: #b45309; }
         .cat-section.otros   .btn-foto { border-color: #d1d5db; color: #374151; }
 
-        /* Campo monto opcional */
-        .monto-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 10px;
+        /* ── Área de monto con OCR ── */
+        .monto-area {
+            margin-top: 12px;
+            background: #fff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            border: 1.5px solid #e5e7eb;
         }
 
-        .monto-label {
-            font-size: 13px;
-            font-weight: 600;
+        .monto-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .monto-title {
+            font-size: 12px;
+            font-weight: 700;
             color: #6b7280;
-            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .ocr-status { /* chip aquí */ }
+
+        .monto-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .monto-prefix {
+            font-size: 18px;
+            font-weight: 700;
+            color: #374151;
         }
 
         .monto-input {
             flex: 1;
-            border: 1.5px solid #dadce0;
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 14px;
+            border: none;
+            border-bottom: 2px solid #dadce0;
+            border-radius: 0;
+            padding: 4px 4px 6px;
+            font-size: 22px;
+            font-weight: 700;
             color: #202124;
             outline: none;
             font-family: inherit;
+            background: transparent;
+            transition: border-color 0.2s;
+            -moz-appearance: textfield;
         }
+        .monto-input::-webkit-outer-spin-button,
+        .monto-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+        .monto-input:focus { border-bottom-color: #e67e22; }
+        .monto-input.ocr-detected { border-bottom-color: #1e7e34; color: #1a5c2a; }
 
-        .monto-input:focus { border-color: #e67e22; }
+        .monto-hint {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+        .monto-hint.detected { color: #1e7e34; }
 
         /* ── Botón Guardar ── */
         .bottom-bar {
@@ -341,8 +415,31 @@
         .btn-guardar:disabled { opacity: 0.6; }
         .btn-guardar:active   { opacity: 0.8; }
 
-        /* ── Input file oculto ── */
         .file-input { display: none; }
+
+        /* ── Modal ampliación foto ── */
+        .foto-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .foto-modal.open { display: flex; }
+        .foto-modal img  { max-width: 95vw; max-height: 90vh; border-radius: 8px; }
+        .foto-modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            font-size: 18px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -353,7 +450,7 @@
         <a href="/" class="back-arrow">←</a>
         <div class="header-title">
             <h5>🧾 Registro de Gastos</h5>
-            <small>Captura tickets por categoría</small>
+            <small>La app detecta el total automáticamente</small>
         </div>
     </div>
 
@@ -363,7 +460,6 @@
     <!-- Formulario -->
     <div class="form-body" id="formBody">
 
-        <!-- Tienda -->
         <span class="field-label">Tienda</span>
         <select class="styled-select" id="tiendaSelect">
             <option value="" disabled selected>Selecciona una tienda…</option>
@@ -385,7 +481,6 @@
             <option>SC DIAZ ORDAZ</option>
         </select>
 
-        <!-- Usuario -->
         <span class="field-label">Usuario</span>
         <select class="styled-select" id="usuarioSelect">
             <option value="" disabled selected>Selecciona usuario…</option>
@@ -394,7 +489,6 @@
             <option>Victor</option>
         </select>
 
-        <!-- Fecha -->
         <div class="field-row">
             <span class="field-row-label">Fecha</span>
             <input type="text" id="fechaInput" placeholder="DD/MM/YYYY" readonly>
@@ -406,7 +500,7 @@
                 <div class="cat-header-left">
                     <span class="cat-icon">🛣️</span>
                     <span class="cat-title">CASETAS</span>
-                    <span class="cat-badge" id="badge-casetas">0</span>
+                    <span class="cat-badge" id="badge-casetas"></span>
                 </div>
                 <span class="cat-arrow" id="arrow-casetas">▼</span>
             </div>
@@ -415,9 +509,17 @@
                 <button class="btn-foto" onclick="tomarFoto('casetas')">
                     📷 Agregar foto de ticket
                 </button>
-                <div class="monto-row">
-                    <span class="monto-label">Total $</span>
-                    <input class="monto-input" type="number" id="monto-casetas" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                <div class="monto-area" id="monto-area-casetas">
+                    <div class="monto-header">
+                        <span class="monto-title">Total detectado</span>
+                        <span class="ocr-status" id="ocr-status-casetas"></span>
+                    </div>
+                    <div class="monto-input-row">
+                        <span class="monto-prefix">$</span>
+                        <input class="monto-input" type="number" id="monto-casetas"
+                            placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                    </div>
+                    <div class="monto-hint" id="monto-hint-casetas">Edita si hay algún error</div>
                 </div>
             </div>
         </div>
@@ -428,7 +530,7 @@
                 <div class="cat-header-left">
                     <span class="cat-icon">🍽️</span>
                     <span class="cat-title">COMIDA</span>
-                    <span class="cat-badge" id="badge-comida">0</span>
+                    <span class="cat-badge" id="badge-comida"></span>
                 </div>
                 <span class="cat-arrow" id="arrow-comida">▼</span>
             </div>
@@ -437,9 +539,17 @@
                 <button class="btn-foto" onclick="tomarFoto('comida')">
                     📷 Agregar foto de ticket
                 </button>
-                <div class="monto-row">
-                    <span class="monto-label">Total $</span>
-                    <input class="monto-input" type="number" id="monto-comida" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                <div class="monto-area" id="monto-area-comida">
+                    <div class="monto-header">
+                        <span class="monto-title">Total detectado</span>
+                        <span class="ocr-status" id="ocr-status-comida"></span>
+                    </div>
+                    <div class="monto-input-row">
+                        <span class="monto-prefix">$</span>
+                        <input class="monto-input" type="number" id="monto-comida"
+                            placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                    </div>
+                    <div class="monto-hint" id="monto-hint-comida">Edita si hay algún error</div>
                 </div>
             </div>
         </div>
@@ -450,7 +560,7 @@
                 <div class="cat-header-left">
                     <span class="cat-icon">📦</span>
                     <span class="cat-title">OTROS</span>
-                    <span class="cat-badge" id="badge-otros">0</span>
+                    <span class="cat-badge" id="badge-otros"></span>
                 </div>
                 <span class="cat-arrow" id="arrow-otros">▼</span>
             </div>
@@ -459,19 +569,36 @@
                 <button class="btn-foto" onclick="tomarFoto('otros')">
                     📷 Agregar foto de ticket
                 </button>
-                <div class="monto-row">
-                    <span class="monto-label">Total $</span>
-                    <input class="monto-input" type="number" id="monto-otros" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                <div class="monto-area" id="monto-area-otros">
+                    <div class="monto-header">
+                        <span class="monto-title">Total detectado</span>
+                        <span class="ocr-status" id="ocr-status-otros"></span>
+                    </div>
+                    <div class="monto-input-row">
+                        <span class="monto-prefix">$</span>
+                        <input class="monto-input" type="number" id="monto-otros"
+                            placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                    </div>
+                    <div class="monto-hint" id="monto-hint-otros">Edita si hay algún error</div>
                 </div>
             </div>
         </div>
 
-    </div><!-- /form-body -->
+    </div>
 
-    <!-- Inputs de cámara (ocultos) -->
-    <input class="file-input" type="file" accept="image/*" capture="environment" id="camara-casetas" onchange="onFoto('casetas', this)">
-    <input class="file-input" type="file" accept="image/*" capture="environment" id="camara-comida" onchange="onFoto('comida', this)">
-    <input class="file-input" type="file" accept="image/*" capture="environment" id="camara-otros"  onchange="onFoto('otros', this)">
+    <!-- Inputs de cámara ocultos -->
+    <input class="file-input" type="file" accept="image/*" capture="environment"
+        id="camara-casetas" onchange="onFoto('casetas', this)">
+    <input class="file-input" type="file" accept="image/*" capture="environment"
+        id="camara-comida"  onchange="onFoto('comida', this)">
+    <input class="file-input" type="file" accept="image/*" capture="environment"
+        id="camara-otros"   onchange="onFoto('otros', this)">
+
+    <!-- Modal para ampliar foto -->
+    <div class="foto-modal" id="fotoModal" onclick="cerrarModal()">
+        <button class="foto-modal-close">✕</button>
+        <img id="fotoModalImg" src="" alt="Ticket">
+    </div>
 
     <!-- Barra inferior -->
     <div class="bottom-bar">
@@ -479,12 +606,16 @@
         <button class="btn-guardar" id="btnGuardar" onclick="guardarGastos()">Guardar</button>
     </div>
 
-</div><!-- /phone-wrapper -->
+</div>
 
+<!-- Tesseract.js (OCR en el navegador) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/static/offline.js"></script>
 <script>
-// ── Estado en memoria ─────────────────────────────────────────────────────────
+// ── Estado ────────────────────────────────────────────────────────────────────
 const fotos = { casetas: [], comida: [], otros: [] };
+let ocrWorker = null;
+let ocrListo  = false;
 
 // ── Fecha automática ──────────────────────────────────────────────────────────
 (function() {
@@ -495,35 +626,145 @@ const fotos = { casetas: [], comida: [], otros: [] };
         hoy.getFullYear();
 })();
 
-// ── Colapsar/expandir sección ─────────────────────────────────────────────────
-function toggleCat(cat) {
-    const body  = document.getElementById(`body-${cat}`);
-    const arrow = document.getElementById(`arrow-${cat}`);
-    body.classList.toggle('open');
-    arrow.classList.toggle('open');
+// ── Inicializar Tesseract.js ──────────────────────────────────────────────────
+(async function initOCR() {
+    try {
+        ocrWorker = await Tesseract.createWorker('spa+eng', 1, {
+            logger: () => {}   // silenciar logs internos
+        });
+        ocrListo = true;
+        console.log('[OCR] Tesseract listo ✓');
+    } catch (err) {
+        console.warn('[OCR] No se pudo iniciar Tesseract:', err);
+    }
+})();
+
+// ── Leer monto del ticket con OCR ────────────────────────────────────────────
+/**
+ * Corre OCR sobre la imagen y extrae el monto TOTAL del ticket.
+ * Estrategia:
+ *   1. Buscar líneas con palabras clave de "total" (TOTAL, IMPORTE, etc.)
+ *      y tomar el número de esa línea.
+ *   2. Si no encuentra, tomar el número más grande del ticket.
+ */
+async function leerMontoOCR(base64img) {
+    if (!ocrListo || !ocrWorker) return null;
+    try {
+        const result = await ocrWorker.recognize(base64img);
+        const texto  = result.data.text;
+        return parsearMonto(texto);
+    } catch (err) {
+        console.warn('[OCR] Error al reconocer:', err);
+        return null;
+    }
 }
 
-// ── Tomar foto (abre cámara) ──────────────────────────────────────────────────
+function parsearMonto(texto) {
+    const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+
+    // Palabras clave de totales en español/inglés
+    const KEYWORDS = [
+        'total a pagar', 'total pagar', 'importe total', 'total importe',
+        'total', 'importe', 'cobrado', 'a pagar', 'total:',
+        'subtotal', 'gran total', 'amount due', 'amount', 'total due'
+    ];
+
+    // Regex para capturar cantidades monetarias: 123, 123.45, 1,234.56, $123
+    const REGEX_MONTO = /\$?\s*(\d{1,3}(?:[,\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)/g;
+
+    // Buscar líneas con palabras clave (de mayor a menor prioridad)
+    for (const kw of KEYWORDS) {
+        for (const linea of lineas) {
+            if (linea.toLowerCase().includes(kw)) {
+                const matches = [...linea.matchAll(REGEX_MONTO)];
+                if (matches.length > 0) {
+                    // Tomar el último número de la línea (es el monto en la mayoría de tickets)
+                    const raw = matches[matches.length - 1][1]
+                        .replace(/\s/g, '')
+                        .replace(',', '.');
+                    const val = parseFloat(raw);
+                    if (!isNaN(val) && val > 0 && val < 1000000) return val;
+                }
+            }
+        }
+    }
+
+    // Fallback: tomar el número más grande del ticket (probablemente el total)
+    let maxVal = null;
+    for (const linea of lineas) {
+        const matches = [...linea.matchAll(REGEX_MONTO)];
+        for (const m of matches) {
+            const raw = m[1].replace(/\s/g, '').replace(',', '.');
+            const val = parseFloat(raw);
+            if (!isNaN(val) && val > 0 && val < 100000) {
+                if (maxVal === null || val > maxVal) maxVal = val;
+            }
+        }
+    }
+
+    return maxVal;
+}
+
+// ── Toggle sección ────────────────────────────────────────────────────────────
+function toggleCat(cat) {
+    document.getElementById(`body-${cat}`).classList.toggle('open');
+    document.getElementById(`arrow-${cat}`).classList.toggle('open');
+}
+
+// ── Tomar foto ────────────────────────────────────────────────────────────────
 function tomarFoto(cat) {
     document.getElementById(`camara-${cat}`).click();
 }
 
-// ── Al seleccionar/tomar foto ─────────────────────────────────────────────────
+// ── Al recibir foto ───────────────────────────────────────────────────────────
 function onFoto(cat, input) {
     const file = input.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         const base64 = e.target.result;
+        const idx = fotos[cat].length;
         fotos[cat].push(base64);
+
         renderFotos(cat);
         actualizarBadge(cat);
+
+        // Mostrar estado OCR: analizando...
+        setOCRStatus(cat, 'loading', '🔍 Leyendo ticket…');
+
+        // Correr OCR
+        const monto = await leerMontoOCR(base64);
+
+        if (monto !== null) {
+            const input = document.getElementById(`monto-${cat}`);
+            // Si ya hay un monto manual, sumamos (puede haber varios tickets)
+            const actual = parseFloat(input.value) || 0;
+            const nuevo  = actual > 0 ? actual + monto : monto;
+            input.value  = nuevo.toFixed(2);
+            input.classList.add('ocr-detected');
+            setOCRStatus(cat, 'found', `✅ Detectado: $${monto.toFixed(2)}`);
+            setMontoHint(cat, `✅ Auto-detectado — edita si hay error`, true);
+        } else {
+            setOCRStatus(cat, 'miss', '⚠️ No detectado');
+            setMontoHint(cat, '⚠️ No se detectó — ingresa el monto manualmente', false);
+        }
     };
     reader.readAsDataURL(file);
-
-    // Limpiar input para poder volver a seleccionar la misma foto si se quiere
     input.value = '';
+}
+
+// ── OCR status UI ─────────────────────────────────────────────────────────────
+function setOCRStatus(cat, tipo, texto) {
+    const el = document.getElementById(`ocr-status-${cat}`);
+    el.className = `ocr-chip ${tipo}`;
+    el.textContent = texto;
+}
+
+function setMontoHint(cat, texto, detectado) {
+    const el = document.getElementById(`monto-hint-${cat}`);
+    el.textContent = texto;
+    el.className   = detectado ? 'monto-hint detected' : 'monto-hint';
 }
 
 // ── Renderizar miniaturas ─────────────────────────────────────────────────────
@@ -534,30 +775,44 @@ function renderFotos(cat) {
         const div = document.createElement('div');
         div.className = 'foto-thumb';
         div.innerHTML = `
-            <img src="${b64}" alt="Ticket ${idx+1}">
-            <button class="foto-del" onclick="eliminarFoto('${cat}', ${idx})" title="Eliminar">✕</button>
+            <img src="${b64}" alt="Ticket ${idx+1}" onclick="abrirModal('${cat}', ${idx})">
+            <button class="foto-del" onclick="eliminarFoto(event,'${cat}',${idx})" title="Eliminar">✕</button>
         `;
         grid.appendChild(div);
     });
 }
 
 // ── Eliminar foto ─────────────────────────────────────────────────────────────
-function eliminarFoto(cat, idx) {
+function eliminarFoto(ev, cat, idx) {
+    ev.stopPropagation();
     fotos[cat].splice(idx, 1);
     renderFotos(cat);
     actualizarBadge(cat);
+    // Limpiar OCR status si no quedan fotos
+    if (fotos[cat].length === 0) {
+        document.getElementById(`ocr-status-${cat}`).textContent = '';
+        document.getElementById(`monto-${cat}`).value = '';
+        document.getElementById(`monto-${cat}`).classList.remove('ocr-detected');
+        setMontoHint(cat, 'Edita si hay algún error', false);
+    }
 }
 
-// ── Badge con cantidad de fotos ───────────────────────────────────────────────
+// ── Badge ─────────────────────────────────────────────────────────────────────
 function actualizarBadge(cat) {
     const n = fotos[cat].length;
-    const badge = document.getElementById(`badge-${cat}`);
-    badge.textContent = n;
-    badge.style.display = n > 0 ? 'inline-block' : 'none';
+    const b = document.getElementById(`badge-${cat}`);
+    b.textContent     = n;
+    b.style.display   = n > 0 ? 'inline-block' : 'none';
 }
 
-// Ocultar badges en 0 al inicio
-['casetas','comida','otros'].forEach(c => actualizarBadge(c));
+// ── Modal de ampliación ───────────────────────────────────────────────────────
+function abrirModal(cat, idx) {
+    document.getElementById('fotoModalImg').src = fotos[cat][idx];
+    document.getElementById('fotoModal').classList.add('open');
+}
+function cerrarModal() {
+    document.getElementById('fotoModal').classList.remove('open');
+}
 
 // ── Guardar ───────────────────────────────────────────────────────────────────
 let _enviando = false;
@@ -608,7 +863,6 @@ async function guardarGastos() {
         const { internet, serverUp } = await offlineApp.checkConectividad();
 
         if (serverUp) {
-            // Subir directamente
             btn.textContent = 'Subiendo…';
             const res = await fetch('/gastos/sync', {
                 method: 'POST',
@@ -625,13 +879,11 @@ async function guardarGastos() {
             }
 
         } else if (internet && !serverUp) {
-            // Internet pero servidor dormido → guardar y reintentar
             await offlineApp.guardarGastoPendiente(payload);
             const total = await offlineApp.contarGastosPendientes();
             offlineApp.mostrarToast(`⏳ Guardado (${total} pendiente${total !== 1 ? 's' : ''}, servidor iniciando…)`, 'info');
             offlineApp.actualizarBannerOffline();
             limpiarFormulario();
-
             setTimeout(async () => {
                 const n = await offlineApp.syncGastosPendientes();
                 if (n > 0) {
@@ -641,7 +893,6 @@ async function guardarGastos() {
             }, 20000);
 
         } else {
-            // Sin internet
             await offlineApp.guardarGastoPendiente(payload);
             const total = await offlineApp.contarGastosPendientes();
             offlineApp.mostrarToast(`📵 Guardado sin conexión (${total} pendiente${total !== 1 ? 's' : ''})`);
@@ -668,22 +919,22 @@ function limpiarFormulario() {
         renderFotos(c);
         actualizarBadge(c);
         document.getElementById(`monto-${c}`).value = '';
+        document.getElementById(`monto-${c}`).classList.remove('ocr-detected');
+        document.getElementById(`ocr-status-${c}`).textContent = '';
+        setMontoHint(c, 'Edita si hay algún error', false);
     });
 }
 
 function cancelar() {
-    if (confirm('¿Descartar los cambios?')) {
-        limpiarFormulario();
-    }
+    if (confirm('¿Descartar los cambios?')) limpiarFormulario();
 }
 
-// ── Banner inicial ────────────────────────────────────────────────────────────
+// ── Banner y SW ───────────────────────────────────────────────────────────────
 offlineApp.actualizarBannerOffline();
 
-// ── Service Worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(r => console.log('[SW] OK'))
+        .then(() => console.log('[SW] OK'))
         .catch(e => console.warn('[SW] Error', e));
 }
 </script>
