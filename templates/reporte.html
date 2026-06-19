@@ -288,19 +288,13 @@
         const u = document.getElementById('filtroUsuario').value.toLowerCase();
         const fDate = document.getElementById('filtroFecha').value; // Formato YYYY-MM-DD
         
-        let fFormatted2 = '';
-        let fFormatted4 = '';
-        
+        let tY = -1, tM = -1, tD = -1;
         if (fDate) {
             const parts = fDate.split('-');
             if (parts.length === 3) {
-                const yyyy = parts[0];
-                const mm = parts[1]; // ya viene con 0 a la izquierda
-                const dd = parts[2]; // ya viene con 0 a la izquierda
-                const yy = yyyy.slice(-2);
-                
-                fFormatted2 = `${mm}/${dd}/${yy}`;
-                fFormatted4 = `${mm}/${dd}/${yyyy}`;
+                tY = parseInt(parts[0], 10);
+                tM = parseInt(parts[1], 10);
+                tD = parseInt(parts[2], 10);
             }
         }
         
@@ -308,11 +302,40 @@
         cards.forEach(card => {
             const cardT = card.getAttribute('data-tienda');
             const cardU = card.getAttribute('data-usuario');
-            const cardF = card.getAttribute('data-fecha').trim(); // Ej: 06/19/26
+            const cardF = card.getAttribute('data-fecha').trim();
+            
+            let cY = -1, cM = -1, cD = -1;
+            if (cardF) {
+                // Parse serial excel date
+                if (!isNaN(cardF) && !cardF.includes('/')) {
+                     const serial = parseInt(cardF, 10);
+                     const dateObj = new Date(Math.round((serial - 25569) * 86400 * 1000));
+                     cY = dateObj.getUTCFullYear();
+                     cM = dateObj.getUTCMonth() + 1;
+                     cD = dateObj.getUTCDate();
+                } else {
+                     // Parse normal date string
+                     const d = new Date(cardF);
+                     if (!isNaN(d.getTime())) {
+                         cY = d.getFullYear();
+                         cM = d.getMonth() + 1;
+                         cD = d.getDate();
+                     } else {
+                         // Fallback DD/MM/YYYY
+                         const p = cardF.split('/');
+                         if (p.length === 3) {
+                             cD = parseInt(p[0], 10);
+                             cM = parseInt(p[1], 10);
+                             cY = parseInt(p[2], 10);
+                             if (cY < 100) cY += 2000;
+                         }
+                     }
+                }
+            }
             
             const matchT = (t === 'ALL' || cardT === t);
             const matchU = (u === '' || cardU.includes(u));
-            const matchF = (!fDate || cardF === fFormatted2 || cardF === fFormatted4);
+            const matchF = (!fDate || (tY === cY && tM === cM && tD === cD));
             
             if (matchT && matchU && matchF) {
                 card.style.display = 'flex';
