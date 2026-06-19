@@ -228,6 +228,10 @@
             <span class="filter-label">Usuario</span>
             <input class="filter-input" type="text" id="filtroUsuario" placeholder="Filtrar usuario..." onkeyup="filtrarGastos()">
         </div>
+        <div class="filter-group">
+            <span class="filter-label">Fecha</span>
+            <input class="filter-input" type="text" id="filtroFecha" placeholder="Buscar fecha..." onkeyup="filtrarGastos()">
+        </div>
     </div>
 
     <!-- Lista de gastos -->
@@ -239,7 +243,7 @@
         </div>
         {% else %}
             {% for g in gastos %}
-            <div class="gasto-card" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}">
+            <div class="gasto-card" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}" data-fecha="{{ g.fecha }}">
                 <div class="gasto-header">
                     <div>
                         <div class="cat-badge {{ g.categoria.lower() }}">{{ g.categoria }}</div>
@@ -282,16 +286,19 @@
     function filtrarGastos() {
         const t = document.getElementById('filtroTienda').value;
         const u = document.getElementById('filtroUsuario').value.toLowerCase();
+        const f = document.getElementById('filtroFecha').value.toLowerCase();
         
         const cards = document.querySelectorAll('.gasto-card');
         cards.forEach(card => {
             const cardT = card.getAttribute('data-tienda');
             const cardU = card.getAttribute('data-usuario');
+            const cardF = card.getAttribute('data-fecha').toLowerCase();
             
             const matchT = (t === 'ALL' || cardT === t);
             const matchU = (u === '' || cardU.includes(u));
+            const matchF = (f === '' || cardF.includes(f));
             
-            if (matchT && matchU) {
+            if (matchT && matchU && matchF) {
                 card.style.display = 'flex';
             } else {
                 card.style.display = 'none';
