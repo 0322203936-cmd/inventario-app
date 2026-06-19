@@ -230,7 +230,7 @@
         </div>
         <div class="filter-group">
             <span class="filter-label">Fecha</span>
-            <input class="filter-input" type="text" id="filtroFecha" placeholder="Buscar fecha..." onkeyup="filtrarGastos()">
+            <input class="filter-input" type="date" id="filtroFecha" onchange="filtrarGastos()">
         </div>
     </div>
 
@@ -286,17 +286,33 @@
     function filtrarGastos() {
         const t = document.getElementById('filtroTienda').value;
         const u = document.getElementById('filtroUsuario').value.toLowerCase();
-        const f = document.getElementById('filtroFecha').value.toLowerCase();
+        const fDate = document.getElementById('filtroFecha').value; // Formato YYYY-MM-DD
+        
+        let fFormatted2 = '';
+        let fFormatted4 = '';
+        
+        if (fDate) {
+            const parts = fDate.split('-');
+            if (parts.length === 3) {
+                const yyyy = parts[0];
+                const mm = parts[1]; // ya viene con 0 a la izquierda
+                const dd = parts[2]; // ya viene con 0 a la izquierda
+                const yy = yyyy.slice(-2);
+                
+                fFormatted2 = `${mm}/${dd}/${yy}`;
+                fFormatted4 = `${mm}/${dd}/${yyyy}`;
+            }
+        }
         
         const cards = document.querySelectorAll('.gasto-card');
         cards.forEach(card => {
             const cardT = card.getAttribute('data-tienda');
             const cardU = card.getAttribute('data-usuario');
-            const cardF = card.getAttribute('data-fecha').toLowerCase();
+            const cardF = card.getAttribute('data-fecha').trim(); // Ej: 06/19/26
             
             const matchT = (t === 'ALL' || cardT === t);
             const matchU = (u === '' || cardU.includes(u));
-            const matchF = (f === '' || cardF.includes(f));
+            const matchF = (!fDate || cardF === fFormatted2 || cardF === fFormatted4);
             
             if (matchT && matchU && matchF) {
                 card.style.display = 'flex';
