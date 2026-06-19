@@ -7,17 +7,18 @@
  * - Si no hay red → sirve desde caché sin error
  */
 
-const CACHE_NAME    = 'inventario-v6';
+const CACHE_NAME    = 'inventario-v7';
 const STATIC_ASSETS = [
     '/',
     '/inventario',
     '/gastos',
+    '/reporte',
     '/static/offline.js',
     '/static/manifest.json',
     '/static/icon-192.png',
     '/static/icon-512.png',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-    'https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap'
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 ];
 
 // ── Install: pre-cachear assets ────────────────────────────────────────────────

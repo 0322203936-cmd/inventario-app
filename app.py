@@ -19,6 +19,7 @@ SP_CLIENT_SECRET = os.environ.get("SP_CLIENT_SECRET", "f4R8Q~uEJ4agJag~cIlmBp4LP
 SP_SITE_URL      = os.environ.get("SP_SITE_URL",      "https://pacificafarms.sharepoint.com/sites/requerimientovsproyeccion")
 SP_FILE_PATH     = os.environ.get("SP_FILE_PATH",     "/requerimiento vs proyeccion/WALMEX/Analisis Walmart.xlsx")
 SP_SHEET_DETALLE  = os.environ.get("SP_SHEET_NAME", "Detalle")
+SP_SHEET_GASTOS   = "REPORTE-GASTOSAPP"
 
 HEADERS_DETALLE = [
     "Fecha de registro", "Tienda", "Fecha", "Usuario",
@@ -28,6 +29,11 @@ HEADERS_DETALLE = [
 HEADERS_CF = [
     "Fecha de registro", "Tienda", "Fecha", "Usuario",
     "Producto", "Existencia"
+]
+
+HEADERS_GASTOS = [
+    "Fecha de registro", "Tienda", "Fecha del Gasto", "Usuario",
+    "Categoria", "Monto", "Fotos"
 ]
 
 # Tabla Detalle: columnas A-H (col 1-8)
@@ -40,6 +46,7 @@ COL_CF_START      = 10  # J
 COLOR_HEADER_DETALLE = "1A73E8"
 COLOR_TEXT_HEADER    = "FFFFFF"
 COLOR_HEADER_CF      = "0D9488"
+COLOR_HEADER_GASTOS  = "E67E22"
 COLOR_ROW_ALT        = "EBF3FD"
 COLOR_ROW_ALT_CF     = "F0FDFA"
 
@@ -106,10 +113,10 @@ def _ensure_sheet_exists(headers, base_url, sheet_name):
 
 
 def _format_range(headers_auth, base_url, address, bg_color, bold=False,
-                  font_color="000000", font_size=10):
+                  font_color="000000", font_size=10, sheet_name=SP_SHEET_DETALLE):
     """Aplica formato de relleno y fuente a un rango dado."""
     fmt_url = (
-        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"{base_url}/workbook/worksheets/{sheet_name}"
         f"/range(address='{address}')/format"
     )
     req_lib.patch(fmt_url + "/fill",
@@ -120,7 +127,7 @@ def _format_range(headers_auth, base_url, address, bg_color, bold=False,
         json={"bold": bold, "color": font_color, "size": font_size}, timeout=30)
 
 
-def _ensure_table_headers(headers_auth, base_url, col_start, col_headers, bg_color):
+def _ensure_table_headers(headers_auth, base_url, col_start, col_headers, bg_color, sheet_name=SP_SHEET_DETALLE):
     """
     Verifica y escribe encabezados en la fila 1 a partir de col_start.
     También aplica formato a esa fila de encabezados.
@@ -130,7 +137,7 @@ def _ensure_table_headers(headers_auth, base_url, col_start, col_headers, bg_col
     end_letter   = _col_letter(col_end)
     address      = f"{start_letter}1:{end_letter}1"
     range_url    = (
-        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"{base_url}/workbook/worksheets/{sheet_name}"
         f"/range(address='{address}')"
     )
 
@@ -149,15 +156,15 @@ def _ensure_table_headers(headers_auth, base_url, col_start, col_headers, bg_col
             json={"values": [col_headers]}, timeout=30)
         _format_range(headers_auth, base_url, address,
                       bg_color=bg_color, bold=True,
-                      font_color=COLOR_TEXT_HEADER, font_size=11)
+                      font_color=COLOR_TEXT_HEADER, font_size=11, sheet_name=sheet_name)
 
 
-def _find_next_empty_row_col(headers_auth, base_url, col_start):
+def _find_next_empty_row_col(headers_auth, base_url, col_start, sheet_name=SP_SHEET_DETALLE):
     """
     Busca la primera fila vacia en la columna col_start (1-based),
     leyendo celda a celda para ignorar filas borradas.
     """
-    used_url = f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}/usedRange"
+    used_url = f"{base_url}/workbook/worksheets/{sheet_name}/usedRange"
     r = req_lib.get(used_url, headers=headers_auth, timeout=30)
     if not r.ok:
         return 2
@@ -168,7 +175,7 @@ def _find_next_empty_row_col(headers_auth, base_url, col_start):
 
     col_letter = _col_letter(col_start)
     col_url = (
-        f"{base_url}/workbook/worksheets/{SP_SHEET_DETALLE}"
+        f"{base_url}/workbook/worksheets/{sheet_name}"
         f"/range(address='{col_letter}1:{col_letter}{row_count}')"
     )
     r2 = req_lib.get(col_url, headers=headers_auth, timeout=30)
@@ -259,6 +266,49 @@ def escribir_en_excel(filas_detalle, filas_cf):
 
     except Exception as e:
         print(f"[SP] Excepcion: {e}")
+
+def escribir_gasto_en_excel(filas_gastos):
+    """Escribe registros en la hoja Gastos."""
+    if not filas_gastos:
+        return
+    try:
+        token = _get_sp_token()
+        if not token:
+            print("[SP Gastos] No se pudo obtener token.")
+            return
+
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id      = _get_site_id(auth_headers)
+        base_url     = _get_base_url(site_id)
+
+        _ensure_sheet_exists(auth_headers, base_url, SP_SHEET_GASTOS)
+        
+        _ensure_table_headers(auth_headers, base_url, 1, HEADERS_GASTOS, COLOR_HEADER_GASTOS, sheet_name=SP_SHEET_GASTOS)
+        
+        next_row = _find_next_empty_row_col(auth_headers, base_url, 1, sheet_name=SP_SHEET_GASTOS)
+        n_cols   = len(HEADERS_GASTOS)
+        s_col    = "A"
+        e_col    = _col_letter(n_cols)
+        end_row  = next_row + len(filas_gastos) - 1
+        address  = f"{s_col}{next_row}:{e_col}{end_row}"
+
+        resp = req_lib.patch(
+            f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{address}')",
+            headers={**auth_headers, "Content-Type": "application/json"},
+            json={"values": filas_gastos}, timeout=30
+        )
+        if resp.ok:
+            for i in range(len(filas_gastos)):
+                row_idx = next_row + i
+                if row_idx % 2 == 0:
+                    _format_range(auth_headers, base_url,
+                                  f"{s_col}{row_idx}:{e_col}{row_idx}",
+                                  bg_color=COLOR_ROW_ALT, font_size=10, sheet_name=SP_SHEET_GASTOS)
+        else:
+            print(f"[SP Gastos] Error: {resp.status_code} {resp.text[:200]}")
+
+    except Exception as e:
+        print(f"[SP Gastos] Excepcion: {e}")
 
 
 # ── Base de datos eliminada ───────────────────────────────────────────────────
@@ -584,9 +634,15 @@ def procesar_gastos(pendiente):
         mes_folder = fecha_reg.strftime("%Y-%m")
 
         categorias = ["casetas", "comida", "otros"]
+        filas_gastos = []
         for cat in categorias:
             cat_data = pendiente.get(cat, {})
             fotos = cat_data.get("fotos", [])
+            monto = cat_data.get("monto", 0)
+            if not fotos and monto == 0:
+                continue
+                
+            rutas_fotos = []
             for i, foto_b64 in enumerate(fotos):
                 nombre_archivo = f"{tienda}_{usuario}_{fecha}_{timestamp}_{i+1}.jpg"
                 ruta = (
@@ -595,9 +651,23 @@ def procesar_gastos(pendiente):
                 )
                 ok = subir_foto_sharepoint(foto_b64, ruta, auth_headers, base_url)
                 if ok:
+                    rutas_fotos.append(ruta)
                     print(f"[GASTOS] Subida: {ruta}")
                 else:
                     print(f"[GASTOS] Error al subir: {ruta}")
+                    
+            filas_gastos.append([
+                fecha_reg.strftime("%d/%m/%Y %H:%M"),
+                tienda.replace("_", " "),
+                pendiente.get("fecha", ""),
+                usuario,
+                cat.upper(),
+                monto,
+                ",".join(rutas_fotos)
+            ])
+            
+        if filas_gastos:
+            escribir_gasto_en_excel(filas_gastos)
 
     except Exception as e:
         print(f"[GASTOS] Excepcion: {e}")
@@ -685,6 +755,75 @@ def sync():
     except Exception as e:
         print(f"[SYNC] Error: {e}")
         return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/foto")
+def api_foto():
+    """
+    Redirige a la URL de descarga temporal de Microsoft Graph para una imagen.
+    """
+    ruta = request.args.get("path")
+    if not ruta:
+        return "Ruta no proporcionada", 400
+        
+    token = _get_sp_token()
+    if not token:
+        return "No autorizado", 401
+        
+    auth_headers = {"Authorization": f"Bearer {token}"}
+    try:
+        site_id = _get_site_id(auth_headers)
+        # La ruta viene como "requerimiento vs proyeccion/WALMEX/Gastos/...", quitamos la barra inicial si la hay
+        ruta_limpia = ruta.lstrip("/")
+        url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:/{ruta_limpia}"
+        r = req_lib.get(url, headers=auth_headers, timeout=15)
+        if r.ok:
+            data = r.json()
+            download_url = data.get("@microsoft.graph.downloadUrl")
+            if download_url:
+                return redirect(download_url)
+        return "Imagen no encontrada", 404
+    except Exception as e:
+        return str(e), 500
+
+
+@app.route("/reporte")
+def reporte():
+    """Muestra el reporte de gastos leyendo la hoja Gastos."""
+    try:
+        token = _get_sp_token()
+        gastos = []
+        if token:
+            auth_headers = {"Authorization": f"Bearer {token}"}
+            site_id = _get_site_id(auth_headers)
+            base_url = _get_base_url(site_id)
+            
+            used_url = f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/usedRange"
+            r = req_lib.get(used_url, headers=auth_headers, timeout=30)
+            if r.ok:
+                values = r.json().get("values", [])
+                if len(values) > 1:
+                    # El índice de valores asume:
+                    # 0: Fecha reg, 1: Tienda, 2: Fecha gasto, 3: Usuario, 4: Categoria, 5: Monto, 6: Fotos
+                    for row in reversed(values[1:]): # Mostrar los más recientes primero
+                        if len(row) >= 6:
+                            fotos_str = row[6] if len(row) > 6 and row[6] else ""
+                            fotos_list = [f.strip() for f in fotos_str.split(",") if f.strip()]
+                            gastos.append({
+                                "fecha_reg": row[0],
+                                "tienda": row[1],
+                                "fecha": row[2],
+                                "usuario": row[3],
+                                "categoria": row[4],
+                                "monto": row[5] if row[5] else 0,
+                                "fotos": fotos_list
+                            })
+                            
+        resp = make_response(render_template("reporte.html", gastos=gastos, tiendas=TIENDAS))
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
+    except Exception as e:
+        return f"<h2>Error cargando reporte:</h2><pre>{e}</pre>"
 
 
 if __name__ == "__main__":

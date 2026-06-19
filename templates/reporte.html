@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Gastos — Pacífica Farms</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            background: #f0f2f5;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0; padding: 0;
+        }
+
+        .phone-wrapper {
+            width: 100%;
+            max-width: 800px;
+            min-height: 100vh;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 16px 14px;
+            border-bottom: 1px solid #e8eaed;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-arrow {
+            color: #e67e22;
+            font-size: 22px;
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .header-title { flex: 1; }
+
+        .header-title h5 {
+            color: #e67e22;
+            font-size: 17px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header-title small {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .filters {
+            padding: 16px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e8eaed;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 4px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .filter-input {
+            width: 100%;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #202124;
+            outline: none;
+        }
+
+        /* ── Cards ── */
+        .gastos-list {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .gasto-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .gasto-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .gasto-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 2px;
+        }
+
+        .gasto-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .gasto-monto {
+            font-size: 18px;
+            font-weight: 800;
+            color: #059669;
+            background: #d1fae5;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+        
+        .cat-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+        .cat-badge.casetas { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .cat-badge.comida  { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .cat-badge.otros   { background: #f9fafb; color: #374151; border: 1px solid #e5e7eb; }
+
+        .fotos-grid {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .foto-thumb {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* ── Modal ampliación foto ── */
+        .foto-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .foto-modal.open { display: flex; }
+        .foto-modal img  { max-width: 95vw; max-height: 90vh; border-radius: 8px; }
+        .foto-modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+<div class="phone-wrapper">
+
+    <!-- Header -->
+    <div class="app-header">
+        <a href="/" class="back-arrow">←</a>
+        <div class="header-title">
+            <h5>📊 Reporte de Gastos</h5>
+            <small>Historial capturado</small>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters">
+        <div class="filter-group">
+            <span class="filter-label">Tienda</span>
+            <select class="filter-input" id="filtroTienda" onchange="filtrarGastos()">
+                <option value="ALL">Todas las tiendas</option>
+                {% for t in tiendas %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Usuario</span>
+            <input class="filter-input" type="text" id="filtroUsuario" placeholder="Filtrar usuario..." onkeyup="filtrarGastos()">
+        </div>
+    </div>
+
+    <!-- Lista de gastos -->
+    <div class="gastos-list" id="gastosContainer">
+        {% if not gastos %}
+        <div class="empty-state">
+            <h4>No hay gastos registrados</h4>
+            <p>Aún no se ha sincronizado ningún gasto con SharePoint.</p>
+        </div>
+        {% else %}
+            {% for g in gastos %}
+            <div class="gasto-card" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}">
+                <div class="gasto-header">
+                    <div>
+                        <div class="cat-badge {{ g.categoria.lower() }}">{{ g.categoria }}</div>
+                        <div class="gasto-title">{{ g.tienda }}</div>
+                        <div class="gasto-subtitle">👤 {{ g.usuario }} • 📅 {{ g.fecha }}</div>
+                        <div class="gasto-subtitle" style="font-size: 11px; margin-top:2px;">Reg: {{ g.fecha_reg }}</div>
+                    </div>
+                    <div class="gasto-monto">${{ "{:,.2f}".format(g.monto|float) }}</div>
+                </div>
+                {% if g.fotos %}
+                <div class="fotos-grid">
+                    {% for f in g.fotos %}
+                    <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src)" loading="lazy" alt="Ticket">
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Modal para ampliar foto -->
+    <div class="foto-modal" id="fotoModal" onclick="cerrarModal()">
+        <button class="foto-modal-close">✕</button>
+        <img id="fotoModalImg" src="" alt="Ticket Ampliado">
+    </div>
+
+</div>
+
+<script>
+    function abrirModal(src) {
+        document.getElementById('fotoModalImg').src = src;
+        document.getElementById('fotoModal').classList.add('open');
+    }
+    
+    function cerrarModal() {
+        document.getElementById('fotoModal').classList.remove('open');
+    }
+    
+    function filtrarGastos() {
+        const t = document.getElementById('filtroTienda').value;
+        const u = document.getElementById('filtroUsuario').value.toLowerCase();
+        
+        const cards = document.querySelectorAll('.gasto-card');
+        cards.forEach(card => {
+            const cardT = card.getAttribute('data-tienda');
+            const cardU = card.getAttribute('data-usuario');
+            
+            const matchT = (t === 'ALL' || cardT === t);
+            const matchU = (u === '' || cardU.includes(u));
+            
+            if (matchT && matchU) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+</script>
+</body>
+</html>

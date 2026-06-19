@@ -118,6 +118,21 @@
             background: rgba(255,255,255,0.08);
         }
 
+        /* REPORTE */
+        .card-reporte {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 8px 32px rgba(16,185,129,0.40);
+        }
+
+        .card-reporte::before {
+            content: '';
+            position: absolute;
+            top: -30px; right: -30px;
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+        }
+
         .card-icon {
             font-size: 40px;
             flex-shrink: 0;
@@ -177,7 +192,8 @@
         .header    { animation: fadeUp 0.4s ease both; }
         .card:nth-child(1) { animation: fadeUp 0.4s ease 0.1s both; }
         .card:nth-child(2) { animation: fadeUp 0.4s ease 0.2s both; }
-        .footer    { animation: fadeUp 0.4s ease 0.3s both; }
+        .card:nth-child(3) { animation: fadeUp 0.4s ease 0.3s both; }
+        .footer    { animation: fadeUp 0.4s ease 0.4s both; }
     </style>
 </head>
 <body>
@@ -204,6 +220,15 @@
             <div class="card-text">
                 <div class="card-title">GASTOS</div>
                 <div class="card-desc">Casetas · Comida · Otros</div>
+            </div>
+            <span class="card-arrow">›</span>
+        </a>
+
+        <a href="/reporte" class="card card-reporte" id="btnReporte">
+            <span class="card-icon">📊</span>
+            <div class="card-text">
+                <div class="card-title">REPORTE</div>
+                <div class="card-desc">Historial de gastos y fotos</div>
             </div>
             <span class="card-arrow">›</span>
         </a>

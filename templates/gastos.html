@@ -649,62 +649,70 @@ async function leerMontoOCR(base64img) {
 function parsearMonto(texto) {
     const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
 
-    // ── Estrategia 1 (ALTA PRIORIDAD): patrón exacto "Total: $123.45" ─────────
-    // Cubre: "Total: $123", "TOTAL: $1,234.56", "Total:$45.00", "Total $ 99.00"
-    const PATRON_TOTAL_PESO = /total\s*:?\s*\$\s*([\d,]+\.?\d{0,2})/i;
+    // Función auxiliar para extraer el monto y limpiar errores comunes de OCR
+    function extractAmount(str) {
+        if (!str) return null;
+        let cleaned = str.replace(/\s+/g, '');
+        // Si hay una coma seguida de dos números al final, la tratamos como punto decimal (ej: 123,45 -> 123.45)
+        if (/,(\d{2})$/.test(cleaned)) {
+            cleaned = cleaned.replace(/,(\d{2})$/, '.$1');
+        }
+        // Quitamos las comas de miles
+        cleaned = cleaned.replace(/,/g, '');
+        const val = parseFloat(cleaned);
+        // Validamos que el monto tenga sentido (menor a 100,000 para evitar C.P. o números de serie)
+        return (!isNaN(val) && val > 0 && val < 100000) ? val : null;
+    }
+
+    const KEYWORDS = /total|importe|cobrado|a pagar|pagar|amount/i;
+    const EXCLUDE = /art[ií]culos|productos|piezas/i;
+
+    // ── Estrategia 1: Línea con palabra clave y luego el número ─────────
     for (const linea of lineas) {
-        const m = linea.match(PATRON_TOTAL_PESO);
-        if (m) {
-            const val = parseFloat(m[1].replace(/,/g, ''));
-            if (!isNaN(val) && val > 0) return val;
-        }
-    }
-
-    // ── Estrategia 2: "Total" seguido de cualquier número en la misma línea ───
-    // Cubre: "Total  123.45", "TOTAL    456"
-    const PATRON_TOTAL_NUM = /total\s*:?\s*([\d,]+\.?\d{0,2})/i;
-    for (const linea of lineas) {
-        const m = linea.match(PATRON_TOTAL_NUM);
-        if (m) {
-            const val = parseFloat(m[1].replace(/,/g, ''));
-            if (!isNaN(val) && val > 0) return val;
-        }
-    }
-
-    // ── Estrategia 3: "Total" en una línea, el número en la siguiente ─────────
-    // Algunos tickets ponen "Total:" y debajo el monto
-    for (let i = 0; i < lineas.length - 1; i++) {
-        if (/total/i.test(lineas[i])) {
-            const siguiente = lineas[i + 1];
-            const m = siguiente.match(/\$?\s*([\d,]+\.?\d{0,2})/);
-            if (m) {
-                const val = parseFloat(m[1].replace(/,/g, ''));
-                if (!isNaN(val) && val > 0) return val;
-            }
-        }
-    }
-
-    // ── Estrategia 4: otras palabras clave de total ───────────────────────────
-    const OTRAS_KEYWORDS = ['importe', 'cobrado', 'a pagar', 'pagar', 'amount'];
-    for (const kw of OTRAS_KEYWORDS) {
-        for (const linea of lineas) {
-            if (linea.toLowerCase().includes(kw)) {
-                const m = linea.match(/\$?\s*([\d,]+\.?\d{0,2})/);
-                if (m) {
-                    const val = parseFloat(m[1].replace(/,/g, ''));
-                    if (!isNaN(val) && val > 0) return val;
+        if (KEYWORDS.test(linea) && !EXCLUDE.test(linea)) {
+            // Buscamos todos los números en esa línea y nos quedamos con el mayor
+            const matches = [...linea.matchAll(/\$?\s*([\d,]+(?:[.,]\d{2})?)/g)];
+            let maxInLine = null;
+            for (const match of matches) {
+                const val = extractAmount(match[1]);
+                if (val && (maxInLine === null || val > maxInLine)) {
+                    maxInLine = val;
                 }
             }
+            if (maxInLine !== null) return maxInLine;
         }
     }
 
-    // ── Estrategia 5 (ÚLTIMO RECURSO): el número más grande del ticket ────────
+    // ── Estrategia 2: Palabra clave en una línea, el monto en la siguiente ───
+    for (let i = 0; i < lineas.length - 1; i++) {
+        if (KEYWORDS.test(lineas[i]) && !EXCLUDE.test(lineas[i])) {
+            // Miramos hasta 2 líneas hacia abajo por si hay texto intermedio (ej. "Total:" \n "MXN" \n "150.00")
+            for (let j = 1; j <= 2 && (i + j) < lineas.length; j++) {
+                const siguiente = lineas[i + j];
+                const matches = [...siguiente.matchAll(/\$?\s*([\d,]+(?:[.,]\d{2})?)/g)];
+                let maxInNext = null;
+                for (const match of matches) {
+                    const val = extractAmount(match[1]);
+                    if (val && (maxInNext === null || val > maxInNext)) {
+                        maxInNext = val;
+                    }
+                }
+                if (maxInNext !== null) return maxInNext;
+            }
+        }
+    }
+
+    // ── Estrategia 3: El número más grande del ticket (Último recurso) ────────
+    // IMPORTANTE: Para evitar seleccionar Códigos Postales (ej. 22200), 
+    // solo consideramos números si tienen el signo de pesos ($) o punto decimal (.XX)
     let maxVal = null;
     for (const linea of lineas) {
-        const matches = [...linea.matchAll(/\$?\s*([\d,]+\.?\d{0,2})/g)];
+        // match[1] = tiene $, match[2] = tiene decimales
+        const matches = [...linea.matchAll(/(?:\$)\s*([\d,]+(?:[.,]\d{2})?)|([\d,]+[.,]\d{2})/g)];
         for (const match of matches) {
-            const val = parseFloat(match[1].replace(/,/g, ''));
-            if (!isNaN(val) && val > 0 && val < 100000) {
+            const valStr = match[1] || match[2];
+            const val = extractAmount(valStr);
+            if (val) {
                 if (maxVal === null || val > maxVal) maxVal = val;
             }
         }
