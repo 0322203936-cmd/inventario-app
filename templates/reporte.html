@@ -246,12 +246,26 @@
             <div class="gasto-card" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}" data-fecha="{{ g.fecha }}">
                 <div class="gasto-header">
                     <div>
-                        <div class="cat-badge {{ g.categoria.lower() }}">{{ g.categoria }}</div>
+                        <div style="display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;">
+                        {% for cat in g.categoria %}
+                            <div class="cat-badge {{ cat.lower() }}">{{ cat }}</div>
+                        {% endfor %}
+                        </div>
                         <div class="gasto-title">{{ g.tienda }}</div>
                         <div class="gasto-subtitle">👤 {{ g.usuario }} • 📅 {{ g.fecha }}</div>
                         <div class="gasto-subtitle" style="font-size: 11px; margin-top:2px;">Reg: {{ g.fecha_reg }}</div>
                     </div>
-                    <div class="gasto-monto">${{ "{:,.2f}".format(g.monto|float) }}</div>
+                    <div style="text-align: right;">
+                        <div class="gasto-monto">${{ "{:,.2f}".format(g.monto|float) }}</div>
+                        {% set viaticos = 1100 if g.tienda == 'Mexicali' else (700 if g.tienda == 'Tijuana' else 0) %}
+                        {% if viaticos > 0 %}
+                            {% set restante = viaticos - g.monto|float %}
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 6px;">Viáticos: ${{ "{:,.2f}".format(viaticos) }}</div>
+                            <div style="font-size: 12px; font-weight: 700; color: {{ '#059669' if restante >= 0 else '#dc2626' }};">
+                                Restante: ${{ "{:,.2f}".format(restante) }}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
                 {% if g.fotos %}
                 <div class="fotos-grid">

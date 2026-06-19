@@ -821,7 +821,7 @@ def reporte():
                             fotos_str = row[6] if len(row) > 6 and row[6] else ""
                             fotos_list = [f.strip() for f in fotos_str.split(",") if f.strip()]
                             
-                            key = (tienda, fecha, usuario, categoria)
+                            key = (tienda, fecha, usuario)
                             
                             if key not in grouped:
                                 grouped[key] = {
@@ -829,13 +829,15 @@ def reporte():
                                     "tienda": tienda,
                                     "fecha": fecha,
                                     "usuario": usuario,
-                                    "categoria": categoria,
+                                    "categoria": [categoria] if categoria else [],
                                     "monto": monto,
                                     "fotos": fotos_list
                                 }
                             else:
                                 grouped[key]["monto"] += monto
                                 grouped[key]["fotos"].extend(fotos_list)
+                                if categoria and categoria not in grouped[key]["categoria"]:
+                                    grouped[key]["categoria"].append(categoria)
                                 grouped[key]["fecha_reg"] = row[0] # Mostrar última fecha de actualización
                                 
                     gastos = list(grouped.values())
