@@ -805,19 +805,41 @@ def reporte():
                 if len(values) > 1:
                     # El índice de valores asume:
                     # 0: Fecha reg, 1: Tienda, 2: Fecha gasto, 3: Usuario, 4: Categoria, 5: Monto, 6: Fotos
-                    for row in reversed(values[1:]): # Mostrar los más recientes primero
+                    grouped = {}
+                    for row in values[1:]:
                         if len(row) >= 6:
+                            tienda = row[1]
+                            fecha = row[2]
+                            usuario = row[3]
+                            categoria = row[4]
+                            
+                            try:
+                                monto = float(str(row[5]).replace('$', '').replace(',', '').strip()) if row[5] else 0.0
+                            except ValueError:
+                                monto = 0.0
+                                
                             fotos_str = row[6] if len(row) > 6 and row[6] else ""
                             fotos_list = [f.strip() for f in fotos_str.split(",") if f.strip()]
-                            gastos.append({
-                                "fecha_reg": row[0],
-                                "tienda": row[1],
-                                "fecha": row[2],
-                                "usuario": row[3],
-                                "categoria": row[4],
-                                "monto": row[5] if row[5] else 0,
-                                "fotos": fotos_list
-                            })
+                            
+                            key = (tienda, fecha, usuario, categoria)
+                            
+                            if key not in grouped:
+                                grouped[key] = {
+                                    "fecha_reg": row[0],
+                                    "tienda": tienda,
+                                    "fecha": fecha,
+                                    "usuario": usuario,
+                                    "categoria": categoria,
+                                    "monto": monto,
+                                    "fotos": fotos_list
+                                }
+                            else:
+                                grouped[key]["monto"] += monto
+                                grouped[key]["fotos"].extend(fotos_list)
+                                grouped[key]["fecha_reg"] = row[0] # Mostrar última fecha de actualización
+                                
+                    gastos = list(grouped.values())
+                    gastos.reverse() # Mostrar los grupos más recientes primero
                             
         resp = make_response(render_template("reporte.html", gastos=gastos, tiendas=TIENDAS))
         resp.headers['Cache-Control'] = 'no-cache'

@@ -306,7 +306,6 @@
             
             let cY = -1, cM = -1, cD = -1;
             if (cardF) {
-                // Parse serial excel date
                 if (!isNaN(cardF) && !cardF.includes('/')) {
                      const serial = parseInt(cardF, 10);
                      const dateObj = new Date(Math.round((serial - 25569) * 86400 * 1000));
@@ -314,20 +313,31 @@
                      cM = dateObj.getUTCMonth() + 1;
                      cD = dateObj.getUTCDate();
                 } else {
-                     // Parse normal date string
-                     const d = new Date(cardF);
-                     if (!isNaN(d.getTime())) {
-                         cY = d.getFullYear();
-                         cM = d.getMonth() + 1;
-                         cD = d.getDate();
-                     } else {
-                         // Fallback DD/MM/YYYY
-                         const p = cardF.split('/');
-                         if (p.length === 3) {
-                             cD = parseInt(p[0], 10);
-                             cM = parseInt(p[1], 10);
-                             cY = parseInt(p[2], 10);
-                             if (cY < 100) cY += 2000;
+                     // Parse manually to avoid browser new Date() quirks
+                     // Remove time part if exists
+                     const datePart = cardF.split(' ')[0];
+                     const p = datePart.split(/[-/]/).map(x => parseInt(x, 10));
+                     
+                     if (p.length === 3) {
+                         // Find year
+                         let idxY = p.findIndex(x => x > 31);
+                         if (idxY !== -1) {
+                             cY = p[idxY];
+                             p.splice(idxY, 1);
+                         } else {
+                             // If no 4-digit year, assume the last one is the year (e.g. MM/DD/YY)
+                             cY = p[2] + 2000;
+                             p.splice(2, 1);
+                         }
+                         
+                         // p has 2 elements left. Check if they match tM and tD in either order.
+                         // We do this matching directly below.
+                         if ((p[0] === tM && p[1] === tD) || (p[0] === tD && p[1] === tM)) {
+                             cM = tM;
+                             cD = tD;
+                         } else {
+                             cM = p[0];
+                             cD = p[1];
                          }
                      }
                 }
