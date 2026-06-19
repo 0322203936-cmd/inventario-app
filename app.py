@@ -806,8 +806,9 @@ def reporte():
                     # El índice de valores asume:
                     # 0: Fecha reg, 1: Tienda, 2: Fecha gasto, 3: Usuario, 4: Categoria, 5: Monto, 6: Fotos
                     grouped = {}
-                    for row in values[1:]:
+                    for idx, row in enumerate(values[1:]):
                         if len(row) >= 6:
+                            row_num = idx + 2
                             tienda = row[1]
                             fecha = row[2]
                             usuario = row[3]
@@ -817,6 +818,11 @@ def reporte():
                                 monto = float(str(row[5]).replace('$', '').replace(',', '').strip()) if row[5] else 0.0
                             except ValueError:
                                 monto = 0.0
+                                
+                            try:
+                                viaticos_val = float(str(row[7]).replace('$', '').replace(',', '').strip()) if len(row) > 7 and row[7] else None
+                            except ValueError:
+                                viaticos_val = None
                                 
                             fotos_str = row[6] if len(row) > 6 and row[6] else ""
                             fotos_list = [f.strip() for f in fotos_str.split(",") if f.strip()]
@@ -831,11 +837,16 @@ def reporte():
                                     "usuario": usuario,
                                     "categoria": [categoria] if categoria else [],
                                     "monto": monto,
-                                    "fotos": fotos_list
+                                    "fotos": fotos_list,
+                                    "viaticos": viaticos_val,
+                                    "row_nums": [row_num]
                                 }
                             else:
                                 grouped[key]["monto"] += monto
                                 grouped[key]["fotos"].extend(fotos_list)
+                                grouped[key]["row_nums"].append(row_num)
+                                if viaticos_val is not None:
+                                    grouped[key]["viaticos"] = viaticos_val
                                 if categoria and categoria not in grouped[key]["categoria"]:
                                     grouped[key]["categoria"].append(categoria)
                                 grouped[key]["fecha_reg"] = row[0] # Mostrar última fecha de actualización
@@ -848,6 +859,59 @@ def reporte():
         return resp
     except Exception as e:
         return f"<h2>Error cargando reporte:</h2><pre>{e}</pre>"
+
+
+@app.route("/api/editar_gasto", methods=["POST"])
+def api_editar_gasto():
+    """Actualiza Monto y Viáticos de un grupo de gastos."""
+    data = request.json
+    pwd = data.get("password")
+    if pwd != "cfbc2026":
+        return jsonify({"ok": False, "msg": "Contraseña incorrecta."}), 403
+        
+    row_nums = data.get("row_nums", [])
+    nuevo_monto = data.get("monto", 0)
+    nuevo_viatico = data.get("viaticos", 0)
+    
+    if not row_nums:
+        return jsonify({"ok": False, "msg": "No hay filas para editar."}), 400
+        
+    try:
+        token = _get_sp_token()
+        if not token:
+            return jsonify({"ok": False, "msg": "Error de token SP."}), 500
+            
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id = _get_site_id(auth_headers)
+        base_url = _get_base_url(site_id)
+        
+        # Actualizar la primera fila con el monto total y el viático
+        r1 = row_nums[0]
+        # F: Monto, G: Fotos, H: Viaticos. Vamos a actualizar F y H de r1.
+        # Rango F{r1}:H{r1} -> values = [[nuevo_monto, null, nuevo_viatico]]
+        address1 = f"F{r1}:H{r1}"
+        valores1 = [[nuevo_monto, None, nuevo_viatico]] # None para que no toque la foto
+        
+        resp1 = req_lib.patch(
+            f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{address1}')",
+            headers={**auth_headers, "Content-Type": "application/json"},
+            json={"values": valores1}, timeout=30
+        )
+        if not resp1.ok:
+            return jsonify({"ok": False, "msg": f"Error editando primera fila: {resp1.text}"}), 500
+            
+        # Si hay más filas en el grupo, poner su monto en 0
+        for rn in row_nums[1:]:
+            addr = f"F{rn}"
+            req_lib.patch(
+                f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{addr}')",
+                headers={**auth_headers, "Content-Type": "application/json"},
+                json={"values": [[0]]}, timeout=30
+            )
+            
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 if __name__ == "__main__":

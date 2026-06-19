@@ -255,16 +255,25 @@
                         <div class="gasto-subtitle">👤 {{ g.usuario }} • 📅 {{ g.fecha }}</div>
                         <div class="gasto-subtitle" style="font-size: 11px; margin-top:2px;">Reg: {{ g.fecha_reg }}</div>
                     </div>
-                    <div style="text-align: right;">
-                        <div class="gasto-monto">${{ "{:,.2f}".format(g.monto|float) }}</div>
-                        {% set viaticos = 1100 if g.tienda == 'Mexicali' else (700 if g.tienda == 'Tijuana' else 0) %}
-                        {% if viaticos > 0 %}
+                    <div style="text-align: right;" id="display-view-{{ loop.index }}">
+                        <div class="gasto-monto" style="cursor: pointer;" onclick="toggleEdit('{{ loop.index }}')">${{ "{:,.2f}".format(g.monto|float) }} ✏️</div>
+                        {% set viaticos = g.viaticos if g.viaticos is not none else (1100 if g.tienda == 'Mexicali' else (700 if g.tienda == 'Tijuana' else 0)) %}
+                        {% if viaticos > 0 or g.viaticos is not none %}
                             {% set restante = viaticos - g.monto|float %}
-                            <div style="font-size: 11px; color: #6b7280; margin-top: 6px;">Viáticos: ${{ "{:,.2f}".format(viaticos) }}</div>
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 6px; cursor: pointer;" onclick="toggleEdit('{{ loop.index }}')">Viáticos: ${{ "{:,.2f}".format(viaticos) }}</div>
                             <div style="font-size: 12px; font-weight: 700; color: {{ '#059669' if restante >= 0 else '#dc2626' }};">
                                 Restante: ${{ "{:,.2f}".format(restante) }}
                             </div>
                         {% endif %}
+                    </div>
+                    
+                    <div style="text-align: right; display: none;" id="edit-view-{{ loop.index }}">
+                        <input type="number" step="0.01" id="edit-monto-{{ loop.index }}" value="{{ g.monto|float }}" class="filter-input" style="width: 100px; text-align: right; margin-bottom: 4px;" placeholder="Monto">
+                        <br>
+                        <input type="number" step="0.01" id="edit-viatico-{{ loop.index }}" value="{{ viaticos }}" class="filter-input" style="width: 100px; text-align: right; margin-bottom: 4px;" placeholder="Viáticos">
+                        <br>
+                        <button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="guardarEdicion('{{ loop.index }}', {{ g.row_nums | tojson }})">Guardar</button>
+                        <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; background: #9ca3af;" onclick="toggleEdit('{{ loop.index }}')">Cancelar</button>
                     </div>
                 </div>
                 {% if g.fotos %}
@@ -367,6 +376,59 @@
                 card.style.display = 'none';
             }
         });
+    }
+    
+    function toggleEdit(index) {
+        const displayView = document.getElementById('display-view-' + index);
+        const editView = document.getElementById('edit-view-' + index);
+        if (displayView.style.display === 'none') {
+            displayView.style.display = 'block';
+            editView.style.display = 'none';
+        } else {
+            displayView.style.display = 'none';
+            editView.style.display = 'block';
+        }
+    }
+    
+    async function guardarEdicion(index, rowNums) {
+        const password = prompt("Ingrese la contraseña para editar:");
+        if (!password) return; // cancelado o vacío
+        
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "Guardando...";
+        btn.disabled = true;
+        
+        const montoStr = document.getElementById('edit-monto-' + index).value;
+        const viaticoStr = document.getElementById('edit-viatico-' + index).value;
+        const monto = parseFloat(montoStr) || 0;
+        const viaticos = parseFloat(viaticoStr) || 0;
+        
+        try {
+            const resp = await fetch('/api/editar_gasto', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    password: password,
+                    row_nums: rowNums,
+                    monto: monto,
+                    viaticos: viaticos
+                })
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                alert("Guardado correctamente. La página se actualizará.");
+                window.location.reload();
+            } else {
+                alert("Error: " + data.msg);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            alert("Error de conexión al guardar.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     }
 </script>
 </body>
