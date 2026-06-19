@@ -218,10 +218,10 @@
         <div class="filter-group">
             <span class="filter-label">Tienda</span>
             <select class="filter-input" id="filtroTienda" onchange="filtrarGastos()">
-                <option value="ALL">Todas las tiendas</option>
-                {% for t in tiendas %}
-                <option value="{{ t }}">{{ t }}</option>
-                {% endfor %}
+                <option value="ALL">Todas las ciudades</option>
+                <option value="Tijuana">Tijuana</option>
+                <option value="Mexicali">Mexicali</option>
+                <option value="Ensenada">Ensenada</option>
             </select>
         </div>
         <div class="filter-group">
