@@ -478,7 +478,7 @@
 
         <div class="field-row">
             <span class="field-row-label">Fecha</span>
-            <input type="text" id="fechaInput" placeholder="DD/MM/YYYY" readonly>
+            <input type="date" id="fechaInput">
         </div>
 
         <!-- ── CASETAS ── -->
@@ -507,6 +507,9 @@
                             placeholder="0.00" min="0" step="0.01" inputmode="decimal">
                     </div>
                     <div class="monto-hint" id="monto-hint-casetas">Edita si hay algún error</div>
+                </div>
+                <div class="monto-area" style="margin-top: 10px;">
+                    <textarea class="monto-input" id="comentario-casetas" placeholder="Comentarios o motivo si no tienes ticket..." style="font-size: 14px; font-weight: 400; padding: 10px; width: 100%; height: 60px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
                 </div>
             </div>
         </div>
@@ -538,6 +541,9 @@
                     </div>
                     <div class="monto-hint" id="monto-hint-comida">Edita si hay algún error</div>
                 </div>
+                <div class="monto-area" style="margin-top: 10px;">
+                    <textarea class="monto-input" id="comentario-comida" placeholder="Comentarios o motivo si no tienes ticket..." style="font-size: 14px; font-weight: 400; padding: 10px; width: 100%; height: 60px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                </div>
             </div>
         </div>
 
@@ -567,6 +573,9 @@
                             placeholder="0.00" min="0" step="0.01" inputmode="decimal">
                     </div>
                     <div class="monto-hint" id="monto-hint-otros">Edita si hay algún error</div>
+                </div>
+                <div class="monto-area" style="margin-top: 10px;">
+                    <textarea class="monto-input" id="comentario-otros" placeholder="Comentarios o motivo si no tienes ticket..." style="font-size: 14px; font-weight: 400; padding: 10px; width: 100%; height: 60px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
                 </div>
             </div>
         </div>
@@ -608,9 +617,9 @@ let ocrListo  = false;
 (function() {
     const hoy = new Date();
     document.getElementById('fechaInput').value =
-        String(hoy.getDate()).padStart(2,'0') + '/' +
-        String(hoy.getMonth()+1).padStart(2,'0') + '/' +
-        hoy.getFullYear();
+        hoy.getFullYear() + '-' +
+        String(hoy.getMonth()+1).padStart(2,'0') + '-' +
+        String(hoy.getDate()).padStart(2,'0');
 })();
 
 // ── Inicializar Tesseract.js ──────────────────────────────────────────────────
@@ -838,14 +847,26 @@ async function guardarGastos() {
 
     const tienda  = document.getElementById('tiendaSelect').value;
     const usuario = document.getElementById('usuarioSelect').value;
-    const fecha   = document.getElementById('fechaInput').value;
+    let fecha   = document.getElementById('fechaInput').value;
+
+    // Convertir de YYYY-MM-DD a DD/MM/YYYY para compatibilidad con el backend
+    if (fecha && fecha.includes('-')) {
+        const partes = fecha.split('-');
+        if (partes.length === 3) {
+            fecha = partes[2] + '/' + partes[1] + '/' + partes[0];
+        }
+    }
 
     if (!tienda)  { alert('Selecciona una tienda.');  return; }
     if (!usuario) { alert('Selecciona el usuario.');  return; }
 
     const totalFotos = fotos.casetas.length + fotos.comida.length + fotos.otros.length;
-    if (totalFotos === 0) {
-        alert('Agrega al menos una foto de ticket.');
+    const totalComentarios = document.getElementById('comentario-casetas').value.trim() + 
+                             document.getElementById('comentario-comida').value.trim() + 
+                             document.getElementById('comentario-otros').value.trim();
+
+    if (totalFotos === 0 && !totalComentarios) {
+        alert('Agrega al menos una foto de ticket o escribe un comentario.');
         return;
     }
 
@@ -868,12 +889,16 @@ async function guardarGastos() {
         const monto_comida  = parseFloat(document.getElementById('monto-comida').value)  || 0;
         const monto_otros   = parseFloat(document.getElementById('monto-otros').value)   || 0;
 
+        const comentario_casetas = document.getElementById('comentario-casetas').value.trim();
+        const comentario_comida  = document.getElementById('comentario-comida').value.trim();
+        const comentario_otros   = document.getElementById('comentario-otros').value.trim();
+
         const payload = {
             tipo: 'gastos',
             tienda, usuario, fecha, fecha_reg,
-            casetas: { fotos: fotos.casetas, monto: monto_casetas },
-            comida:  { fotos: fotos.comida,  monto: monto_comida  },
-            otros:   { fotos: fotos.otros,   monto: monto_otros   }
+            casetas: { fotos: fotos.casetas, monto: monto_casetas, comentario: comentario_casetas },
+            comida:  { fotos: fotos.comida,  monto: monto_comida,  comentario: comentario_comida  },
+            otros:   { fotos: fotos.otros,   monto: monto_otros,   comentario: comentario_otros   }
         };
 
         const { internet, serverUp } = await offlineApp.checkConectividad();
@@ -935,6 +960,7 @@ function limpiarFormulario() {
         renderFotos(c);
         actualizarBadge(c);
         document.getElementById(`monto-${c}`).value = '';
+        document.getElementById(`comentario-${c}`).value = '';
         document.getElementById(`monto-${c}`).classList.remove('ocr-detected');
         document.getElementById(`ocr-status-${c}`).textContent = '';
         setMontoHint(c, 'Edita si hay algún error', false);
