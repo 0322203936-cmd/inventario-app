@@ -248,7 +248,7 @@
                     <div>
                         <div style="display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;">
                         {% for cat in g.categoria %}
-                            <div class="cat-badge {{ cat.lower() }}">{{ cat }}</div>
+                            <div class="cat-badge {{ cat.lower() }}" style="cursor: pointer; opacity: 0.9;" onclick="toggleCategoria('{{ loop.index0 }}', '{{ cat }}')" title="Ver detalles de {{ cat }}">{{ cat }} ▾</div>
                         {% endfor %}
                         </div>
                         <div class="gasto-title">{{ g.tienda }}</div>
@@ -277,21 +277,34 @@
                     </div>
                 </div>
                 
-                {% if g.comentarios %}
-                <div class="gasto-comentarios" style="margin-top: 8px; font-size: 13px; color: #4b5563; background: #f9fafb; padding: 10px; border-radius: 8px; border: 1px solid #e5e7eb;">
-                    <div style="font-weight: 600; margin-bottom: 4px; color: #374151;">📝 Comentarios:</div>
-                    <ul style="margin: 0; padding-left: 18px;">
-                    {% for c in g.comentarios %}
-                        <li>{{ c }}</li>
-                    {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-                
-                {% if g.fotos %}
-                <div class="fotos-grid">
-                    {% for f in g.fotos %}
-                    <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src)" loading="lazy" alt="Ticket">
+                {% if g.detalles %}
+                <div id="detalles-{{ loop.index0 }}" style="margin-top: 8px;">
+                    {% for cat, det in g.detalles.items() %}
+                    <div id="cat-detail-{{ loop.parent.loop.index0 }}-{{ cat }}" style="display: none; padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 700; font-size: 14px; color: #374151;">{{ cat }}</span>
+                            <span style="font-weight: 700; font-size: 14px; color: #059669;">${{ "{:,.2f}".format(det.monto) }}</span>
+                        </div>
+                        
+                        {% if det.comentarios %}
+                        <div style="font-size: 13px; color: #4b5563; margin-bottom: 8px;">
+                            <div style="font-weight: 600; margin-bottom: 2px;">📝 Comentarios:</div>
+                            <ul style="margin: 0; padding-left: 18px;">
+                            {% for c in det.comentarios %}
+                                <li>{{ c }}</li>
+                            {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if det.fotos %}
+                        <div class="fotos-grid">
+                            {% for f in det.fotos %}
+                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src)" loading="lazy" alt="Ticket">
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -399,6 +412,14 @@
         } else {
             displayView.style.display = 'none';
             editView.style.display = 'block';
+        }
+    }
+    
+    function toggleCategoria(cardIdx, cat) {
+        const divId = 'cat-detail-' + cardIdx + '-' + cat;
+        const el = document.getElementById(divId);
+        if (el) {
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
     }
     
