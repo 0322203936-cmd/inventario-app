@@ -845,8 +845,15 @@ def reporte():
                                     "fotos": fotos_list,
                                     "viaticos": viaticos_val,
                                     "comentarios": [comentario_str] if comentario_str else [],
+                                    "detalles": {},
                                     "row_nums": [row_num]
                                 }
+                                if categoria:
+                                    grouped[key]["detalles"][categoria] = {
+                                        "monto": monto, 
+                                        "fotos": fotos_list, 
+                                        "comentarios": [comentario_str] if comentario_str else []
+                                    }
                             else:
                                 grouped[key]["monto"] += monto
                                 grouped[key]["fotos"].extend(fotos_list)
@@ -857,6 +864,15 @@ def reporte():
                                     grouped[key]["viaticos"] = viaticos_val
                                 if categoria and categoria not in grouped[key]["categoria"]:
                                     grouped[key]["categoria"].append(categoria)
+                                
+                                if categoria:
+                                    if categoria not in grouped[key]["detalles"]:
+                                        grouped[key]["detalles"][categoria] = {"monto": 0.0, "fotos": [], "comentarios": []}
+                                    grouped[key]["detalles"][categoria]["monto"] += monto
+                                    grouped[key]["detalles"][categoria]["fotos"].extend(fotos_list)
+                                    if comentario_str:
+                                        grouped[key]["detalles"][categoria]["comentarios"].append(comentario_str)
+
                                 grouped[key]["fecha_reg"] = row[0] # Mostrar última fecha de actualización
                                 
                     gastos = list(grouped.values())
