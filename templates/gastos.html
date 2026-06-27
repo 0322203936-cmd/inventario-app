@@ -508,8 +508,20 @@
                     </div>
                     <div class="monto-hint" id="monto-hint-casetas">Edita si hay algún error</div>
                 </div>
-                <div class="monto-area" style="margin-top: 10px;">
-                    <textarea class="monto-input" id="comentario-casetas" placeholder="Comentarios o motivo si no tienes ticket..." style="font-size: 14px; font-weight: 400; padding: 10px; width: 100%; height: 60px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                <div class="monto-area" style="margin-top: 10px; padding: 12px;">
+                    <div class="monto-header" style="margin-bottom: 8px;">
+                        <span class="monto-title">Gasto adicional sin ticket</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <textarea class="monto-input" id="comentario-casetas" placeholder="Motivo o detalle..." style="font-size: 14px; font-weight: 400; padding: 10px; flex: 1; height: 46px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                        
+                        <div style="width: 100px;">
+                            <div class="monto-input-row" style="background: #f9fafb; border: 1.5px solid #dadce0; border-radius: 10px; padding: 4px 8px; height: 46px;">
+                                <span class="monto-prefix" style="font-size: 16px;">$</span>
+                                <input class="monto-input" type="number" id="monto-extra-casetas" placeholder="0.00" min="0" step="0.01" inputmode="decimal" style="font-size: 16px; border: none; padding: 0; margin-left: 2px;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -541,8 +553,20 @@
                     </div>
                     <div class="monto-hint" id="monto-hint-comida">Edita si hay algún error</div>
                 </div>
-                <div class="monto-area" style="margin-top: 10px;">
-                    <textarea class="monto-input" id="comentario-comida" placeholder="Comentarios o motivo si no tienes ticket..." style="font-size: 14px; font-weight: 400; padding: 10px; width: 100%; height: 60px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                <div class="monto-area" style="margin-top: 10px; padding: 12px;">
+                    <div class="monto-header" style="margin-bottom: 8px;">
+                        <span class="monto-title">Gasto adicional sin ticket</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <textarea class="monto-input" id="comentario-comida" placeholder="Motivo o detalle..." style="font-size: 14px; font-weight: 400; padding: 10px; flex: 1; height: 46px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                        
+                        <div style="width: 100px;">
+                            <div class="monto-input-row" style="background: #f9fafb; border: 1.5px solid #dadce0; border-radius: 10px; padding: 4px 8px; height: 46px;">
+                                <span class="monto-prefix" style="font-size: 16px;">$</span>
+                                <input class="monto-input" type="number" id="monto-extra-comida" placeholder="0.00" min="0" step="0.01" inputmode="decimal" style="font-size: 16px; border: none; padding: 0; margin-left: 2px;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -574,8 +598,20 @@
                     </div>
                     <div class="monto-hint" id="monto-hint-otros">Edita si hay algún error</div>
                 </div>
-                <div class="monto-area" style="margin-top: 10px;">
-                    <textarea class="monto-input" id="comentario-otros" placeholder="Comentarios o motivo si no tienes ticket..." style="font-size: 14px; font-weight: 400; padding: 10px; width: 100%; height: 60px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                <div class="monto-area" style="margin-top: 10px; padding: 12px;">
+                    <div class="monto-header" style="margin-bottom: 8px;">
+                        <span class="monto-title">Gasto adicional sin ticket</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <textarea class="monto-input" id="comentario-otros" placeholder="Motivo o detalle..." style="font-size: 14px; font-weight: 400; padding: 10px; flex: 1; height: 46px; border: 1.5px solid #dadce0; border-radius: 10px; resize: none;"></textarea>
+                        
+                        <div style="width: 100px;">
+                            <div class="monto-input-row" style="background: #f9fafb; border: 1.5px solid #dadce0; border-radius: 10px; padding: 4px 8px; height: 46px;">
+                                <span class="monto-prefix" style="font-size: 16px;">$</span>
+                                <input class="monto-input" type="number" id="monto-extra-otros" placeholder="0.00" min="0" step="0.01" inputmode="decimal" style="font-size: 16px; border: none; padding: 0; margin-left: 2px;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -885,9 +921,9 @@ async function guardarGastos() {
                    String(n.getMinutes()).padStart(2,'0');
         })();
 
-        const monto_casetas = parseFloat(document.getElementById('monto-casetas').value) || 0;
-        const monto_comida  = parseFloat(document.getElementById('monto-comida').value)  || 0;
-        const monto_otros   = parseFloat(document.getElementById('monto-otros').value)   || 0;
+        const monto_casetas = (parseFloat(document.getElementById('monto-casetas').value) || 0) + (parseFloat(document.getElementById('monto-extra-casetas').value) || 0);
+        const monto_comida  = (parseFloat(document.getElementById('monto-comida').value)  || 0) + (parseFloat(document.getElementById('monto-extra-comida').value)  || 0);
+        const monto_otros   = (parseFloat(document.getElementById('monto-otros').value)   || 0) + (parseFloat(document.getElementById('monto-extra-otros').value)   || 0);
 
         const comentario_casetas = document.getElementById('comentario-casetas').value.trim();
         const comentario_comida  = document.getElementById('comentario-comida').value.trim();
@@ -960,6 +996,7 @@ function limpiarFormulario() {
         renderFotos(c);
         actualizarBadge(c);
         document.getElementById(`monto-${c}`).value = '';
+        document.getElementById(`monto-extra-${c}`).value = '';
         document.getElementById(`comentario-${c}`).value = '';
         document.getElementById(`monto-${c}`).classList.remove('ocr-detected');
         document.getElementById(`ocr-status-${c}`).textContent = '';
