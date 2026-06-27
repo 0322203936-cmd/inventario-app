@@ -33,7 +33,7 @@ HEADERS_CF = [
 
 HEADERS_GASTOS = [
     "Fecha de registro", "Tienda", "Fecha del Gasto", "Usuario",
-    "Categoria", "Monto", "Fotos"
+    "Categoria", "Monto", "Fotos", "Viaticos", "Comentarios"
 ]
 
 # Tabla Detalle: columnas A-H (col 1-8)
@@ -639,7 +639,8 @@ def procesar_gastos(pendiente):
             cat_data = pendiente.get(cat, {})
             fotos = cat_data.get("fotos", [])
             monto = cat_data.get("monto", 0)
-            if not fotos and monto == 0:
+            comentario = cat_data.get("comentario", "")
+            if not fotos and monto == 0 and not comentario:
                 continue
                 
             rutas_fotos = []
@@ -663,7 +664,9 @@ def procesar_gastos(pendiente):
                 usuario,
                 cat.upper(),
                 monto,
-                ",".join(rutas_fotos)
+                ",".join(rutas_fotos),
+                "",
+                comentario
             ])
             
         if filas_gastos:
@@ -824,6 +827,8 @@ def reporte():
                             except ValueError:
                                 viaticos_val = None
                                 
+                            comentario_str = str(row[8]).strip() if len(row) > 8 and row[8] else ""
+                            
                             fotos_str = row[6] if len(row) > 6 and row[6] else ""
                             fotos_list = [f.strip() for f in fotos_str.split(",") if f.strip()]
                             
@@ -839,12 +844,15 @@ def reporte():
                                     "monto": monto,
                                     "fotos": fotos_list,
                                     "viaticos": viaticos_val,
+                                    "comentarios": [comentario_str] if comentario_str else [],
                                     "row_nums": [row_num]
                                 }
                             else:
                                 grouped[key]["monto"] += monto
                                 grouped[key]["fotos"].extend(fotos_list)
                                 grouped[key]["row_nums"].append(row_num)
+                                if comentario_str:
+                                    grouped[key]["comentarios"].append(comentario_str)
                                 if viaticos_val is not None:
                                     grouped[key]["viaticos"] = viaticos_val
                                 if categoria and categoria not in grouped[key]["categoria"]:
