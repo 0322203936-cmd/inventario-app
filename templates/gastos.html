@@ -930,19 +930,56 @@ function cerrarCropper() {
     }
 }
 
+function preprocesarImagen(canvasOriginal) {
+    const ctx = canvasOriginal.getContext('2d');
+    const width = canvasOriginal.width;
+    const height = canvasOriginal.height;
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        
+        // Detectar si el pixel es de pluma azul (Azul predomina sobre rojo y verde)
+        const isBlue = (b > r + 30) && (b > g + 30) && (b > 80);
+        
+        if (isBlue) {
+            // Borrar el rayón azul (volverlo blanco)
+            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+        } else {
+            // Convertir a blanco y negro alto contraste para el OCR
+            const gray = r * 0.3 + g * 0.59 + b * 0.11;
+            const val = gray < 150 ? 0 : 255; // Threshold
+            data[i] = val; data[i+1] = val; data[i+2] = val;
+        }
+    }
+    
+    const processedCanvas = document.createElement('canvas');
+    processedCanvas.width = width;
+    processedCanvas.height = height;
+    const pCtx = processedCanvas.getContext('2d');
+    pCtx.putImageData(imageData, 0, 0);
+    
+    return processedCanvas.toDataURL('image/jpeg');
+}
+
 async function aceptarCropper() {
     if (!cropper) return;
     
-    // Obtener la imagen recortada
+    // Obtener la imagen recortada del canvas
     const canvas = cropper.getCroppedCanvas();
-    const croppedBase64 = canvas.toDataURL('image/jpeg');
+    
+    // Aplicar filtro Mágico anti-plumas azules y binarizado
+    const croppedBase64 = preprocesarImagen(canvas);
     
     const cat = currentCatForCropper;
     const fullBase64 = currentBase64Full;
     
     cerrarCropper();
     
-    // Guardar la foto COMPLETA para subirla a SharePoint
+    // Guardar la foto COMPLETA (sin filtros) para subirla a SharePoint
     fotos[cat].push(fullBase64);
     renderFotos(cat);
     actualizarBadge(cat);
