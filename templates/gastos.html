@@ -942,18 +942,15 @@ function preprocesarImagen(canvasOriginal) {
         const g = data[i + 1];
         const b = data[i + 2];
         
-        // Detectar si el pixel es de pluma azul (Azul predomina sobre rojo y verde)
+        // Detectar si el pixel es de pluma azul
         const isBlue = (b > r + 30) && (b > g + 30) && (b > 80);
         
         if (isBlue) {
             // Borrar el rayón azul (volverlo blanco)
             data[i] = 255; data[i+1] = 255; data[i+2] = 255;
-        } else {
-            // Convertir a blanco y negro alto contraste para el OCR
-            const gray = r * 0.3 + g * 0.59 + b * 0.11;
-            const val = gray < 150 ? 0 : 255; // Threshold
-            data[i] = val; data[i+1] = val; data[i+2] = val;
         }
+        // Si no es azul, dejamos los colores originales intactos
+        // para no borrar por accidente la tinta tenue del ticket.
     }
     
     const processedCanvas = document.createElement('canvas');
