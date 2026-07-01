@@ -771,6 +771,10 @@ function parsearMonto(texto) {
         if (!str) return null;
         let cleaned = str.replace(/\s+/g, '');
         
+        // OCR Fixes: O/o -> 0, l/I -> 1
+        cleaned = cleaned.replace(/[OoQ]/g, '0');
+        cleaned = cleaned.replace(/[lI]/g, '1');
+
         // Tratar coma como punto si está antes de dos dígitos al final: 123,45 -> 123.45
         if (/,(\d{2})$/.test(cleaned)) {
             cleaned = cleaned.replace(/,(\d{2})$/, '.$1');
@@ -778,11 +782,14 @@ function parsearMonto(texto) {
         // Quitar comas y signos de pesos
         cleaned = cleaned.replace(/[,$S]/g, '');
         
+        // Missing decimal fix for leading zeros: "002300" -> "0023.00"
+        if (!/[.,]/.test(cleaned) && /^0\d+$/.test(cleaned) && cleaned.length >= 3) {
+            cleaned = cleaned.slice(0, -2) + '.' + cleaned.slice(-2);
+        }
+
         const val = parseFloat(cleaned);
         
         // Validaciones heurísticas:
-        // 1. Mayor a 0
-        // 2. Menor o igual a 4000 (Viáticos máximos son ~1100, esto filtra folios y C.P.)
         if (isNaN(val) || val <= 0 || val > 4000) return null;
 
         return val;
@@ -797,7 +804,7 @@ function parsearMonto(texto) {
     // ── Estrategia 1: Línea con palabra clave y luego el número ─────────
     for (const linea of lineas) {
         if (KEYWORDS.test(linea) && !EXCLUDE.test(linea)) {
-            const matches = [...linea.matchAll(/\$?\s*([\d,]+(?:[.,]\d{2})?)/g)];
+            const matches = [...linea.matchAll(/\$?\s*([\dOoIl,]+(?:[.,][\dOoIl]{2})?)/g)];
             let maxInLine = null;
             for (const match of matches) {
                 const val = extractAmount(match[1]);
@@ -816,7 +823,7 @@ function parsearMonto(texto) {
                 const siguiente = lineas[i + j];
                 if (EXCLUDE.test(siguiente)) continue;
                 
-                const matches = [...siguiente.matchAll(/\$?\s*([\d,]+(?:[.,]\d{2})?)/g)];
+                const matches = [...siguiente.matchAll(/\$?\s*([\dOoIl,]+(?:[.,][\dOoIl]{2})?)/g)];
                 let maxInNext = null;
                 for (const match of matches) {
                     const val = extractAmount(match[1]);
@@ -835,7 +842,7 @@ function parsearMonto(texto) {
         if (EXCLUDE.test(linea)) continue; // Evitar agarrar "EFECTIVO $ 500.00" explícito
         
         // Exigimos explícitamente el signo $ o el punto decimal (.XX) para ser candidato
-        const matches = [...linea.matchAll(/(?:\$)\s*([\d,]+(?:[.,]\d{2})?)|(\b[\d,]+[.,]\d{2}\b)/g)];
+        const matches = [...linea.matchAll(/(?:\$)\s*([\dOoIl,]+(?:[.,][\dOoIl]{2})?)|(\b[\dOoIl,]+[.,][\dOoIl]{2}\b)/g)];
         for (const match of matches) {
             const valStr = match[1] || match[2];
             const val = extractAmount(valStr);
