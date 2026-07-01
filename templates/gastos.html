@@ -753,14 +753,14 @@ let ocrListo  = false;
  *   2. Si no encuentra, tomar el número más grande del ticket.
  */
 async function leerMontoOCR(base64img) {
-    if (!ocrListo || !ocrWorker) return null;
+    if (!ocrListo || !ocrWorker) return { monto: null, texto_raw: '' };
     try {
         const result = await ocrWorker.recognize(base64img);
         const texto  = result.data.text;
-        return parsearMonto(texto);
+        return { monto: parsearMonto(texto), texto_raw: texto };
     } catch (err) {
         console.warn('[OCR] Error al reconocer:', err);
-        return null;
+        return { monto: null, texto_raw: '' };
     }
 }
 
@@ -988,7 +988,20 @@ async function aceptarCropper() {
     setOCRStatus(cat, 'loading', '🔍 Analizando recorte…');
 
     // Correr OCR sobre el RECORTADO
-    const monto = await leerMontoOCR(croppedBase64);
+    const ocrResult = await leerMontoOCR(croppedBase64);
+    const monto = ocrResult.monto;
+    const rawText = ocrResult.texto_raw;
+
+    // --- DEBUG PARA VER QUÉ LEE TESSERACT ---
+    let debugDiv = document.getElementById(`ocr-debug-${cat}`);
+    if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = `ocr-debug-${cat}`;
+        debugDiv.style = "font-size: 11px; color: #6b7280; margin-top: 5px; background: #f3f4f6; padding: 5px; border-radius: 5px; word-wrap: break-word;";
+        document.getElementById(`monto-area-${cat}`).appendChild(debugDiv);
+    }
+    debugDiv.textContent = "RAW: " + rawText;
+    // ----------------------------------------
 
     if (monto !== null) {
         const input = document.getElementById(`monto-${cat}`);
