@@ -771,48 +771,61 @@ function parsearMonto(texto) {
         if (!str) return null;
         let cleaned = str.replace(/\s+/g, '');
         
-        // OCR Fixes: O/o -> 0, l/I -> 1
+        // OCR Fixes: Letras comunes que la IA confunde con números por culpa de rayones de pluma
         cleaned = cleaned.replace(/[OoQ]/g, '0');
-        cleaned = cleaned.replace(/[lI]/g, '1');
+        cleaned = cleaned.replace(/[lIi|]/g, '1');
+        cleaned = cleaned.replace(/[Zz]/g, '2');
+        cleaned = cleaned.replace(/[Ss]/g, '5');
+        cleaned = cleaned.replace(/[B]/g, '8');
 
         // Tratar coma como punto si está antes de dos dígitos al final: 123,45 -> 123.45
         if (/,(\d{2})$/.test(cleaned)) {
             cleaned = cleaned.replace(/,(\d{2})$/, '.$1');
         }
-        // Quitar comas y signos de pesos
-        cleaned = cleaned.replace(/[,$S]/g, '');
         
+        // Quitar todo lo que no sea dígito o punto (borra signos de pesos, letras raras, etc)
+        cleaned = cleaned.replace(/[^\d.]/g, '');
+        
+        // Si no quedó nada, o hay múltiples puntos, abortar
+        if (!cleaned || cleaned === '.' || (cleaned.match(/\./g) || []).length > 1) return null;
+
         // Missing decimal fix for leading zeros: "002300" -> "0023.00"
-        if (!/[.,]/.test(cleaned) && /^0\d+$/.test(cleaned) && cleaned.length >= 3) {
+        if (!/\./.test(cleaned) && /^0\d+$/.test(cleaned) && cleaned.length >= 3) {
             cleaned = cleaned.slice(0, -2) + '.' + cleaned.slice(-2);
         }
 
         const val = parseFloat(cleaned);
         
-        // Validaciones heurísticas:
+        // Validaciones heurísticas
         if (isNaN(val) || val <= 0 || val > 4000) return null;
+        
+        // Ignorar el 16% o 8% exacto que siempre se lee como número suelto
+        if (val === 16 || val === 8) return null;
 
         return val;
     }
 
-    // Ampliamos keywords para tolerar errores comunes del OCR
-    const KEYWORDS = /tota[l1i]|t0tal|tota|lotal|1otal|iotal|ttal|toal|importe|1mporte|impor[tl]e|cobrado|a pagar|pagar|amount|tarifa|subtotal/i;
-    
-    // Excluimos palabras que detonan pagos, cambio, u otra info que no es el costo de consumo
-    const EXCLUDE = /art[ií]culos|productos|piezas|efectivo|cambio|tarjeta|pago con|recibido|su pago|vuelto|cash/i;
+    const KEYWORDS = /tota[l1i]|t0tal|tota|lotal|1otal|iotal|ttal|toal|importe|1mporte|impor[tl]e|cobrado|pagar|amount|tarifa|subtotal/i;
+    const EXCLUDE = /art[ií]culos|productos|piezas|efectivo|cambio|tarjeta|pago con|recibido|vuelto|cash/i;
+
+    function getNumbersFromLine(linea) {
+        const numbers = [];
+        // Separar por espacios
+        const palabras = linea.split(/\s+/);
+        for (let p of palabras) {
+            // Solo procesar palabras que tengan al menos un dígito o letras confundibles comunes
+            if (!/[\dOoZzSsB]/.test(p)) continue;
+            const val = extractAmount(p);
+            if (val !== null) numbers.push(val);
+        }
+        return numbers;
+    }
 
     // ── Estrategia 1: Línea con palabra clave y luego el número ─────────
     for (const linea of lineas) {
         if (KEYWORDS.test(linea) && !EXCLUDE.test(linea)) {
-            const matches = [...linea.matchAll(/\$?\s*([\dOoIl,]+(?:[.,][\dOoIl]{2})?)/g)];
-            let maxInLine = null;
-            for (const match of matches) {
-                const val = extractAmount(match[1]);
-                if (val && (maxInLine === null || val > maxInLine)) {
-                    maxInLine = val;
-                }
-            }
-            if (maxInLine !== null) return maxInLine;
+            const numbers = getNumbersFromLine(linea);
+            if (numbers.length > 0) return Math.max(...numbers);
         }
     }
 
@@ -823,15 +836,8 @@ function parsearMonto(texto) {
                 const siguiente = lineas[i + j];
                 if (EXCLUDE.test(siguiente)) continue;
                 
-                const matches = [...siguiente.matchAll(/\$?\s*([\dOoIl,]+(?:[.,][\dOoIl]{2})?)/g)];
-                let maxInNext = null;
-                for (const match of matches) {
-                    const val = extractAmount(match[1]);
-                    if (val && (maxInNext === null || val > maxInNext)) {
-                        maxInNext = val;
-                    }
-                }
-                if (maxInNext !== null) return maxInNext;
+                const numbers = getNumbersFromLine(siguiente);
+                if (numbers.length > 0) return Math.max(...numbers);
             }
         }
     }
@@ -839,30 +845,21 @@ function parsearMonto(texto) {
     // ── Estrategia 3: El número más grande del ticket (Último recurso estricto) ────────
     let candidatos = [];
     for (const linea of lineas) {
-        if (EXCLUDE.test(linea)) continue; // Evitar agarrar "EFECTIVO $ 500.00" explícito
+        if (EXCLUDE.test(linea)) continue; 
         
-        // Exigimos explícitamente el signo $ o el punto decimal (.XX) para ser candidato
-        const matches = [...linea.matchAll(/(?:\$)\s*([\dOoIl,]+(?:[.,][\dOoIl]{2})?)|(\b[\dOoIl,]+[.,][\dOoIl]{2}\b)/g)];
-        for (const match of matches) {
-            const valStr = match[1] || match[2];
-            const val = extractAmount(valStr);
-            if (val) candidatos.push(val);
-        }
+        const numbers = getNumbersFromLine(linea);
+        candidatos.push(...numbers);
     }
 
     if (candidatos.length > 0) {
-        // Ordenar de mayor a menor
         candidatos.sort((a, b) => b - a);
         let maxVal = candidatos[0];
         
-        // Filtro Anti-Billetes: Si el valor máximo es un billete cerrado típico (ej. 100, 500)
-        // y hay otros valores, es muy probable que sea el pago del cliente y no el total real.
+        // Filtro Anti-Billetes
         const billetes = [50, 100, 200, 500, 1000, 2000];
         if (billetes.includes(maxVal) && candidatos.length > 1) {
             for (let i = 1; i < candidatos.length; i++) {
-                if (candidatos[i] !== maxVal) {
-                    return candidatos[i];
-                }
+                if (candidatos[i] !== maxVal) return candidatos[i];
             }
         }
         return maxVal;
