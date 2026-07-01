@@ -5,6 +5,8 @@
     <title>Gastos — Pacífica Farms</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Cropper.js CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
     <link rel="manifest" href="/static/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -440,6 +442,59 @@
             font-size: 18px;
             cursor: pointer;
         }
+
+        /* ── Cropper Modal ── */
+        #cropperModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            z-index: 2000;
+            flex-direction: column;
+        }
+        #cropperModal.active {
+            display: flex;
+        }
+        .cropper-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #111;
+            color: #fff;
+        }
+        .cropper-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .cropper-btn {
+            background: none;
+            border: none;
+            color: #e67e22;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .cropper-container-wrapper {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        #cropperImage {
+            max-width: 100%;
+            display: block;
+        }
+        .cropper-instructions {
+            padding: 15px;
+            text-align: center;
+            background: #111;
+            color: #9ca3af;
+            font-size: 14px;
+            border-bottom: 1px solid #333;
+        }
     </style>
 </head>
 <body>
@@ -641,6 +696,23 @@
 
 </div>
 
+    <!-- ── Modal Cropper ── -->
+    <div id="cropperModal">
+        <div class="cropper-header">
+            <button class="cropper-btn" style="color: #ef4444;" onclick="cerrarCropper()">Cancelar</button>
+            <h3 class="cropper-title">Recorta el Total</h3>
+            <button class="cropper-btn" style="color: #10b981;" onclick="aceptarCropper()">Aceptar</button>
+        </div>
+        <div class="cropper-instructions">
+            Enmarca <b>únicamente</b> el número del Total (ej: $500.00)
+        </div>
+        <div class="cropper-container-wrapper">
+            <img id="cropperImage" src="" alt="Recorte OCR">
+        </div>
+    </div>
+
+<!-- Cropper.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Tesseract.js (OCR en el navegador) -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/static/offline.js"></script>
@@ -788,41 +860,88 @@ function tomarFoto(cat) {
 }
 
 // ── Al recibir foto ───────────────────────────────────────────────────────────
+let cropper = null;
+let currentCatForCropper = null;
+let currentBase64Full = null;
+
 function onFoto(cat, input) {
     const file = input.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
         const base64 = e.target.result;
-        const idx = fotos[cat].length;
-        fotos[cat].push(base64);
-
-        renderFotos(cat);
-        actualizarBadge(cat);
-
-        // Mostrar estado OCR: analizando...
-        setOCRStatus(cat, 'loading', '🔍 Leyendo ticket…');
-
-        // Correr OCR
-        const monto = await leerMontoOCR(base64);
-
-        if (monto !== null) {
-            const input = document.getElementById(`monto-${cat}`);
-            // Si ya hay un monto manual, sumamos (puede haber varios tickets)
-            const actual = parseFloat(input.value) || 0;
-            const nuevo  = actual > 0 ? actual + monto : monto;
-            input.value  = nuevo.toFixed(2);
-            input.classList.add('ocr-detected');
-            setOCRStatus(cat, 'found', `✅ Detectado: $${monto.toFixed(2)}`);
-            setMontoHint(cat, `✅ Auto-detectado — edita si hay error`, true);
-        } else {
-            setOCRStatus(cat, 'miss', '⚠️ No detectado');
-            setMontoHint(cat, '⚠️ No se detectó — ingresa el monto manualmente', false);
-        }
+        currentCatForCropper = cat;
+        currentBase64Full = base64;
+        
+        // Mostrar cropper
+        const modal = document.getElementById('cropperModal');
+        const img = document.getElementById('cropperImage');
+        img.src = base64;
+        modal.classList.add('active');
+        
+        if (cropper) cropper.destroy();
+        
+        cropper = new Cropper(img, {
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 0.3,
+            restore: false,
+            guides: true,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+        });
     };
     reader.readAsDataURL(file);
     input.value = '';
+}
+
+function cerrarCropper() {
+    document.getElementById('cropperModal').classList.remove('active');
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+}
+
+async function aceptarCropper() {
+    if (!cropper) return;
+    
+    // Obtener la imagen recortada
+    const canvas = cropper.getCroppedCanvas();
+    const croppedBase64 = canvas.toDataURL('image/jpeg');
+    
+    const cat = currentCatForCropper;
+    const fullBase64 = currentBase64Full;
+    
+    cerrarCropper();
+    
+    // Guardar la foto COMPLETA para subirla a SharePoint
+    fotos[cat].push(fullBase64);
+    renderFotos(cat);
+    actualizarBadge(cat);
+
+    // Mostrar estado OCR: analizando...
+    setOCRStatus(cat, 'loading', '🔍 Analizando recorte…');
+
+    // Correr OCR sobre el RECORTADO
+    const monto = await leerMontoOCR(croppedBase64);
+
+    if (monto !== null) {
+        const input = document.getElementById(`monto-${cat}`);
+        const actual = parseFloat(input.value) || 0;
+        const nuevo  = actual > 0 ? actual + monto : monto;
+        input.value  = nuevo.toFixed(2);
+        input.classList.add('ocr-detected');
+        setOCRStatus(cat, 'found', `✅ Detectado: $${monto.toFixed(2)}`);
+        setMontoHint(cat, `✅ Auto-detectado — edita si hay error`, true);
+    } else {
+        setOCRStatus(cat, 'miss', '⚠️ No detectado');
+        setMontoHint(cat, '⚠️ No se detectó — ingresa el monto manualmente', false);
+    }
 }
 
 // ── OCR status UI ─────────────────────────────────────────────────────────────
