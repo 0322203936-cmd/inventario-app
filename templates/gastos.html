@@ -485,6 +485,7 @@
         #hlCanvas {
             position: absolute;
             cursor: crosshair;
+            mix-blend-mode: multiply; /* MAGIA: Hace que la tinta negra resalte y el fondo se pinte */
         }
         .cropper-instructions {
             padding: 15px; text-align: center; background: #111; color: #9ca3af; font-size: 14px; border-bottom: 1px solid #333;
@@ -912,9 +913,10 @@ function setupHighlighter() {
         if (y < drawBounds.minY) drawBounds.minY = y;
         if (y > drawBounds.maxY) drawBounds.maxY = y;
         
-        ctxHl.lineWidth = 40; // Trazo grueso de marcatextos
+        ctxHl.lineWidth = 25; // Más delgado y preciso
         ctxHl.lineCap = 'round';
-        ctxHl.strokeStyle = 'rgba(255, 255, 0, 0.4)';
+        ctxHl.lineJoin = 'round';
+        ctxHl.strokeStyle = '#eaff00'; // Amarillo neón puro (el multiply lo hace semi-transparente sobre blanco)
         
         ctxHl.lineTo(x, y);
         ctxHl.stroke();
