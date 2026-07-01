@@ -5,8 +5,6 @@
     <title>Gastos — Pacífica Farms</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Cropper.js CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
     <link rel="manifest" href="/static/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -443,8 +441,8 @@
             cursor: pointer;
         }
 
-        /* ── Cropper Modal ── */
-        #cropperModal {
+        /* ── Highlighter Modal ── */
+        #highlighterModal {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -452,9 +450,7 @@
             z-index: 2000;
             flex-direction: column;
         }
-        #cropperModal.active {
-            display: flex;
-        }
+        #highlighterModal.active { display: flex; }
         .cropper-header {
             display: flex;
             justify-content: space-between;
@@ -463,37 +459,35 @@
             background: #111;
             color: #fff;
         }
-        .cropper-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin: 0;
-        }
+        .cropper-title { font-size: 16px; font-weight: 600; margin: 0; }
         .cropper-btn {
-            background: none;
-            border: none;
-            color: #e67e22;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
+            background: none; border: none; color: #10b981; font-size: 16px; font-weight: 600; cursor: pointer;
         }
-        .cropper-container-wrapper {
+        .highlighter-container {
             flex: 1;
+            position: relative;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #222;
         }
-        #cropperImage {
+        #hlImage {
             max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            user-select: none;
             display: block;
         }
+        #hlCanvas {
+            position: absolute;
+            cursor: crosshair;
+        }
         .cropper-instructions {
-            padding: 15px;
-            text-align: center;
-            background: #111;
-            color: #9ca3af;
-            font-size: 14px;
-            border-bottom: 1px solid #333;
+            padding: 15px; text-align: center; background: #111; color: #9ca3af; font-size: 14px; border-bottom: 1px solid #333;
         }
     </style>
 </head>
@@ -696,23 +690,22 @@
 
 </div>
 
-    <!-- ── Modal Cropper ── -->
-    <div id="cropperModal">
+    <!-- ── Modal Highlighter ── -->
+    <div id="highlighterModal">
         <div class="cropper-header">
-            <button class="cropper-btn" style="color: #ef4444;" onclick="cerrarCropper()">Cancelar</button>
-            <h3 class="cropper-title">Recorta el Total</h3>
-            <button class="cropper-btn" style="color: #10b981;" onclick="aceptarCropper()">Aceptar</button>
+            <button class="cropper-btn" style="color: #ef4444;" onclick="cerrarHighlighter()">Cancelar</button>
+            <h3 class="cropper-title">Pinta sobre el Total</h3>
+            <button class="cropper-btn" style="color: #10b981;" onclick="aceptarHighlighter()">Aceptar</button>
         </div>
         <div class="cropper-instructions">
-            Enmarca <b>únicamente</b> el número del Total (ej: $500.00)
+            Desliza el dedo pintando <b>únicamente</b> el número del Total.
         </div>
-        <div class="cropper-container-wrapper">
-            <img id="cropperImage" src="" alt="Recorte OCR">
+        <div class="highlighter-container" id="hlContainer">
+            <img id="hlImage" src="" alt="Recorte OCR" draggable="false">
+            <canvas id="hlCanvas"></canvas>
         </div>
     </div>
 
-<!-- Cropper.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Tesseract.js (OCR en el navegador) -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/static/offline.js"></script>
@@ -879,10 +872,66 @@ function tomarFoto(cat) {
     document.getElementById(`camara-${cat}`).click();
 }
 
-// ── Al recibir foto ───────────────────────────────────────────────────────────
-let cropper = null;
+// ── Al recibir foto (Highlighter) ──────────────────────────────────────────────
 let currentCatForCropper = null;
 let currentBase64Full = null;
+
+let isDrawing = false;
+let drawBounds = { minX: Infinity, minY: Infinity, maxX: 0, maxY: 0 };
+let ctxHl = null;
+
+function setupHighlighter() {
+    const canvas = document.getElementById('hlCanvas');
+    ctxHl = canvas.getContext('2d');
+    
+    function startPosition(e) {
+        isDrawing = true;
+        draw(e);
+    }
+    function endPosition() {
+        isDrawing = false;
+        ctxHl.beginPath();
+    }
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        
+        const rect = canvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+        
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        if (x < drawBounds.minX) drawBounds.minX = x;
+        if (x > drawBounds.maxX) drawBounds.maxX = x;
+        if (y < drawBounds.minY) drawBounds.minY = y;
+        if (y > drawBounds.maxY) drawBounds.maxY = y;
+        
+        ctxHl.lineWidth = 40; // Trazo grueso de marcatextos
+        ctxHl.lineCap = 'round';
+        ctxHl.strokeStyle = 'rgba(255, 255, 0, 0.4)';
+        
+        ctxHl.lineTo(x, y);
+        ctxHl.stroke();
+        ctxHl.beginPath();
+        ctxHl.moveTo(x, y);
+    }
+    
+    canvas.addEventListener('mousedown', startPosition);
+    canvas.addEventListener('mouseup', endPosition);
+    canvas.addEventListener('mousemove', draw);
+    
+    canvas.addEventListener('touchstart', startPosition, {passive: false});
+    canvas.addEventListener('touchend', endPosition);
+    canvas.addEventListener('touchmove', draw, {passive: false});
+}
+
+document.addEventListener('DOMContentLoaded', setupHighlighter);
 
 function onFoto(cat, input) {
     const file = input.files[0];
@@ -890,61 +939,70 @@ function onFoto(cat, input) {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        const base64 = e.target.result;
         currentCatForCropper = cat;
-        currentBase64Full = base64;
+        currentBase64Full = e.target.result;
         
-        // Mostrar cropper
-        const modal = document.getElementById('cropperModal');
-        const img = document.getElementById('cropperImage');
-        img.src = base64;
+        const modal = document.getElementById('highlighterModal');
+        const img = document.getElementById('hlImage');
+        const canvas = document.getElementById('hlCanvas');
+        
+        img.onload = () => {
+            canvas.width = img.clientWidth;
+            canvas.height = img.clientHeight;
+            drawBounds = { minX: Infinity, minY: Infinity, maxX: 0, maxY: 0 };
+            ctxHl.clearRect(0, 0, canvas.width, canvas.height);
+        };
+        img.src = currentBase64Full;
         modal.classList.add('active');
-        
-        if (cropper) cropper.destroy();
-        
-        cropper = new Cropper(img, {
-            viewMode: 1,
-            dragMode: 'move',
-            autoCropArea: 0.3,
-            restore: false,
-            guides: true,
-            center: true,
-            highlight: false,
-            cropBoxMovable: true,
-            cropBoxResizable: true,
-            toggleDragModeOnDblclick: false,
-        });
     };
     reader.readAsDataURL(file);
     input.value = '';
 }
 
-function cerrarCropper() {
-    document.getElementById('cropperModal').classList.remove('active');
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
+function cerrarHighlighter() {
+    document.getElementById('highlighterModal').classList.remove('active');
 }
 
-async function aceptarCropper() {
-    if (!cropper) return;
+async function aceptarHighlighter() {
+    if (drawBounds.minX === Infinity) {
+        cerrarHighlighter();
+        return;
+    }
     
-    // Obtener la imagen recortada del canvas
-    const canvas = cropper.getCroppedCanvas();
-    const croppedBase64 = canvas.toDataURL('image/jpeg');
+    const pad = 20;
+    const canvas = document.getElementById('hlCanvas');
+    const img = document.getElementById('hlImage');
+    
+    let x = Math.max(0, drawBounds.minX - pad);
+    let y = Math.max(0, drawBounds.minY - pad);
+    let w = Math.min(canvas.width - x, (drawBounds.maxX - drawBounds.minX) + pad * 2);
+    let h = Math.min(canvas.height - y, (drawBounds.maxY - drawBounds.minY) + pad * 2);
+    
+    const scaleX = img.naturalWidth / canvas.width;
+    const scaleY = img.naturalHeight / canvas.height;
+    
+    const sx = x * scaleX;
+    const sy = y * scaleY;
+    const sw = w * scaleX;
+    const sh = h * scaleY;
+    
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sw;
+    tempCanvas.height = sh;
+    const tCtx = tempCanvas.getContext('2d');
+    tCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    
+    const croppedBase64 = tempCanvas.toDataURL('image/jpeg');
     
     const cat = currentCatForCropper;
     const fullBase64 = currentBase64Full;
     
-    cerrarCropper();
+    cerrarHighlighter();
     
-    // Guardar la foto COMPLETA (sin filtros) para subirla a SharePoint
     fotos[cat].push(fullBase64);
     renderFotos(cat);
     actualizarBadge(cat);
 
-    // Mostrar estado OCR: analizando...
     setOCRStatus(cat, 'loading', '🔍 Analizando recorte…');
 
     // Correr OCR sobre el RECORTADO
