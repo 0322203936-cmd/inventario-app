@@ -171,28 +171,43 @@
             border: 1px solid #d1d5db;
         }
 
-        /* ── Modal ampliación foto ── */
+        /* ── Modal Highlighter & Foto ── */
         .foto-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center;
         }
         .foto-modal.open { display: flex; }
-        .foto-modal img  { max-width: 95vw; max-height: 90vh; border-radius: 8px; }
+        .foto-modal img { max-width: 95%; max-height: 80vh; border-radius: 8px; }
         .foto-modal-close {
+            position: absolute; top: 20px; right: 20px; background: none; border: none; color: white;
+            font-size: 30px; cursor: pointer;
+        }
+        .foto-monto-container {
             position: absolute;
-            top: 16px; right: 16px;
-            background: rgba(255,255,255,0.15);
-            color: #fff;
-            border: none;
-            border-radius: 50%;
-            width: 36px; height: 36px;
-            font-size: 18px;
-            cursor: pointer;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            flex-wrap: wrap;
+            justify-content: center;
+            z-index: 2001;
+        }
+        #fotoMontoInput {
+            width: 90px; padding: 8px; border-radius: 6px; border: none; font-size: 16px; font-weight: 600; text-align: center;
+        }
+        .foto-monto-btn {
+            background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 14px;
+        }
+        .foto-monto-btn:active { background: #059669; }
+        #fotoMontoStatus {
+            color: #10b981; font-weight: 700; font-size: 13px; display: none; width: 100%; text-align: center; margin-top: 5px;
         }
         
         .empty-state {
@@ -287,7 +302,7 @@
                         <div class="gasto-subtitle" style="font-size: 11px; margin-top:2px;">Reg: {{ g.fecha_reg }}</div>
                     </div>
                     <div style="text-align: right;" id="display-view-{{ card_num }}">
-                        <div class="gasto-monto" style="cursor: pointer;" onclick="toggleEdit('{{ card_num }}')">${{ "{:,.2f}".format(g.monto|float) }} ✏️</div>
+                        <div class="gasto-monto" style="cursor: pointer;" onclick="toggleEdit('{{ card_num }}')" id="gran-total-{{ card_num }}">${{ "{:,.2f}".format(g.monto|float) }} ✏️</div>
                         {% if viaticos > 0 or g.viaticos is not none %}
                             {% set restante = viaticos - g.monto|float %}
                             <div style="font-size: 11px; color: #6b7280; margin-top: 6px; cursor: pointer;" onclick="toggleEdit('{{ card_num }}')">Viáticos: ${{ "{:,.2f}".format(viaticos) }}</div>
@@ -304,7 +319,7 @@
                         {% for cat, det in g.detalles.items() %}
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;" class="edit-cat-row" data-cat="{{ cat }}" data-rows='{{ det.row_nums | tojson }}'>
                                 <span style="font-size: 12px; font-weight: 600; color: #4b5563;">{{ cat }}:</span>
-                                <input type="number" step="0.01" value="{{ det.monto|float }}" class="filter-input edit-cat-monto" style="width: 100px; text-align: right; padding: 4px;">
+                                <input type="number" step="0.01" value="{{ det.monto|float }}" class="filter-input edit-cat-monto" style="width: 100px; text-align: right; padding: 4px;" id="input-monto-{{ card_num }}-{{ cat }}">
                             </div>
                         {% endfor %}
                         </div>
@@ -330,7 +345,7 @@
                     <div id="cat-detail-{{ card_idx }}-{{ cat }}" style="display: block; padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-weight: 700; font-size: 14px; color: #374151;">{{ cat }}</span>
-                            <span style="font-weight: 700; font-size: 14px; color: #059669;">${{ "{:,.2f}".format(det.monto) }}</span>
+                            <span style="font-weight: 700; font-size: 14px; color: #059669;" id="display-monto-{{ card_num }}-{{ cat }}">${{ "{:,.2f}".format(det.monto) }}</span>
                         </div>
                         {% if det.comentarios %}
                         <div style="font-size: 13px; color: #4b5563; margin-bottom: 8px;">
@@ -345,7 +360,7 @@
                         {% if det.fotos %}
                         <div class="fotos-grid">
                             {% for f in det.fotos %}
-                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src)" loading="lazy" alt="Ticket" onerror="this.style.display='none'">
+                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src, '{{ card_num }}', '{{ cat }}', this)" loading="lazy" alt="Ticket" onerror="this.style.display='none'">
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -360,16 +375,143 @@
 
     <!-- Modal para ampliar foto -->
     <div class="foto-modal" id="fotoModal" onclick="cerrarModal()">
-        <button class="foto-modal-close">✕</button>
-        <img id="fotoModalImg" src="" alt="Ticket Ampliado">
+        <button class="foto-modal-close" onclick="cerrarModal()">✕</button>
+        <img id="fotoModalImg" src="" alt="Ticket Ampliado" onclick="event.stopPropagation()">
+        
+        <!-- Captura de monto manual -->
+        <div class="foto-monto-container" id="fotoMontoContainer" onclick="event.stopPropagation()">
+            <span style="color: white; font-weight: 600;">Monto: $</span>
+            <input type="number" id="fotoMontoInput" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter') guardarMontoFoto()">
+            <button class="foto-monto-btn" id="btnGuardarFoto" onclick="guardarMontoFoto()">Sumar y Guardar</button>
+            <div id="fotoMontoStatus">¡Guardado!</div>
+        </div>
     </div>
 
 </div>
 
 <script>
-    function abrirModal(src) {
+    let currentFotoContext = null;
+    let adminPwd = sessionStorage.getItem('adminPwd') || null;
+
+    async function getAdminPwd() {
+        if (adminPwd) return adminPwd;
+        let pwd = prompt("Ingresa la contraseña de administrador para guardar cambios:", "");
+        if (pwd) {
+            adminPwd = pwd;
+            sessionStorage.setItem('adminPwd', pwd);
+        }
+        return pwd;
+    }
+
+    async function eliminarFoto(src) {
+        const password = await getAdminPwd();
+        if (!password) return;
+        
+        if (!confirm("¿Seguro que deseas eliminar esta foto permanentemente?")) return;
+    }
+
+    function abrirModal(src, cardNum, cat, imgElement) {
         document.getElementById('fotoModalImg').src = src;
+        
+        let montoPrevio = imgElement ? (imgElement.getAttribute('data-monto') || '') : '';
+        document.getElementById('fotoMontoInput').value = montoPrevio;
+        document.getElementById('fotoMontoStatus').style.display = 'none';
+        
+        currentFotoContext = imgElement ? { cardNum, cat, imgElement } : null;
+        document.getElementById('fotoMontoContainer').style.display = imgElement ? 'flex' : 'none';
+        
         document.getElementById('fotoModal').classList.add('open');
+        setTimeout(() => document.getElementById('fotoMontoInput').focus(), 100);
+    }
+    
+    async function guardarMontoFoto() {
+        if (!currentFotoContext) return;
+        let input = document.getElementById('fotoMontoInput');
+        let nuevoMonto = parseFloat(input.value) || 0;
+        
+        let { cardNum, cat, imgElement } = currentFotoContext;
+        let montoPrevio = parseFloat(imgElement.getAttribute('data-monto')) || 0;
+        
+        if (nuevoMonto !== montoPrevio || !imgElement.hasAttribute('data-monto')) {
+            imgElement.setAttribute('data-monto', nuevoMonto);
+            
+            let catInput = document.getElementById(`input-monto-${cardNum}-${cat}`);
+            if (catInput) {
+                let totalCat = parseFloat(catInput.value) || 0;
+                totalCat = totalCat - montoPrevio + nuevoMonto;
+                catInput.value = totalCat.toFixed(2);
+                
+                let displayCat = document.getElementById(`display-monto-${cardNum}-${cat}`);
+                if (displayCat) displayCat.innerText = `$${totalCat.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+                // Recalcular gran total de la tarjeta
+                let granTotal = 0;
+                document.querySelectorAll(`#edit-categorias-${cardNum} .edit-cat-monto`).forEach(el => {
+                    granTotal += parseFloat(el.value) || 0;
+                });
+                let displayGranTotal = document.getElementById(`gran-total-${cardNum}`);
+                if (displayGranTotal) displayGranTotal.innerHTML = `$${granTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ✏️`;
+                
+                // Mostrar estatus localmente
+                let status = document.getElementById('fotoMontoStatus');
+                status.style.display = 'block';
+                status.innerText = "¡Suma calculada!";
+                
+                // Guardar silenciosamente en backend
+                await guardarEdicionSilenciosa(cardNum);
+            }
+        }
+    }
+    
+    async function guardarEdicionSilenciosa(cardNum) {
+        const pwd = await getAdminPwd();
+        if (!pwd) return;
+        
+        const payload = {
+            password: pwd,
+            categorias: {}
+        };
+        const viaticoInput = document.getElementById(`edit-viatico-${cardNum}`);
+        if (viaticoInput) payload.viaticos = parseFloat(viaticoInput.value) || 0;
+        
+        const rows = document.querySelectorAll(`#edit-categorias-${cardNum} .edit-cat-row`);
+        rows.forEach(row => {
+            const cat = row.getAttribute('data-cat');
+            const rowNums = JSON.parse(row.getAttribute('data-rows') || '[]');
+            const montoInput = row.querySelector('.edit-cat-monto');
+            const monto = parseFloat(montoInput.value) || 0;
+            payload.categorias[cat] = { monto: monto, row_nums: rowNums };
+        });
+        
+        try {
+            const btn = document.getElementById('btnGuardarFoto');
+            const oldText = btn.innerText;
+            btn.innerText = 'Guardando...';
+            btn.disabled = true;
+            
+            const res = await fetch('/api/editar_gasto', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            btn.innerText = oldText;
+            btn.disabled = false;
+            
+            let status = document.getElementById('fotoMontoStatus');
+            if (data.ok) {
+                status.innerText = "¡Guardado en el servidor!";
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } else {
+                status.innerText = "⚠️ Error: " + data.msg;
+                status.style.color = "#ef4444";
+            }
+        } catch (err) {
+            let status = document.getElementById('fotoMontoStatus');
+            status.innerText = "⚠️ Error de red";
+            status.style.color = "#ef4444";
+            status.style.display = 'block';
+        }
     }
     
     function cerrarModal() {
@@ -481,7 +623,7 @@
     }
     
     async function guardarEdicion(index) {
-        const password = prompt("Ingrese la contraseña para editar:");
+        const password = await getAdminPwd();
         if (!password) return; // cancelado o vacío
         
         const btn = event.target;
