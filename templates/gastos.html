@@ -925,48 +925,12 @@ function cerrarCropper() {
         cropper.destroy();
         cropper = null;
     }
-}
-
-function preprocesarImagen(canvasOriginal) {
-    const ctx = canvasOriginal.getContext('2d');
-    const width = canvasOriginal.width;
-    const height = canvasOriginal.height;
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        
-        // Detectar si el pixel es de pluma azul
-        const isBlue = (b > r + 30) && (b > g + 30) && (b > 80);
-        
-        if (isBlue) {
-            // Borrar el rayón azul (volverlo blanco)
-            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
-        }
-        // Si no es azul, dejamos los colores originales intactos
-        // para no borrar por accidente la tinta tenue del ticket.
-    }
-    
-    const processedCanvas = document.createElement('canvas');
-    processedCanvas.width = width;
-    processedCanvas.height = height;
-    const pCtx = processedCanvas.getContext('2d');
-    pCtx.putImageData(imageData, 0, 0);
-    
-    return processedCanvas.toDataURL('image/jpeg');
-}
-
 async function aceptarCropper() {
     if (!cropper) return;
     
     // Obtener la imagen recortada del canvas
     const canvas = cropper.getCroppedCanvas();
-    
-    // Aplicar filtro Mágico anti-plumas azules y binarizado
-    const croppedBase64 = preprocesarImagen(canvas);
+    const croppedBase64 = canvas.toDataURL('image/jpeg');
     
     const cat = currentCatForCropper;
     const fullBase64 = currentBase64Full;
