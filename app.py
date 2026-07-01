@@ -763,30 +763,45 @@ def sync():
 @app.route("/api/foto")
 def api_foto():
     """
-    Redirige a la URL de descarga temporal de Microsoft Graph para una imagen.
+    Descarga la imagen desde SharePoint (server-side) y la devuelve al browser.
+    Evita problemas de CORS/expiración con las URLs pre-autenticadas de Microsoft Graph.
     """
     ruta = request.args.get("path")
     if not ruta:
         return "Ruta no proporcionada", 400
-        
+
     token = _get_sp_token()
     if not token:
         return "No autorizado", 401
-        
+
     auth_headers = {"Authorization": f"Bearer {token}"}
     try:
-        site_id = _get_site_id(auth_headers)
-        # La ruta viene como "requerimiento vs proyeccion/WALMEX/Gastos/...", quitamos la barra inicial si la hay
+        site_id   = _get_site_id(auth_headers)
         ruta_limpia = ruta.lstrip("/")
-        url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:/{ruta_limpia}"
-        r = req_lib.get(url, headers=auth_headers, timeout=15)
-        if r.ok:
-            data = r.json()
-            download_url = data.get("@microsoft.graph.downloadUrl")
-            if download_url:
-                return redirect(download_url)
-        return "Imagen no encontrada", 404
+        meta_url  = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:/{ruta_limpia}"
+        r = req_lib.get(meta_url, headers=auth_headers, timeout=15)
+        if not r.ok:
+            print(f"[FOTO] Metadata error {r.status_code}: {ruta_limpia}")
+            return "Imagen no encontrada", 404
+
+        download_url = r.json().get("@microsoft.graph.downloadUrl")
+        if not download_url:
+            return "Imagen no encontrada", 404
+
+        # Descargar la imagen en el servidor y enviarla directamente al browser
+        img = req_lib.get(download_url, timeout=30)
+        if not img.ok:
+            print(f"[FOTO] Download error {img.status_code}: {ruta_limpia}")
+            return "Error al descargar imagen", 502
+
+        content_type = img.headers.get("Content-Type", "image/jpeg")
+        resp = make_response(img.content)
+        resp.headers["Content-Type"]  = content_type
+        resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+
     except Exception as e:
+        print(f"[FOTO] Excepcion: {e}")
         return str(e), 500
 
 
@@ -852,7 +867,8 @@ def reporte():
                                     grouped[key]["detalles"][categoria] = {
                                         "monto": monto, 
                                         "fotos": fotos_list, 
-                                        "comentarios": [comentario_str] if comentario_str else []
+                                        "comentarios": [comentario_str] if comentario_str else [],
+                                        "row_nums": [row_num]
                                     }
                             else:
                                 grouped[key]["monto"] += monto
@@ -867,9 +883,10 @@ def reporte():
                                 
                                 if categoria:
                                     if categoria not in grouped[key]["detalles"]:
-                                        grouped[key]["detalles"][categoria] = {"monto": 0.0, "fotos": [], "comentarios": []}
+                                        grouped[key]["detalles"][categoria] = {"monto": 0.0, "fotos": [], "comentarios": [], "row_nums": []}
                                     grouped[key]["detalles"][categoria]["monto"] += monto
                                     grouped[key]["detalles"][categoria]["fotos"].extend(fotos_list)
+                                    grouped[key]["detalles"][categoria]["row_nums"].append(row_num)
                                     if comentario_str:
                                         grouped[key]["detalles"][categoria]["comentarios"].append(comentario_str)
 
@@ -887,18 +904,17 @@ def reporte():
 
 @app.route("/api/editar_gasto", methods=["POST"])
 def api_editar_gasto():
-    """Actualiza Monto y Viáticos de un grupo de gastos."""
+    """Actualiza Monto por categoría y Viáticos globales de un grupo de gastos."""
     data = request.json
     pwd = data.get("password")
     if pwd != "cfbc2026":
         return jsonify({"ok": False, "msg": "Contraseña incorrecta."}), 403
         
-    row_nums = data.get("row_nums", [])
-    nuevo_monto = data.get("monto", 0)
+    categorias = data.get("categorias", {})
     nuevo_viatico = data.get("viaticos", 0)
     
-    if not row_nums:
-        return jsonify({"ok": False, "msg": "No hay filas para editar."}), 400
+    if not categorias:
+        return jsonify({"ok": False, "msg": "No hay datos para editar."}), 400
         
     try:
         token = _get_sp_token()
@@ -909,34 +925,108 @@ def api_editar_gasto():
         site_id = _get_site_id(auth_headers)
         base_url = _get_base_url(site_id)
         
-        # Actualizar la primera fila con el monto total y el viático
-        r1 = row_nums[0]
-        # F: Monto, G: Fotos, H: Viaticos. Vamos a actualizar F y H de r1.
-        # Rango F{r1}:H{r1} -> values = [[nuevo_monto, null, nuevo_viatico]]
-        address1 = f"F{r1}:H{r1}"
-        valores1 = [[nuevo_monto, None, nuevo_viatico]] # None para que no toque la foto
+        # Encontrar la primera fila global para guardar los viáticos
+        todas_filas = []
+        for cat_data in categorias.values():
+            todas_filas.extend(cat_data.get("row_nums", []))
+            
+        if not todas_filas:
+            return jsonify({"ok": False, "msg": "No hay filas para editar."}), 400
+            
+        primera_fila = min(todas_filas)
         
-        resp1 = req_lib.patch(
-            f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{address1}')",
-            headers={**auth_headers, "Content-Type": "application/json"},
-            json={"values": valores1}, timeout=30
-        )
-        if not resp1.ok:
-            return jsonify({"ok": False, "msg": f"Error editando primera fila: {resp1.text}"}), 500
-            
-        # Si hay más filas en el grupo, poner su monto en 0
-        for rn in row_nums[1:]:
-            addr = f"F{rn}"
-            req_lib.patch(
-                f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{addr}')",
+        # Actualizar viáticos (Columna H) solo si viene en el payload
+        if "viaticos" in data:
+            nuevo_viatico = data["viaticos"]
+            resp_v = req_lib.patch(
+                f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='H{primera_fila}')",
                 headers={**auth_headers, "Content-Type": "application/json"},
-                json={"values": [[0]]}, timeout=30
+                json={"values": [[nuevo_viatico]]}, timeout=30
             )
+            if not resp_v.ok:
+                return jsonify({"ok": False, "msg": f"Error editando viáticos: {resp_v.text}"}), 500
+        
+        # Actualizar los montos por categoría
+        for cat, cat_data in categorias.items():
+            cat_monto = cat_data.get("monto", 0)
+            cat_rows = cat_data.get("row_nums", [])
             
+            if not cat_rows: continue
+            cat_rows.sort()
+            r1 = cat_rows[0]
+            
+            # Actualizar monto en F de la primera fila de la categoría
+            resp_m = req_lib.patch(
+                f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='F{r1}')",
+                headers={**auth_headers, "Content-Type": "application/json"},
+                json={"values": [[cat_monto]]}, timeout=30
+            )
+            if not resp_m.ok:
+                return jsonify({"ok": False, "msg": f"Error editando monto de {cat}: {resp_m.text}"}), 500
+            
+            # Poner en 0 las demás filas de esta categoría
+            for rn in cat_rows[1:]:
+                req_lib.patch(
+                    f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='F{rn}')",
+                    headers={**auth_headers, "Content-Type": "application/json"},
+                    json={"values": [[0]]}, timeout=30
+                )
+                
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
 
+@app.route("/api/eliminar_foto", methods=["POST"])
+def api_eliminar_foto():
+    """Elimina una foto específica de la base de datos (Excel)."""
+    data = request.json
+    pwd = data.get("password")
+    if pwd != "cfbc2026":
+        return jsonify({"ok": False, "msg": "Contraseña incorrecta."}), 403
+        
+    foto_path = data.get("foto_path")
+    if not foto_path:
+        return jsonify({"ok": False, "msg": "No se proporcionó la ruta de la foto."}), 400
+        
+    try:
+        token = _get_sp_token()
+        if not token:
+            return jsonify({"ok": False, "msg": "Error de token SP."}), 500
+            
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id = _get_site_id(auth_headers)
+        base_url = _get_base_url(site_id)
+        
+        # Obtener todas las filas para buscar la foto
+        used_url = f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/usedRange"
+        r = req_lib.get(used_url, headers=auth_headers, timeout=30)
+        if not r.ok:
+            return jsonify({"ok": False, "msg": "Error obteniendo datos."}), 500
+            
+        values = r.json().get("values", [])
+        for idx, row in enumerate(values):
+            if len(row) > 6 and row[6]:
+                fotos = [f.strip() for f in str(row[6]).split(",")]
+                if foto_path in fotos:
+                    fotos.remove(foto_path)
+                    new_fotos_str = ",".join(fotos)
+                    row_num = idx + 1
+                    
+                    # Actualizar celda G{row_num}
+                    resp_p = req_lib.patch(
+                        f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='G{row_num}')",
+                        headers={**auth_headers, "Content-Type": "application/json"},
+                        json={"values": [[new_fotos_str]]}, timeout=30
+                    )
+                    if resp_p.ok:
+                        return jsonify({"ok": True, "msg": "Foto eliminada correctamente."})
+                    else:
+                        return jsonify({"ok": False, "msg": f"Error al actualizar celda: {resp_p.text}"}), 500
+                        
+        return jsonify({"ok": False, "msg": "Foto no encontrada en los registros."}), 404
+        
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

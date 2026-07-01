@@ -460,12 +460,13 @@
     <!-- Formulario -->
     <div class="form-body" id="formBody">
 
-        <span class="field-label">Tienda</span>
+        <span class="field-label">Ruta</span>
         <select class="styled-select" id="tiendaSelect">
-            <option value="" disabled selected>Selecciona una ciudad…</option>
-            <option>Tijuana</option>
-            <option>Mexicali</option>
-            <option>Ensenada</option>
+            <option value="" disabled selected>Selecciona una ruta…</option>
+            <option>MXL</option>
+            <option>Ruta 2000</option>
+            <option>Rutas Playas</option>
+            <option>ENS</option>
         </select>
 
         <span class="field-label">Usuario</span>
@@ -694,28 +695,36 @@ async function leerMontoOCR(base64img) {
 function parsearMonto(texto) {
     const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
 
-    // Función auxiliar para extraer el monto y limpiar errores comunes de OCR
     function extractAmount(str) {
         if (!str) return null;
         let cleaned = str.replace(/\s+/g, '');
-        // Si hay una coma seguida de dos números al final, la tratamos como punto decimal (ej: 123,45 -> 123.45)
+        
+        // Tratar coma como punto si está antes de dos dígitos al final: 123,45 -> 123.45
         if (/,(\d{2})$/.test(cleaned)) {
             cleaned = cleaned.replace(/,(\d{2})$/, '.$1');
         }
-        // Quitamos las comas de miles
-        cleaned = cleaned.replace(/,/g, '');
+        // Quitar comas y signos de pesos
+        cleaned = cleaned.replace(/[,$S]/g, '');
+        
         const val = parseFloat(cleaned);
-        // Validamos que el monto tenga sentido (menor a 100,000 para evitar C.P. o números de serie)
-        return (!isNaN(val) && val > 0 && val < 100000) ? val : null;
+        
+        // Validaciones heurísticas:
+        // 1. Mayor a 0
+        // 2. Menor o igual a 4000 (Viáticos máximos son ~1100, esto filtra folios y C.P.)
+        if (isNaN(val) || val <= 0 || val > 4000) return null;
+
+        return val;
     }
 
-    const KEYWORDS = /total|importe|cobrado|a pagar|pagar|amount/i;
-    const EXCLUDE = /art[ií]culos|productos|piezas/i;
+    // Ampliamos keywords para tolerar errores comunes del OCR
+    const KEYWORDS = /tota[l1i]|t0tal|tota|importe|1mporte|impor[tl]e|cobrado|a pagar|pagar|amount|tarifa|subtotal/i;
+    
+    // Excluimos palabras que detonan pagos, cambio, u otra info que no es el costo de consumo
+    const EXCLUDE = /art[ií]culos|productos|piezas|efectivo|cambio|tarjeta|pago con|recibido|su pago|vuelto|cash/i;
 
     // ── Estrategia 1: Línea con palabra clave y luego el número ─────────
     for (const linea of lineas) {
         if (KEYWORDS.test(linea) && !EXCLUDE.test(linea)) {
-            // Buscamos todos los números en esa línea y nos quedamos con el mayor
             const matches = [...linea.matchAll(/\$?\s*([\d,]+(?:[.,]\d{2})?)/g)];
             let maxInLine = null;
             for (const match of matches) {
@@ -731,9 +740,10 @@ function parsearMonto(texto) {
     // ── Estrategia 2: Palabra clave en una línea, el monto en la siguiente ───
     for (let i = 0; i < lineas.length - 1; i++) {
         if (KEYWORDS.test(lineas[i]) && !EXCLUDE.test(lineas[i])) {
-            // Miramos hasta 2 líneas hacia abajo por si hay texto intermedio (ej. "Total:" \n "MXN" \n "150.00")
             for (let j = 1; j <= 2 && (i + j) < lineas.length; j++) {
                 const siguiente = lineas[i + j];
+                if (EXCLUDE.test(siguiente)) continue;
+                
                 const matches = [...siguiente.matchAll(/\$?\s*([\d,]+(?:[.,]\d{2})?)/g)];
                 let maxInNext = null;
                 for (const match of matches) {
@@ -747,13 +757,13 @@ function parsearMonto(texto) {
         }
     }
 
-    // ── Estrategia 3: El número más grande del ticket (Último recurso) ────────
-    // IMPORTANTE: Para evitar seleccionar Códigos Postales (ej. 22200), 
-    // solo consideramos números si tienen el signo de pesos ($) o punto decimal (.XX)
+    // ── Estrategia 3: El número más grande del ticket (Último recurso estricto) ────────
     let maxVal = null;
     for (const linea of lineas) {
-        // match[1] = tiene $, match[2] = tiene decimales
-        const matches = [...linea.matchAll(/(?:\$)\s*([\d,]+(?:[.,]\d{2})?)|([\d,]+[.,]\d{2})/g)];
+        if (EXCLUDE.test(linea)) continue; // Evitar agarrar "EFECTIVO $ 500.00"
+        
+        // En el fallback, exigimos explícitamente el signo $ o el punto decimal (.XX)
+        const matches = [...linea.matchAll(/(?:\$)\s*([\d,]+(?:[.,]\d{2})?)|(\b[\d,]+[.,]\d{2}\b)/g)];
         for (const match of matches) {
             const valStr = match[1] || match[2];
             const val = extractAmount(valStr);

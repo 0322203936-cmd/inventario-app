@@ -163,11 +163,12 @@
         .foto-thumb {
             width: 80px;
             height: 80px;
-            border-radius: 8px;
             object-fit: cover;
-            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             cursor: pointer;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            border: 1px solid #d1d5db;
         }
 
         /* ── Modal ampliación foto ── */
@@ -199,6 +200,28 @@
             padding: 40px 20px;
             color: #6b7280;
         }
+
+        /* ── Botones de categoría (reemplazan las flechitas) ── */
+        .cat-det-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: opacity 0.15s, transform 0.1s;
+            font-family: inherit;
+        }
+        .cat-det-btn:active { opacity: 0.7; transform: scale(0.97); }
+        .cat-det-btn.casetas { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .cat-det-btn.comida  { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+        .cat-det-btn.otros   { background: #f9fafb; color: #374151; border-color: #e5e7eb; }
+        .cat-det-btn.open.casetas { background: #1d4ed8; color: #fff; }
+        .cat-det-btn.open.comida  { background: #b45309; color: #fff; }
+        .cat-det-btn.open.otros   { background: #374151; color: #fff; }
     </style>
 </head>
 <body>
@@ -216,12 +239,13 @@
     <!-- Filtros -->
     <div class="filters">
         <div class="filter-group">
-            <span class="filter-label">Tienda</span>
+            <span class="filter-label">Ruta</span>
             <select class="filter-input" id="filtroTienda" onchange="filtrarGastos()">
-                <option value="ALL">Todas las ciudades</option>
-                <option value="Tijuana">Tijuana</option>
-                <option value="Mexicali">Mexicali</option>
-                <option value="Ensenada">Ensenada</option>
+                <option value="ALL">Todas las rutas</option>
+                <option value="MXL">MXL</option>
+                <option value="Ruta 2000">Ruta 2000</option>
+                <option value="Rutas Playas">Rutas Playas</option>
+                <option value="ENS">ENS</option>
             </select>
         </div>
         <div class="filter-group">
@@ -243,50 +267,71 @@
         </div>
         {% else %}
             {% for g in gastos %}
+            {% set card_idx = loop.index0 %}
+            {% set card_num = loop.index %}
+            {% set viaticos = g.viaticos if g.viaticos is not none else (1100 if g.tienda == 'MXL' else 700) %}
             <div class="gasto-card" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}" data-fecha="{{ g.fecha }}">
                 <div class="gasto-header">
                     <div>
-                        <div style="display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;">
-                        {% for cat in g.categoria %}
-                            <div class="cat-badge {{ cat.lower() }}" style="cursor: pointer; opacity: 0.9;" onclick="toggleCategoria('{{ loop.index0 }}', '{{ cat }}')" title="Ver detalles de {{ cat }}">{{ cat }} ▾</div>
+                        <!-- Botones por categoría -->
+                        <div style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;">
+                        {% for cat, det in g.detalles.items() %}
+                            <button class="cat-det-btn {{ cat.lower() }}" id="btn-{{ card_idx }}-{{ cat }}" onclick="switchCategoria('{{ card_idx }}', '{{ cat }}')">
+                                {% if cat == 'CASETAS' %}🛣️{% elif cat == 'COMIDA' %}🍽️{% else %}📦{% endif %}
+                                {{ cat }}
+                            </button>
                         {% endfor %}
                         </div>
                         <div class="gasto-title">{{ g.tienda }}</div>
                         <div class="gasto-subtitle">👤 {{ g.usuario }} • 📅 {{ g.fecha }}</div>
                         <div class="gasto-subtitle" style="font-size: 11px; margin-top:2px;">Reg: {{ g.fecha_reg }}</div>
                     </div>
-                    <div style="text-align: right;" id="display-view-{{ loop.index }}">
-                        <div class="gasto-monto" style="cursor: pointer;" onclick="toggleEdit('{{ loop.index }}')">${{ "{:,.2f}".format(g.monto|float) }} ✏️</div>
-                        {% set viaticos = g.viaticos if g.viaticos is not none else (1100 if g.tienda == 'Mexicali' else (700 if g.tienda == 'Tijuana' else 0)) %}
+                    <div style="text-align: right;" id="display-view-{{ card_num }}">
+                        <div class="gasto-monto" style="cursor: pointer;" onclick="toggleEdit('{{ card_num }}')">${{ "{:,.2f}".format(g.monto|float) }} ✏️</div>
                         {% if viaticos > 0 or g.viaticos is not none %}
                             {% set restante = viaticos - g.monto|float %}
-                            <div style="font-size: 11px; color: #6b7280; margin-top: 6px; cursor: pointer;" onclick="toggleEdit('{{ loop.index }}')">Viáticos: ${{ "{:,.2f}".format(viaticos) }}</div>
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 6px; cursor: pointer;" onclick="toggleEdit('{{ card_num }}')">Viáticos: ${{ "{:,.2f}".format(viaticos) }}</div>
                             <div style="font-size: 12px; font-weight: 700; color: {{ '#059669' if restante >= 0 else '#dc2626' }};">
                                 Restante: ${{ "{:,.2f}".format(restante) }}
                             </div>
                         {% endif %}
                     </div>
-                    
-                    <div style="text-align: right; display: none;" id="edit-view-{{ loop.index }}">
-                        <input type="number" step="0.01" id="edit-monto-{{ loop.index }}" value="{{ g.monto|float }}" class="filter-input" style="width: 100px; text-align: right; margin-bottom: 4px;" placeholder="Monto">
-                        <br>
-                        <input type="number" step="0.01" id="edit-viatico-{{ loop.index }}" value="{{ viaticos }}" class="filter-input" style="width: 100px; text-align: right; margin-bottom: 4px;" placeholder="Viáticos">
-                        <br>
-                        <button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="guardarEdicion('{{ loop.index }}', {{ g.row_nums | tojson }})">Guardar</button>
-                        <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; background: #9ca3af;" onclick="toggleEdit('{{ loop.index }}')">Cancelar</button>
+
+                    <div style="text-align: right; display: none; background: #f9fafb; border: 1px solid #d1d5db; padding: 12px; border-radius: 8px; margin-top: 8px;" id="edit-view-{{ card_num }}">
+                        <div style="font-size: 13px; font-weight: 700; margin-bottom: 8px; text-align: left; color: #374151;">Editar Montos:</div>
+                        
+                        <div id="edit-categorias-{{ card_num }}">
+                        {% for cat, det in g.detalles.items() %}
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;" class="edit-cat-row" data-cat="{{ cat }}" data-rows='{{ det.row_nums | tojson }}'>
+                                <span style="font-size: 12px; font-weight: 600; color: #4b5563;">{{ cat }}:</span>
+                                <input type="number" step="0.01" value="{{ det.monto|float }}" class="filter-input edit-cat-monto" style="width: 100px; text-align: right; padding: 4px;">
+                            </div>
+                        {% endfor %}
+                        </div>
+
+                        <div style="border-top: 1px solid #e5e7eb; margin: 8px 0;"></div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 12px; font-weight: 700; color: #1f2937;">Viáticos globales:</span>
+                            <input type="number" step="0.01" id="edit-viatico-{{ card_num }}" value="{{ viaticos }}" class="filter-input" style="width: 100px; text-align: right; padding: 4px;" placeholder="Viáticos">
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; background: #9ca3af;" onclick="toggleEdit('{{ card_num }}')">Cancelar</button>
+                            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="guardarEdicion('{{ card_num }}')">Guardar</button>
+                        </div>
                     </div>
                 </div>
-                
+
                 {% if g.detalles %}
-                <div id="detalles-{{ loop.index0 }}" style="margin-top: 8px;">
-                    {% set outer_index = loop.index0 %}
+                <!-- Paneles de detalle -->
+                <div style="margin-top: 8px; padding-top: 10px; border-top: 1px solid #f3f4f6;">
                     {% for cat, det in g.detalles.items() %}
-                    <div id="cat-detail-{{ outer_index }}-{{ cat }}" style="display: none; padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 8px;">
+                    <div id="cat-detail-{{ card_idx }}-{{ cat }}" style="display: block; padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-weight: 700; font-size: 14px; color: #374151;">{{ cat }}</span>
                             <span style="font-weight: 700; font-size: 14px; color: #059669;">${{ "{:,.2f}".format(det.monto) }}</span>
                         </div>
-                        
                         {% if det.comentarios %}
                         <div style="font-size: 13px; color: #4b5563; margin-bottom: 8px;">
                             <div style="font-weight: 600; margin-bottom: 2px;">📝 Comentarios:</div>
@@ -297,11 +342,10 @@
                             </ul>
                         </div>
                         {% endif %}
-                        
                         {% if det.fotos %}
                         <div class="fotos-grid">
                             {% for f in det.fotos %}
-                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src)" loading="lazy" alt="Ticket">
+                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src)" loading="lazy" alt="Ticket" onerror="this.style.display='none'">
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -416,15 +460,27 @@
         }
     }
     
-    function toggleCategoria(cardIdx, cat) {
-        const divId = 'cat-detail-' + cardIdx + '-' + cat;
-        const el = document.getElementById(divId);
-        if (el) {
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    function switchCategoria(cardIdx, cat) {
+        // Todos los paneles y botones de esta tarjeta
+        const allPanels = document.querySelectorAll('[id^="cat-detail-' + cardIdx + '-"]');
+        const allBtns   = document.querySelectorAll('[id^="btn-' + cardIdx + '-"]');
+        const activeBtn = document.getElementById('btn-' + cardIdx + '-' + cat);
+        const isActive  = activeBtn && activeBtn.classList.contains('open');
+
+        if (isActive) {
+            // Ya estaba activo: volver a mostrar TODAS las categorias
+            allPanels.forEach(p => p.style.display = 'block');
+            allBtns.forEach(b => b.classList.remove('open'));
+        } else {
+            // Mostrar SOLO la categoria seleccionada
+            allPanels.forEach(p => p.style.display = 'none');
+            allBtns.forEach(b => b.classList.remove('open'));
+            const panel = document.getElementById('cat-detail-' + cardIdx + '-' + cat);
+            if (panel) panel.style.display = 'block';
         }
     }
     
-    async function guardarEdicion(index, rowNums) {
+    async function guardarEdicion(index) {
         const password = prompt("Ingrese la contraseña para editar:");
         if (!password) return; // cancelado o vacío
         
@@ -433,9 +489,21 @@
         btn.innerText = "Guardando...";
         btn.disabled = true;
         
-        const montoStr = document.getElementById('edit-monto-' + index).value;
+        // Recolectar datos por categoría
+        const categoriasData = {};
+        const container = document.getElementById('edit-categorias-' + index);
+        const rows = container.querySelectorAll('.edit-cat-row');
+        rows.forEach(row => {
+            const cat = row.getAttribute('data-cat');
+            const rowNums = JSON.parse(row.getAttribute('data-rows'));
+            const monto = parseFloat(row.querySelector('.edit-cat-monto').value) || 0;
+            categoriasData[cat] = {
+                monto: monto,
+                row_nums: rowNums
+            };
+        });
+
         const viaticoStr = document.getElementById('edit-viatico-' + index).value;
-        const monto = parseFloat(montoStr) || 0;
         const viaticos = parseFloat(viaticoStr) || 0;
         
         try {
@@ -444,8 +512,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     password: password,
-                    row_nums: rowNums,
-                    monto: monto,
+                    categorias: categoriasData,
                     viaticos: viaticos
                 })
             });
