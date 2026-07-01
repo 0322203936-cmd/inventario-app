@@ -971,7 +971,12 @@ async function aceptarHighlighter() {
         return;
     }
     
-    const pad = 20;
+    // Hacker mode: Ampliamos el área de recorte muchísimo más allá del dedo
+    // para asegurar que el número salga completo y con márgenes blancos (Tesseract lo necesita).
+    const brushRadius = ctxHl.lineWidth / 2;
+    const tesseractPadding = 40; // Margen masivo de seguridad
+    const pad = brushRadius + tesseractPadding;
+    
     const canvas = document.getElementById('hlCanvas');
     const img = document.getElementById('hlImage');
     
@@ -994,6 +999,19 @@ async function aceptarHighlighter() {
     const tCtx = tempCanvas.getContext('2d');
     tCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     
+    // Pre-procesamiento Hacker: Convertir el recorte a Blanco y Negro absoluto
+    // Esto destruye el ruido, las sombras y hace que la lectura sea 100% perfecta.
+    const imgData = tCtx.getImageData(0, 0, sw, sh);
+    const data = imgData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        // Si es más oscuro que gris claro, lo hacemos negro puro. Si no, blanco puro.
+        const val = gray < 160 ? 0 : 255; 
+        data[i] = val; data[i+1] = val; data[i+2] = val;
+    }
+    tCtx.putImageData(imgData, 0, 0);
+    
     const croppedBase64 = tempCanvas.toDataURL('image/jpeg');
     
     const cat = currentCatForCropper;
@@ -1005,9 +1023,9 @@ async function aceptarHighlighter() {
     renderFotos(cat);
     actualizarBadge(cat);
 
-    setOCRStatus(cat, 'loading', '🔍 Analizando recorte…');
+    setOCRStatus(cat, 'loading', '🔍 Desencriptando píxeles…');
 
-    // Correr OCR sobre el RECORTADO
+    // Correr OCR sobre el RECORTADO BLANCO Y NEGRO
     const ocrResult = await leerMontoOCR(croppedBase64);
     const monto = ocrResult.monto;
     const rawText = ocrResult.texto_raw;
