@@ -568,19 +568,6 @@
                 <button class="btn-foto" onclick="tomarFoto('casetas')">
                     📷 Agregar foto de ticket
                 </button>
-                <div class="monto-area" id="monto-area-casetas">
-                    <div class="monto-header">
-                        <span class="monto-title">Total detectado</span>
-                        <span class="ocr-status" id="ocr-status-casetas"></span>
-                    </div>
-                    <div class="monto-input-row">
-                        <span class="monto-prefix">$</span>
-                        <input class="monto-input" type="number" id="monto-casetas"
-                            placeholder="0.00" min="0" step="0.01" inputmode="decimal">
-                    </div>
-                    <div class="monto-hint" id="monto-hint-casetas">Edita si hay algún error</div>
-                    <div class="ocr-candidates" id="ocr-candidates-casetas"></div>
-                </div>
                 <div class="monto-area" style="margin-top: 10px; padding: 12px;">
                     <div class="monto-header" style="margin-bottom: 8px;">
                         <span class="monto-title">Gasto adicional sin ticket</span>
@@ -614,19 +601,6 @@
                 <button class="btn-foto" onclick="tomarFoto('comida')">
                     📷 Agregar foto de ticket
                 </button>
-                <div class="monto-area" id="monto-area-comida">
-                    <div class="monto-header">
-                        <span class="monto-title">Total detectado</span>
-                        <span class="ocr-status" id="ocr-status-comida"></span>
-                    </div>
-                    <div class="monto-input-row">
-                        <span class="monto-prefix">$</span>
-                        <input class="monto-input" type="number" id="monto-comida"
-                            placeholder="0.00" min="0" step="0.01" inputmode="decimal">
-                    </div>
-                    <div class="monto-hint" id="monto-hint-comida">Edita si hay algún error</div>
-                    <div class="ocr-candidates" id="ocr-candidates-comida"></div>
-                </div>
                 <div class="monto-area" style="margin-top: 10px; padding: 12px;">
                     <div class="monto-header" style="margin-bottom: 8px;">
                         <span class="monto-title">Gasto adicional sin ticket</span>
@@ -660,19 +634,6 @@
                 <button class="btn-foto" onclick="tomarFoto('otros')">
                     📷 Agregar foto de ticket
                 </button>
-                <div class="monto-area" id="monto-area-otros">
-                    <div class="monto-header">
-                        <span class="monto-title">Total detectado</span>
-                        <span class="ocr-status" id="ocr-status-otros"></span>
-                    </div>
-                    <div class="monto-input-row">
-                        <span class="monto-prefix">$</span>
-                        <input class="monto-input" type="number" id="monto-otros"
-                            placeholder="0.00" min="0" step="0.01" inputmode="decimal">
-                    </div>
-                    <div class="monto-hint" id="monto-hint-otros">Edita si hay algún error</div>
-                    <div class="ocr-candidates" id="ocr-candidates-otros"></div>
-                </div>
                 <div class="monto-area" style="margin-top: 10px; padding: 12px;">
                     <div class="monto-header" style="margin-bottom: 8px;">
                         <span class="monto-title">Gasto adicional sin ticket</span>
@@ -715,30 +676,10 @@
 
 </div>
 
-    <!-- ── Modal Highlighter ── -->
-    <div id="highlighterModal">
-        <div class="cropper-header">
-            <button class="cropper-btn" style="color: #ef4444;" onclick="cerrarHighlighter()">Cancelar</button>
-            <h3 class="cropper-title">Pinta sobre el Total</h3>
-            <button class="cropper-btn" style="color: #10b981;" onclick="aceptarHighlighter()">Aceptar</button>
-        </div>
-        <div class="cropper-instructions">
-            Desliza el dedo pintando <b>únicamente</b> el número del Total.
-        </div>
-        <div class="highlighter-container" id="hlContainer">
-            <img id="hlImage" src="" alt="Recorte OCR" draggable="false">
-            <canvas id="hlCanvas"></canvas>
-        </div>
-    </div>
-
-<!-- Tesseract.js (OCR en el navegador) -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/static/offline.js"></script>
 <script>
 // ── Estado ────────────────────────────────────────────────────────────────────
 const fotos = { casetas: [], comida: [], otros: [] };
-let ocrWorker = null;
-let ocrListo  = false;
 
 // ── Fecha automática ──────────────────────────────────────────────────────────
 (function() {
@@ -749,149 +690,7 @@ let ocrListo  = false;
         String(hoy.getDate()).padStart(2,'0');
 })();
 
-// ── Inicializar Tesseract.js ──────────────────────────────────────────────────
-(async function initOCR() {
-    try {
-        ocrWorker = await Tesseract.createWorker('spa+eng', 1, {
-            logger: () => {}   // silenciar logs internos
-        });
-        ocrListo = true;
-        console.log('[OCR] Tesseract listo ✓');
-    } catch (err) {
-        console.warn('[OCR] No se pudo iniciar Tesseract:', err);
-    }
-})();
-
-// ── Leer monto del ticket con OCR ────────────────────────────────────────────
-/**
- * Corre OCR sobre la imagen y extrae el monto TOTAL del ticket.
- * Estrategia:
- *   1. Buscar líneas con palabras clave de "total" (TOTAL, IMPORTE, etc.)
- *      y tomar el número de esa línea.
- *   2. Si no encuentra, tomar el número más grande del ticket.
- */
-async function leerMontoOCR(base64img) {
-    if (!ocrListo || !ocrWorker) return { monto: null, texto_raw: '', candidatos: [] };
-    try {
-        const result = await ocrWorker.recognize(base64img);
-        const texto  = result.data.text;
-        const ocrParsed = parsearMonto(texto);
-        return { 
-            monto: ocrParsed ? ocrParsed.monto : null, 
-            candidatos: ocrParsed ? ocrParsed.candidatos : [],
-            texto_raw: texto 
-        };
-    } catch (err) {
-        console.warn('[OCR] Error al reconocer:', err);
-        return { monto: null, texto_raw: '', candidatos: [] };
-    }
-}
-
-function parsearMonto(texto) {
-    const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
-
-    function extractAmount(str) {
-        if (!str) return null;
-        let cleaned = str.replace(/\s+/g, '');
-        
-        // OCR Fixes: Letras comunes que la IA confunde con números por culpa de rayones de pluma
-        cleaned = cleaned.replace(/[OoQ]/g, '0');
-        cleaned = cleaned.replace(/[lIi|]/g, '1');
-        cleaned = cleaned.replace(/[Zz]/g, '2');
-        cleaned = cleaned.replace(/[Ss]/g, '5');
-        cleaned = cleaned.replace(/[B]/g, '8');
-
-        // Tratar coma como punto si está antes de dos dígitos al final: 123,45 -> 123.45
-        if (/,(\d{2})$/.test(cleaned)) {
-            cleaned = cleaned.replace(/,(\d{2})$/, '.$1');
-        }
-        
-        // Quitar todo lo que no sea dígito o punto (borra signos de pesos, letras raras, etc)
-        cleaned = cleaned.replace(/[^\d.]/g, '');
-        
-        // Si no quedó nada, o hay múltiples puntos, abortar
-        if (!cleaned || cleaned === '.' || (cleaned.match(/\./g) || []).length > 1) return null;
-
-        // Missing decimal fix for leading zeros: "002300" -> "0023.00"
-        if (!/\./.test(cleaned) && /^0\d+$/.test(cleaned) && cleaned.length >= 3) {
-            cleaned = cleaned.slice(0, -2) + '.' + cleaned.slice(-2);
-        }
-
-        const val = parseFloat(cleaned);
-        
-        // Validaciones heurísticas
-        if (isNaN(val) || val <= 0 || val > 4000) return null;
-        
-        // Ignorar el 16% o 8% exacto que siempre se lee como número suelto
-        if (val === 16 || val === 8) return null;
-
-        return val;
-    }
-
-    const KEYWORDS = /tota[l1i]|t0tal|tota|lotal|1otal|iotal|ttal|toal|importe|1mporte|impor[tl]e|cobrado|pagar|amount|tarifa|subtotal/i;
-    const EXCLUDE = /art[ií]culos|productos|piezas|efectivo|cambio|tarjeta|pago con|recibido|vuelto|cash/i;
-
-    function getNumbersFromLine(linea) {
-        const numbers = [];
-        // Separar por espacios
-        const palabras = linea.split(/\s+/);
-        for (let p of palabras) {
-            // Solo procesar palabras que tengan al menos un dígito o letras confundibles comunes
-            if (!/[\dOoZzSsB]/.test(p)) continue;
-            const val = extractAmount(p);
-            if (val !== null) numbers.push(val);
-        }
-        return numbers;
-    }
-
-    // ── Estrategia 1: Línea con palabra clave y luego el número ─────────
-    for (const linea of lineas) {
-        if (KEYWORDS.test(linea) && !EXCLUDE.test(linea)) {
-            const numbers = getNumbersFromLine(linea);
-            if (numbers.length > 0) return { monto: Math.max(...numbers), candidatos: numbers };
-        }
-    }
-
-    // ── Estrategia 2: Palabra clave en una línea, el monto en la siguiente ───
-    for (let i = 0; i < lineas.length - 1; i++) {
-        if (KEYWORDS.test(lineas[i]) && !EXCLUDE.test(lineas[i])) {
-            for (let j = 1; j <= 2 && (i + j) < lineas.length; j++) {
-                const siguiente = lineas[i + j];
-                if (EXCLUDE.test(siguiente)) continue;
-                
-                const numbers = getNumbersFromLine(siguiente);
-                if (numbers.length > 0) return { monto: Math.max(...numbers), candidatos: numbers };
-            }
-        }
-    }
-
-    // ── Estrategia 3: El número más grande del ticket (Último recurso estricto) ────────
-    let candidatos = [];
-    for (const linea of lineas) {
-        if (EXCLUDE.test(linea)) continue; 
-        
-        const numbers = getNumbersFromLine(linea);
-        candidatos.push(...numbers);
-    }
-
-    if (candidatos.length > 0) {
-        candidatos.sort((a, b) => b - a);
-        let maxVal = candidatos[0];
-        // Quitar duplicados para la UI
-        let candsUnicos = [...new Set(candidatos)];
-        
-        // Filtro Anti-Billetes
-        const billetes = [50, 100, 200, 500, 1000, 2000];
-        if (billetes.includes(maxVal) && candidatos.length > 1) {
-            for (let i = 1; i < candidatos.length; i++) {
-                if (candidatos[i] !== maxVal) return { monto: candidatos[i], candidatos: candsUnicos };
-            }
-        }
-        return { monto: maxVal, candidatos: candsUnicos };
-    }
-
-    return { monto: null, candidatos: [] };
-}
+// ── OCR Removido ──────────────────────────────────────────────────────────────
 
 // ── Toggle sección ────────────────────────────────────────────────────────────
 function toggleCat(cat) {
@@ -1128,10 +927,7 @@ function eliminarFoto(ev, cat, idx) {
     actualizarBadge(cat);
     // Limpiar OCR status si no quedan fotos
     if (fotos[cat].length === 0) {
-        document.getElementById(`ocr-status-${cat}`).textContent = '';
-        document.getElementById(`monto-${cat}`).value = '';
-        document.getElementById(`monto-${cat}`).classList.remove('ocr-detected');
-        setMontoHint(cat, 'Edita si hay algún error', false);
+        // No hay más acciones necesarias para limpiar UI de foto si no hay OCR
     }
 }
 
@@ -1272,12 +1068,8 @@ function limpiarFormulario() {
     ['casetas','comida','otros'].forEach(c => {
         renderFotos(c);
         actualizarBadge(c);
-        document.getElementById(`monto-${c}`).value = '';
         document.getElementById(`monto-extra-${c}`).value = '';
         document.getElementById(`comentario-${c}`).value = '';
-        document.getElementById(`monto-${c}`).classList.remove('ocr-detected');
-        document.getElementById(`ocr-status-${c}`).textContent = '';
-        setMontoHint(c, 'Edita si hay algún error', false);
     });
 }
 
