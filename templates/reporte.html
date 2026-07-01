@@ -381,8 +381,8 @@
         <!-- Captura de monto manual -->
         <div class="foto-monto-container" id="fotoMontoContainer" onclick="event.stopPropagation()">
             <span style="color: white; font-weight: 600;">Monto: $</span>
-            <input type="number" id="fotoMontoInput" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter') guardarMontoFoto()">
-            <button class="foto-monto-btn" id="btnGuardarFoto" onclick="guardarMontoFoto()">Sumar y Guardar</button>
+            <input type="number" id="fotoMontoInput" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter') { event.preventDefault(); guardarMontoFoto(); }">
+            <button type="button" class="foto-monto-btn" id="btnGuardarFoto" onclick="guardarMontoFoto()">Sumar y Guardar</button>
             <div id="fotoMontoStatus">¡Guardado!</div>
         </div>
     </div>
@@ -501,7 +501,10 @@
             let status = document.getElementById('fotoMontoStatus');
             if (data.ok) {
                 status.innerText = "¡Guardado en el servidor!";
-                setTimeout(() => { status.style.display = 'none'; }, 2000);
+                setTimeout(() => { 
+                    status.style.display = 'none'; 
+                    cerrarModal();
+                }, 800);
             } else {
                 status.innerText = "⚠️ Error: " + data.msg;
                 status.style.color = "#ef4444";
