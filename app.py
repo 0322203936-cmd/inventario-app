@@ -857,7 +857,7 @@ def reporte():
                                     "usuario": usuario,
                                     "categoria": [categoria] if categoria else [],
                                     "monto": monto,
-                                    "fotos": fotos_list,
+                                    "fotos": list(fotos_list),
                                     "viaticos": viaticos_val,
                                     "comentarios": [comentario_str] if comentario_str else [],
                                     "detalles": {},
@@ -866,7 +866,7 @@ def reporte():
                                 if categoria:
                                     grouped[key]["detalles"][categoria] = {
                                         "monto": monto, 
-                                        "fotos": fotos_list, 
+                                        "fotos": list(fotos_list), 
                                         "comentarios": [comentario_str] if comentario_str else [],
                                         "row_nums": [row_num]
                                     }
