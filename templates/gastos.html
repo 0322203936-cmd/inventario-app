@@ -490,6 +490,27 @@
         .cropper-instructions {
             padding: 15px; text-align: center; background: #111; color: #9ca3af; font-size: 14px; border-bottom: 1px solid #333;
         }
+        .ocr-candidates {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .candidate-chip {
+            background: #ecfdf5;
+            color: #059669;
+            border: 1px solid #10b981;
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .candidate-chip:active {
+            background: #10b981;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -558,6 +579,7 @@
                             placeholder="0.00" min="0" step="0.01" inputmode="decimal">
                     </div>
                     <div class="monto-hint" id="monto-hint-casetas">Edita si hay algún error</div>
+                    <div class="ocr-candidates" id="ocr-candidates-casetas"></div>
                 </div>
                 <div class="monto-area" style="margin-top: 10px; padding: 12px;">
                     <div class="monto-header" style="margin-bottom: 8px;">
@@ -603,6 +625,7 @@
                             placeholder="0.00" min="0" step="0.01" inputmode="decimal">
                     </div>
                     <div class="monto-hint" id="monto-hint-comida">Edita si hay algún error</div>
+                    <div class="ocr-candidates" id="ocr-candidates-comida"></div>
                 </div>
                 <div class="monto-area" style="margin-top: 10px; padding: 12px;">
                     <div class="monto-header" style="margin-bottom: 8px;">
@@ -648,6 +671,7 @@
                             placeholder="0.00" min="0" step="0.01" inputmode="decimal">
                     </div>
                     <div class="monto-hint" id="monto-hint-otros">Edita si hay algún error</div>
+                    <div class="ocr-candidates" id="ocr-candidates-otros"></div>
                 </div>
                 <div class="monto-area" style="margin-top: 10px; padding: 12px;">
                     <div class="monto-header" style="margin-bottom: 8px;">
@@ -747,14 +771,19 @@ let ocrListo  = false;
  *   2. Si no encuentra, tomar el número más grande del ticket.
  */
 async function leerMontoOCR(base64img) {
-    if (!ocrListo || !ocrWorker) return { monto: null, texto_raw: '' };
+    if (!ocrListo || !ocrWorker) return { monto: null, texto_raw: '', candidatos: [] };
     try {
         const result = await ocrWorker.recognize(base64img);
         const texto  = result.data.text;
-        return { monto: parsearMonto(texto), texto_raw: texto };
+        const ocrParsed = parsearMonto(texto);
+        return { 
+            monto: ocrParsed ? ocrParsed.monto : null, 
+            candidatos: ocrParsed ? ocrParsed.candidatos : [],
+            texto_raw: texto 
+        };
     } catch (err) {
         console.warn('[OCR] Error al reconocer:', err);
-        return { monto: null, texto_raw: '' };
+        return { monto: null, texto_raw: '', candidatos: [] };
     }
 }
 
@@ -819,7 +848,7 @@ function parsearMonto(texto) {
     for (const linea of lineas) {
         if (KEYWORDS.test(linea) && !EXCLUDE.test(linea)) {
             const numbers = getNumbersFromLine(linea);
-            if (numbers.length > 0) return Math.max(...numbers);
+            if (numbers.length > 0) return { monto: Math.max(...numbers), candidatos: numbers };
         }
     }
 
@@ -831,7 +860,7 @@ function parsearMonto(texto) {
                 if (EXCLUDE.test(siguiente)) continue;
                 
                 const numbers = getNumbersFromLine(siguiente);
-                if (numbers.length > 0) return Math.max(...numbers);
+                if (numbers.length > 0) return { monto: Math.max(...numbers), candidatos: numbers };
             }
         }
     }
@@ -848,18 +877,20 @@ function parsearMonto(texto) {
     if (candidatos.length > 0) {
         candidatos.sort((a, b) => b - a);
         let maxVal = candidatos[0];
+        // Quitar duplicados para la UI
+        let candsUnicos = [...new Set(candidatos)];
         
         // Filtro Anti-Billetes
         const billetes = [50, 100, 200, 500, 1000, 2000];
         if (billetes.includes(maxVal) && candidatos.length > 1) {
             for (let i = 1; i < candidatos.length; i++) {
-                if (candidatos[i] !== maxVal) return candidatos[i];
+                if (candidatos[i] !== maxVal) return { monto: candidatos[i], candidatos: candsUnicos };
             }
         }
-        return maxVal;
+        return { monto: maxVal, candidatos: candsUnicos };
     }
 
-    return null;
+    return { monto: null, candidatos: [] };
 }
 
 // ── Toggle sección ────────────────────────────────────────────────────────────
@@ -1029,6 +1060,7 @@ async function aceptarHighlighter() {
     const ocrResult = await leerMontoOCR(croppedBase64);
     const monto = ocrResult.monto;
     const rawText = ocrResult.texto_raw;
+    const candidatos = ocrResult.candidatos || [];
 
     // --- DEBUG PARA VER QUÉ LEE TESSERACT ---
     let debugDiv = document.getElementById(`ocr-debug-${cat}`);
@@ -1040,6 +1072,24 @@ async function aceptarHighlighter() {
     }
     debugDiv.textContent = "RAW: " + rawText;
     // ----------------------------------------
+
+    const candContainer = document.getElementById(`ocr-candidates-${cat}`);
+    candContainer.innerHTML = '';
+
+    if (candidatos.length > 0) {
+        candidatos.forEach(val => {
+            const btn = document.createElement('button');
+            btn.className = 'candidate-chip';
+            btn.textContent = `$${val.toFixed(2)}`;
+            btn.onclick = () => {
+                const input = document.getElementById(`monto-${cat}`);
+                input.value = val.toFixed(2);
+                input.classList.add('ocr-detected');
+                setOCRStatus(cat, 'found', `✅ Elegido: $${val.toFixed(2)}`);
+            };
+            candContainer.appendChild(btn);
+        });
+    }
 
     if (monto !== null) {
         const input = document.getElementById(`monto-${cat}`);
