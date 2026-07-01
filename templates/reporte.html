@@ -360,7 +360,7 @@
                         {% if det.fotos %}
                         <div class="fotos-grid">
                             {% for f in det.fotos %}
-                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src, '{{ card_num }}', '{{ cat }}', this)" loading="lazy" alt="Ticket" onerror="this.style.display='none'">
+                            <img src="/api/foto?path={{ f }}" class="foto-thumb" onclick="abrirModal(this.src, '{{ card_num }}', '{{ cat }}', this)" loading="lazy" alt="Ticket" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22 style=%22background:%23fee2e2;border-radius:8px%22><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2212%22 fill=%22%23dc2626%22 font-family=%22sans-serif%22 font-weight=%22bold%22>Error</text></svg>'">
                             {% endfor %}
                         </div>
                         {% endif %}

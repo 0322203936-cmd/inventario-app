@@ -779,20 +779,38 @@ def api_foto():
         site_id   = _get_site_id(auth_headers)
         ruta_limpia = ruta.lstrip("/")
         meta_url  = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:/{ruta_limpia}"
-        r = req_lib.get(meta_url, headers=auth_headers, timeout=15)
-        if not r.ok:
-            print(f"[FOTO] Metadata error {r.status_code}: {ruta_limpia}")
-            return "Imagen no encontrada", 404
+        
+        # Retry mechanism para SharePoint eventual consistency o throttling
+        import time
+        r = None
+        for attempt in range(3):
+            r = req_lib.get(meta_url, headers=auth_headers, timeout=15)
+            if r.ok:
+                break
+            if r.status_code in (404, 429, 503) and attempt < 2:
+                time.sleep(1.5)
+                continue
+                
+        if not r or not r.ok:
+            print(f"[FOTO] Metadata error {r.status_code if r else 'NA'}: {ruta_limpia}")
+            return "Imagen no encontrada o error en SharePoint", 404
 
         download_url = r.json().get("@microsoft.graph.downloadUrl")
         if not download_url:
-            return "Imagen no encontrada", 404
+            return "Download URL no encontrada", 404
 
         # Descargar la imagen en el servidor y enviarla directamente al browser
-        img = req_lib.get(download_url, timeout=30)
-        if not img.ok:
-            print(f"[FOTO] Download error {img.status_code}: {ruta_limpia}")
-            return "Error al descargar imagen", 502
+        img = None
+        for attempt in range(3):
+            img = req_lib.get(download_url, timeout=30)
+            if img.ok:
+                break
+            if attempt < 2:
+                time.sleep(1.5)
+                
+        if not img or not img.ok:
+            print(f"[FOTO] Download error {img.status_code if img else 'NA'}: {ruta_limpia}")
+            return "Error al descargar imagen desde Microsoft", 502
 
         content_type = img.headers.get("Content-Type", "image/jpeg")
         resp = make_response(img.content)
