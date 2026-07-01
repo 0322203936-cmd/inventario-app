@@ -808,9 +808,9 @@ async function guardarGastos() {
                    String(n.getMinutes()).padStart(2,'0');
         })();
 
-        const monto_casetas = (parseFloat(document.getElementById('monto-casetas').value) || 0) + (parseFloat(document.getElementById('monto-extra-casetas').value) || 0);
-        const monto_comida  = (parseFloat(document.getElementById('monto-comida').value)  || 0) + (parseFloat(document.getElementById('monto-extra-comida').value)  || 0);
-        const monto_otros   = (parseFloat(document.getElementById('monto-otros').value)   || 0) + (parseFloat(document.getElementById('monto-extra-otros').value)   || 0);
+        const monto_casetas = parseFloat(document.getElementById('monto-extra-casetas').value) || 0;
+        const monto_comida  = parseFloat(document.getElementById('monto-extra-comida').value)  || 0;
+        const monto_otros   = parseFloat(document.getElementById('monto-extra-otros').value)   || 0;
 
         const comentario_casetas = document.getElementById('comentario-casetas').value.trim();
         const comentario_comida  = document.getElementById('comentario-comida').value.trim();
