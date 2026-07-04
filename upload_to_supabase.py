@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import pandas as pd
 from supabase import create_client, Client
 import datetime
@@ -11,6 +13,16 @@ try:
 except Exception as e:
     print(f"Error conectando a supabase: {e}")
     exit(1)
+
+print("Consultando la última fecha en Supabase para no duplicar...")
+ultima_fecha = None
+try:
+    res = supabase.table('facturas_folios').select('diario').order('diario', desc=True).limit(1).execute()
+    if res.data and len(res.data) > 0:
+        ultima_fecha = res.data[0]['diario']
+        print(f"Última fecha registrada en Supabase: {ultima_fecha}")
+except Exception as e:
+    print(f"Advertencia: No se pudo obtener la última fecha ({e})")
 
 print("Leyendo archivo de Excel 'Analisis CFBC MAYO-JUNIO.xlsx'...")
 try:
@@ -33,6 +45,10 @@ for index, row in df.iterrows():
             diario_val = pd.to_datetime(diario_val).strftime('%Y-%m-%d')
         except:
             diario_val = None
+
+    # Saltar si la fecha es menor o igual a la última que ya subimos
+    if ultima_fecha and diario_val and diario_val <= ultima_fecha:
+        continue
 
     def clean_num(val):
         try:
@@ -57,7 +73,7 @@ for index, row in df.iterrows():
     }
     records_to_insert.append(record)
 
-print(f"Preparados {len(records_to_insert)} registros. Subiendo a Supabase...")
+print(f"Preparados {len(records_to_insert)} registros NUEVOS. Subiendo a Supabase...")
 
 BATCH_SIZE = 100
 total_inserted = 0
