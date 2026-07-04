@@ -23,9 +23,3 @@ credentials.json
 
 # Archivos temporales o descargas
 *.log
-
-# Ignorados específicos
-*.xlsx
-*.jpg
-*.png
-!static/*.png

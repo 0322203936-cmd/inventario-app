@@ -11,323 +11,360 @@
         * { box-sizing: border-box; }
 
         body {
-            background: #f0f2f5;
-            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-family: 'Inter', sans-serif;
+            margin: 0; padding: 0;
+            background: url('/static/bg_girasoles.png') center center / cover fixed no-repeat;
+            color: #fff;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
-            min-height: 100vh;
-            margin: 0; padding: 0;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(15, 20, 30, 0.3) 0%, rgba(5, 10, 15, 0.9) 100%);
+            backdrop-filter: blur(12px) brightness(0.6);
+            -webkit-backdrop-filter: blur(12px) brightness(0.6);
+            z-index: -1;
         }
 
         .phone-wrapper {
             width: 100%;
             max-width: 480px;
             min-height: 100vh;
-            background: #fff;
             display: flex;
             flex-direction: column;
+            background: transparent;
         }
 
         /* ── Header ── */
         .app-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 16px 16px 14px;
-            border-bottom: 1px solid #e8eaed;
-            background: #fff;
+            gap: 15px;
+            padding: 20px 24px;
             position: sticky;
             top: 0;
             z-index: 10;
+            background: rgba(16, 24, 39, 0.6);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .back-arrow {
-            color: #8b5cf6;
-            font-size: 22px;
+            color: rgba(255,255,255,0.7);
+            font-size: 24px;
             text-decoration: none;
             line-height: 1;
+            transition: color 0.2s;
         }
+        .back-arrow:hover { color: #fff; }
 
         .header-title { flex: 1; }
 
         .header-title h5 {
-            color: #8b5cf6;
-            font-size: 17px;
-            font-weight: 700;
+            background: linear-gradient(135deg, #a78bfa 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 20px;
+            font-weight: 800;
             margin: 0;
+            letter-spacing: -0.5px;
         }
 
         .header-title small {
             font-size: 11px;
-            color: #9ca3af;
-            font-weight: 500;
+            color: rgba(255,255,255,0.4);
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         /* ── Content ── */
         .content-body { 
-            padding: 24px 16px; 
+            padding: 24px; 
             flex: 1; 
             display: flex;
             flex-direction: column;
         }
 
+        /* ── Neon Upload Card ── */
         .upload-card {
-            background: #f8fafc;
-            border: 2px dashed #cbd5e1;
-            border-radius: 16px;
-            padding: 32px 16px;
+            background: rgba(139, 92, 246, 0.05);
+            border: 2px dashed rgba(139, 92, 246, 0.4);
+            border-radius: 24px;
+            padding: 40px 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
             margin-bottom: 24px;
+            box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.05);
+            backdrop-filter: blur(10px);
         }
 
-        .upload-card:hover {
-            border-color: #8b5cf6;
-            background: #f3e8ff;
+        .upload-card:hover, .upload-card:active {
+            border-color: rgba(167, 139, 250, 0.8);
+            background: rgba(139, 92, 246, 0.1);
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.2), inset 0 0 20px rgba(139, 92, 246, 0.1);
+            transform: scale(1.02);
         }
 
         .upload-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-            display: block;
+            color: #a78bfa;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
         }
         
         .upload-title {
-            font-weight: 600;
-            color: #334155;
-            margin-bottom: 4px;
-        }
-        
-        .upload-subtitle {
-            font-size: 13px;
-            color: #64748b;
+            font-weight: 700;
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 6px;
         }
 
-        #fileInput {
-            display: none;
-        }
+        #fileInput { display: none; }
 
         .loading-overlay {
             display: none;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
+            padding: 40px 20px;
+            background: rgba(16, 24, 39, 0.6);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            margin-bottom: 24px;
         }
 
         .spinner-border {
-            color: #8b5cf6;
+            color: #a78bfa;
             width: 3rem; height: 3rem;
-            margin-bottom: 16px;
-        }
-
-        /* ── Results ── */
-        #resultsSection {
-            display: none;
-        }
-
-        .info-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px;
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* ── Results Info Card ── */
+        .info-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(16px);
         }
 
         .info-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             font-size: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         
-        .info-row:last-child { margin-bottom: 0; }
+        .info-row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
         
-        .info-label { color: #64748b; font-weight: 500; }
-        .info-value { color: #0f172a; font-weight: 700; }
+        .info-label { color: rgba(255,255,255,0.5); font-weight: 500; }
+        .info-value { color: #fff; font-weight: 700; }
 
         .table-title {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
-            color: #334155;
-            margin-bottom: 12px;
+            color: #fff;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
-        .prod-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        .prod-list { display: flex; flex-direction: column; gap: 12px; }
 
-        .prod-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 12px;
-            background: #fff;
-        }
-
-        .prod-card.match { border-left: 4px solid #10b981; }
-        .prod-card.diff { border-left: 4px solid #ef4444; }
-
-        .prod-name { font-weight: 700; font-size: 14px; color: #1e293b; margin-bottom: 4px; }
-        
-        .prod-details {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            color: #475569;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
+        .neon-btn {
+            width: 100%;
+            padding: 16px;
             font-weight: 700;
-            margin-top: 8px;
+            border-radius: 16px;
+            border: none;
+            font-size: 16px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: white;
+            margin-bottom: 12px;
         }
-        
-        .status-badge.match { background: #d1fae5; color: #065f46; }
-        .status-badge.diff { background: #fee2e2; color: #991b1b; }
 
+        .btn-blue { background: rgba(37, 99, 235, 0.2); border: 1px solid rgba(37, 99, 235, 0.5); color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); }
+        .btn-blue:hover { background: rgba(37, 99, 235, 0.4); box-shadow: 0 0 25px rgba(37, 99, 235, 0.4); color: #fff; transform: translateY(-2px); }
+
+        .btn-red { background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.5); color: #f87171; box-shadow: 0 0 15px rgba(220, 38, 38, 0.2); }
+        .btn-red:hover { background: rgba(220, 38, 38, 0.4); box-shadow: 0 0 25px rgba(220, 38, 38, 0.4); color: #fff; transform: translateY(-2px); }
+
+        .btn-orange { background: rgba(217, 119, 6, 0.2); border: 1px solid rgba(217, 119, 6, 0.5); color: #fbbf24; box-shadow: 0 0 15px rgba(217, 119, 6, 0.2); }
+        .btn-orange:hover { background: rgba(217, 119, 6, 0.4); box-shadow: 0 0 25px rgba(217, 119, 6, 0.4); color: #fff; transform: translateY(-2px); }
+
+        .btn-green { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.5); color: #34d399; box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+        .btn-green:hover { background: rgba(16, 185, 129, 0.4); box-shadow: 0 0 25px rgba(16, 185, 129, 0.4); color: #fff; transform: translateY(-2px); }
+
+        .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; }
+        .btn-outline:hover { background: rgba(255,255,255,0.1); }
+
+        /* ── Custom Modals ── */
+        .glass-modal {
+            background: rgba(16, 24, 39, 0.85);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .glass-modal h5 { color: #fff; font-weight: 800; font-size: 20px; margin-bottom: 10px; }
+        .glass-modal p { color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 20px; }
+        
+        .glass-input {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        .glass-input:focus { border-color: #a78bfa; box-shadow: 0 0 10px rgba(167,139,250,0.2); }
+        .glass-input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; }
+        .modal-buttons button { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-cancel:hover { background: rgba(255,255,255,0.2); }
+        .btn-accept { background: #8b5cf6; color: #fff; box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
+        .btn-accept:hover { background: #7c3aed; }
     </style>
 </head>
 <body>
 
+<div class="bg-overlay"></div>
+
 <div class="phone-wrapper">
     <div class="app-header">
-        <a href="/" class="back-arrow">←</a>
+        <a href="/" class="back-arrow">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+        </a>
         <div class="header-title">
-            <h5>Facturacion</h5>
-            <small>WALMEX</small>
+            <h5>Facturación</h5>
+            <small>Registro Seguro</small>
         </div>
     </div>
 
     <div class="content-body">
         
-
-
         <!-- Upload Area -->
         <label for="fileInput" class="upload-card" id="uploadArea">
-            <span class="upload-icon">📸</span>
-            <div class="upload-title">Tomar foto de la Factura</div>
+            <div class="upload-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"></path></svg>
+            </div>
+            <div class="upload-title">Subir Factura</div>
+            <div style="font-size: 13px; color: rgba(255,255,255,0.5);">Toma una foto clara del documento</div>
         </label>
         <input type="file" id="fileInput" accept="image/*" capture="environment">
 
         <!-- Loading -->
         <div class="loading-overlay" id="loadingArea">
             <div class="spinner-border" role="status"></div>
-            <h6 style="color: #475569; font-weight:600;">Analizando documento...</h6>
-            <p style="font-size: 12px; color: #94a3b8; text-align: center;">Buscando folio en la base de datos de Supabase</p>
+            <h6 style="color: #fff; font-weight:700;">Analizando...</h6>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.5); text-align: center;">Buscando folio en la base de datos segura</p>
         </div>
-
-
 
         <!-- Results Section -->
         <div id="resultsSection" style="display: none;">
             <div class="info-card">
                 <div class="info-row">
-                    <span class="info-label">Serie (detectada):</span>
+                    <span class="info-label">Serie detectada</span>
                     <span class="info-value" id="resSerie">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Folio (detectado):</span>
+                    <span class="info-label">Folio detectado</span>
                     <span class="info-value" id="resFolio">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Fecha:</span>
+                    <span class="info-label">Fecha</span>
                     <span class="info-value" id="resFecha">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Total:</span>
+                    <span class="info-label">Total</span>
                     <span class="info-value" id="resTotal">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Estado en DB:</span>
-                    <span class="info-value" id="resDbStatus" style="color: #8b5cf6;">--</span>
+                    <span class="info-label">Estado</span>
+                    <span class="info-value" id="resDbStatus" style="color: #a78bfa; text-shadow: 0 0 10px rgba(167,139,250,0.5);">--</span>
                 </div>
             </div>
 
-            <div class="table-title" style="margin-top: 20px;">🛍️ Comparación con Supabase</div>
+            <div class="table-title" style="margin-top: 24px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#a78bfa" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V72H40V56ZM40,200V88H216V200Zm24-72a8,8,0,0,1,8-8H184a8,8,0,0,1,0,16H72A8,8,0,0,1,64,128Zm0,40a8,8,0,0,1,8-8H184a8,8,0,0,1,0,16H72A8,8,0,0,1,64,168Z"></path></svg>
+                Productos en Supabase
+            </div>
             <div class="prod-list" id="prodList">
                 <!-- Javascript will populate this -->
             </div>
             
-            <div id="conciliacionContainer" style="margin-top: 30px;">
+            <div id="conciliacionContainer" style="margin-top: 32px;">
                 <input type="file" id="reciboInput" accept="image/*" capture="environment" style="display: none;">
-                <button id="btnEscanearRecibo" class="btn w-100" style="background: #2563eb; color: white; padding: 14px; font-weight: bold; border-radius: 12px; border: none; font-size: 16px; margin-bottom: 10px;">
-                    📸 Escanear Acuse de Recibo
+                
+                <button id="btnEscanearRecibo" class="neon-btn btn-blue">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"></path></svg>
+                    Escanear Acuse de Recibo
                 </button>
-                <button id="btnCancelarFactura" class="btn w-100" style="background: #ef4444; color: white; padding: 14px; font-weight: bold; border-radius: 12px; border: none; font-size: 16px; margin-top: 10px;">
-                    ❌ Factura Cancelada
+                <button id="btnCancelarFactura" class="neon-btn btn-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"></path></svg>
+                    Factura Cancelada
                 </button>
-                <button id="btnSinAcuse" class="btn w-100" style="background: #f59e0b; color: white; padding: 14px; font-weight: bold; border-radius: 12px; border: none; font-size: 16px; margin-top: 10px;">
-                    ⚠️ Sin Folio
+                <button id="btnSinAcuse" class="neon-btn btn-orange">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 256 256"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"></path></svg>
+                    Falta Folio
                 </button>
             </div>
         </div>
         
         <!-- Reconciliation Section -->
         <div id="reconciliationSection" style="display: none;">
-            <div class="table-title">📊 Resultado de Conciliación</div>
+            <div class="table-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#34d399" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
+                Confirmación de Cantidades
+            </div>
             <div class="prod-list" id="reconList">
                 <!-- Javascript will populate this -->
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button id="btnRecibido" class="btn w-100" style="background: #10b981; color: white; font-weight: bold; padding: 12px; border-radius: 10px; border: none; font-size: 16px;">Recibido</button>
-                <button id="btnReiniciar" class="btn btn-outline-secondary w-100" style="padding: 12px; border-radius: 10px; font-weight: bold; font-size: 16px;">Cancelar</button>
+            <div style="display: flex; gap: 12px; margin-top: 32px;">
+                <button id="btnRecibido" class="neon-btn btn-green" style="margin-bottom: 0;">Recibido</button>
+                <button id="btnReiniciar" class="neon-btn btn-outline" style="margin-bottom: 0;">Cancelar</button>
             </div>
         </div>
 
     </div>
-    
-    <!-- Scanner UI -->
-    <div id="scannerUI" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 9999; flex-direction: column;">
-        <div style="padding: 16px; color: white; display: flex; justify-content: space-between; align-items: center; background: #111;">
-            <button onclick="closeScanner()" style="background:none; border:none; color:white; font-size:16px;">❌ Cancelar</button>
-            <span id="scannerTitle" style="font-weight:bold;">Escanear Documento</span>
-            <div style="width:80px"></div>
-        </div>
-        <div style="flex: 1; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #222;">
-            <video id="videoElement" autoplay playsinline style="width: 100%; height: 100%; object-fit: contain; position:absolute;"></video>
-            <canvas id="canvasOverlay" style="width: 100%; height: 100%; object-fit: contain; position:absolute; z-index: 10;"></canvas>
-            <div id="scannerLoading" style="position:absolute; color:white; font-weight:bold; z-index: 20;">Cargando motor OpenCV...</div>
-        </div>
-        <div style="padding: 24px; display: flex; justify-content: center; background: #111;">
-            <button id="btnCapture" style="width: 70px; height: 70px; border-radius: 50%; background: white; border: 4px solid #ccc; transition: transform 0.1s;"></button>
+</div>
+
+<!-- Modal Folio -->
+<div id="folioModal" tabindex="-1" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1050; align-items: center; justify-content: center;">
+    <div class="glass-modal">
+        <h5>Ingrese el Folio</h5>
+        <p>Escriba el número de folio de la factura que acaba de fotografiar.</p>
+        <input type="text" id="manualFolioInput" class="glass-input" placeholder="Ej: 12345">
+        <div class="modal-buttons">
+            <button type="button" class="btn-cancel" id="btnCancelFolio">Cancelar</button>
+            <button type="button" class="btn-accept" id="btnSubmitFolio">Aceptar</button>
         </div>
     </div>
 </div>
-
-<!-- Modal: Ingresar Folio Manualmente -->
-<div id="folioModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); z-index:99999; justify-content:center; align-items:center;">
-    <div style="background:white; border-radius:20px; padding:32px 28px; width:90%; max-width:380px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); text-align:center;">
-        <h2 style="font-size:20px; font-weight:700; color:#1e293b; margin-bottom:8px;">Ingresa el Folio</h2>
-        <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Escribe el número de folio que aparece en la factura.</p>
-        <input 
-            id="inputFolioManual" 
-            type="number" 
-            placeholder="Ej: 800" 
-            style="width:100%; padding:14px 16px; border:2px solid #e2e8f0; border-radius:12px; font-size:22px; font-weight:700; text-align:center; color:#1e293b; outline:none; margin-bottom:16px;"
-            onfocus="this.style.borderColor='#6366f1'"
-            onblur="this.style.borderColor='#e2e8f0'"
-        >
-        <button onclick="buscarFolioManual()" style="width:100%; padding:14px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; margin-bottom:10px;">
-            Buscar Folio
-        </button>
-        <button onclick="cerrarFolioModal()" style="width:100%; padding:12px; background:#f1f5f9; color:#64748b; border:none; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer;">
-            Cancelar
-        </button>
-    </div>
-</div>
-
-
-<!-- Load OpenCV.js asynchronously -->
-<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
 
 <script>
     const fileInput = document.getElementById('fileInput');
@@ -346,35 +383,49 @@
     
     let esperados = []; // Para guardar el estado de la factura
     let currentFolio = null;
+    let currentSerie = null;
     let currentUrlFactura = null;
-    let capturedFacturaFile = null; // guardamos la foto para subirla después
+    let currentConciliacion = [];
+    
+    let tempFile = null;
+    const folioModal = document.getElementById('folioModal');
+    const btnCancelFolio = document.getElementById('btnCancelFolio');
+    const btnSubmitFolio = document.getElementById('btnSubmitFolio');
+    const manualFolioInput = document.getElementById('manualFolioInput');
 
     fileInput.addEventListener('change', async (e) => {
         if (!e.target.files || e.target.files.length === 0) return;
-        const file = e.target.files[0];
-        if (!file) return;
         
-        // Guardamos la foto y mostramos el modal de folio
-        capturedFacturaFile = file;
-        document.getElementById('folioModal').style.display = 'flex';
-        document.getElementById('inputFolioManual').value = '';
-        setTimeout(() => document.getElementById('inputFolioManual').focus(), 100);
+        tempFile = e.target.files[0];
+        if (!tempFile) return;
+
+        folioModal.style.display = 'flex';
+        manualFolioInput.value = '';
+        setTimeout(() => manualFolioInput.focus(), 100);
     });
 
-    async function buscarFolioManual() {
-        const folio = document.getElementById('inputFolioManual').value.trim();
-        if (!folio) {
-            alert('Por favor ingresa el número de folio.');
+    btnCancelFolio.addEventListener('click', () => {
+        folioModal.style.display = 'none';
+        fileInput.value = '';
+        tempFile = null;
+    });
+
+    btnSubmitFolio.addEventListener('click', async () => {
+        const manualFolio = manualFolioInput.value.trim();
+        if (!manualFolio) {
+            alert("Por favor, ingrese el folio.");
             return;
         }
-        
-        document.getElementById('folioModal').style.display = 'none';
+
+        folioModal.style.display = 'none';
+
         uploadArea.style.display = 'none';
+        resultsSection.style.display = 'none';
         loadingArea.style.display = 'flex';
 
         const formData = new FormData();
-        formData.append('imagen', capturedFacturaFile);
-        formData.append('folio_manual', folio);
+        formData.append('imagen', tempFile);
+        formData.append('folio_manual', manualFolio);
 
         try {
             const res = await fetch('/api/analizar_factura', {
@@ -386,13 +437,13 @@
             loadingArea.style.display = 'none';
 
             if (!res.ok) {
-                alert("Error: " + (data.error || "Desconocido"));
+                alert("Error analizando: " + (data.error || "Desconocido"));
                 uploadArea.style.display = 'block';
                 return;
             }
 
-            if (data.db_status === 'NOT_FOUND') {
-                alert(`❌ El folio "${folio}" no se encontró en la base de datos. Verifica el número e inténtalo de nuevo.`);
+            if (data.factura && data.factura.folio === 'No detectado' && data.db_status === 'NOT_FOUND') {
+                alert("No se detectó una factura válida o no se pudo leer el folio. Por favor, intenta tomar la foto nuevamente.");
                 uploadArea.style.display = 'block';
                 return;
             }
@@ -404,29 +455,18 @@
             loadingArea.style.display = 'none';
             uploadArea.style.display = 'block';
         }
-    }
-
-    function cerrarFolioModal() {
-        document.getElementById('folioModal').style.display = 'none';
-        capturedFacturaFile = null;
-        fileInput.value = '';
-    }
-
-    // Permitir confirmar con Enter
-    document.addEventListener('DOMContentLoaded', () => {
-        const inp = document.getElementById('inputFolioManual');
-        if (inp) inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscarFolioManual(); });
     });
 
     function mostrarResultados(data) {
         resultsSection.style.display = 'block';
         
         currentFolio = data.factura.folio;
+        currentSerie = data.factura.serie || 'N/A';
         if (data.factura.url_factura) {
             currentUrlFactura = data.factura.url_factura;
         }
         
-        document.getElementById('resSerie').textContent = data.factura.serie || 'N/A';
+        document.getElementById('resSerie').textContent = currentSerie;
         document.getElementById('resFolio').textContent = currentFolio || 'N/A';
         document.getElementById('resFecha').textContent = data.factura.fecha || 'N/A';
         document.getElementById('resTotal').textContent = data.factura.total || 'N/A';
@@ -447,29 +487,24 @@
                 const isMatch = item.estado === 'OK';
                 
                 // Style the card to clearly show DB vs OCR
-                card.style.border = '1px solid #e2e8f0';
-                card.style.borderRadius = '10px';
-                card.style.padding = '14px';
-                card.style.background = '#fff';
+                card.style.border = '1px solid rgba(255,255,255,0.1)';
+                card.style.borderRadius = '16px';
+                card.style.padding = '16px';
+                card.style.background = 'rgba(255,255,255,0.03)';
                 card.style.marginBottom = '12px';
-                card.style.borderLeft = isMatch ? '5px solid #10b981' : '5px solid #ef4444';
+                card.style.backdropFilter = 'blur(10px)';
+                card.style.borderLeft = isMatch ? '5px solid #34d399' : '5px solid #f87171';
 
                 card.innerHTML = `
-                    <div style="font-weight: 700; color: #1e293b; font-size: 15px; margin-bottom: 8px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 15px; margin-bottom: 8px;">
                         ${item.producto_db}
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 10px;">
-                        <div style="flex: 1; background: #f8fafc; padding: 10px; border-radius: 8px;">
-                            <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 4px;">DATOS EN SUPABASE</div>
-                            <div style="font-size: 13px; color: #334155;">
+                        <div style="flex: 1; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 4px;">DATOS EN SUPABASE</div>
+                            <div style="font-size: 13px; color: rgba(255,255,255,0.9);">
                                 Cantidad: <b>${item.cantidad_db || 0}</b><br>
                                 Precio: <b>$${item.precio_db || 0}</b>
-                            </div>
-                        </div>
-                        <div style="flex: 1; background: ${isMatch ? '#ecfdf5' : '#fef2f2'}; padding: 10px; border-radius: 8px;">
-                            <div style="font-size: 11px; font-weight: 700; color: ${isMatch ? '#059669' : '#b91c1c'}; margin-bottom: 4px;">TEXTO EN LA FOTO</div>
-                            <div style="font-size: 12px; color: #475569;">
-                                ${isMatch ? '✅ Producto detectado en la imagen.' : '❌ No se encontró texto parecido en el escaneo.'}
                             </div>
                         </div>
                     </div>
@@ -487,7 +522,8 @@
             data.comparacion.forEach(item => {
                 esperados.push({
                     producto: item.producto_db,
-                    cantidad: item.cantidad_db
+                    cantidad: item.cantidad_db,
+                    precio: item.precio_db
                 });
             });
         }
@@ -587,42 +623,26 @@
     });
 
     
+    let acuseTempFile = null;
+
     reciboInput.addEventListener('change', async (e) => {
         if (!e.target.files || e.target.files.length === 0) return;
-        const file = e.target.files[0];
+        acuseTempFile = e.target.files[0];
         
         resultsSection.style.display = 'none';
-        loadingArea.querySelector('p').textContent = "Extrayendo cantidades del recibo de almacén...";
-        loadingArea.style.display = 'flex';
         
-        const formData = new FormData();
-        formData.append('imagen', file);
-        formData.append('esperados', JSON.stringify(esperados));
-        if (currentFolio) {
-            formData.append('folio', currentFolio);
-        }
-        
-        try {
-            const res = await fetch('/api/analizar_recibo', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            loadingArea.style.display = 'none';
-            
-            if (!res.ok) {
-                alert("Error analizando recibo: " + (data.error || "Desconocido"));
-                resultsSection.style.display = 'block';
-                return;
-            }
-            
-            mostrarConciliacion(data);
-        } catch (err) {
-            console.error(err);
-            alert("Error de conexión.");
-            loadingArea.style.display = 'none';
-            resultsSection.style.display = 'block';
-        }
+        // Skip OCR and directly build the reconciliation manually
+        const fakeData = {
+            conciliacion: esperados.map(item => ({
+                producto: item.producto,
+                esperado: item.cantidad,
+                recibido: item.cantidad, // Initially same as expected
+                precio: item.precio,
+                diferencia: 0,
+                estado: 'OK'
+            }))
+        };
+        mostrarConciliacion(fakeData);
     });
     
     function mostrarConciliacion(data) {
@@ -631,36 +651,94 @@
         
         currentConciliacion = data.conciliacion || [];
         
-        if (data.conciliacion && data.conciliacion.length > 0) {
-            data.conciliacion.forEach(item => {
+        if (currentConciliacion.length > 0) {
+            currentConciliacion.forEach((item, index) => {
                 const card = document.createElement('div');
-                const isOk = item.estado === 'OK';
-                
-                card.style.border = '1px solid #e2e8f0';
-                card.style.borderRadius = '10px';
-                card.style.padding = '14px';
-                card.style.background = '#fff';
+                card.style.border = '1px solid rgba(255,255,255,0.1)';
+                card.style.borderRadius = '16px';
+                card.style.padding = '16px';
+                card.style.background = 'rgba(255,255,255,0.03)';
                 card.style.marginBottom = '12px';
-                card.style.borderLeft = isOk ? '5px solid #10b981' : '5px solid #f59e0b';
+                card.style.backdropFilter = 'blur(10px)';
                 
                 card.innerHTML = `
-                    <div style="font-weight: 700; color: #1e293b; font-size: 15px; margin-bottom: 8px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 15px; margin-bottom: 8px;">
                         ${item.producto}
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                        <div style="text-align: center; flex: 1;">
-                            <div style="font-size: 10px; color: #64748b; font-weight: bold;">FACTURADO</div>
-                            <div style="font-size: 16px; font-weight: bold; color: #334155;">${item.esperado}</div>
+                        <div style="text-align: center; flex: 1; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.5); font-weight: bold;">FACTURADO</div>
+                            <div style="font-size: 16px; font-weight: bold; color: #fff;">${item.esperado}</div>
                         </div>
-                        <div style="text-align: center; flex: 1;">
-                            <div style="font-size: 10px; color: #64748b; font-weight: bold;">RECIBIDO</div>
-                            <div style="font-size: 16px; font-weight: bold; color: ${isOk ? '#10b981' : '#f59e0b'};">${item.recibido}</div>
+                        <div style="text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                            <button type="button" class="btn btn-sm btn-outline-light btn-dec" data-index="${index}" style="font-weight:bold; width: 30px; border-radius: 8px; border-color: rgba(255,255,255,0.2); color:#fff;">-</button>
+                            <div style="font-size: 18px; font-weight: bold; color: #34d399; min-width: 30px; text-shadow: 0 0 10px rgba(52,211,153,0.4);" id="qty-${index}">${item.recibido}</div>
+                            <button type="button" class="btn btn-sm btn-outline-light btn-inc" data-index="${index}" style="font-weight:bold; width: 30px; border-radius: 8px; border-color: rgba(255,255,255,0.2); color:#fff;">+</button>
                         </div>
                     </div>
-                    ${!isOk ? `<div style="background: #fef3c7; color: #b45309; padding: 6px; border-radius: 6px; font-size: 12px; text-align: center; margin-top: 10px; font-weight: bold;">⚠️ Diferencia de ${item.diferencia} unidades</div>` : `<div style="background: #ecfdf5; color: #047857; padding: 6px; border-radius: 6px; font-size: 12px; text-align: center; margin-top: 10px; font-weight: bold;">✅ Cantidad Coincide</div>`}
+                    <div id="diff-${index}" style="display:none; padding: 8px; border-radius: 8px; font-size: 12px; text-align: center; margin-top: 10px; font-weight: bold; border: 1px solid transparent;"></div>
                 `;
                 reconList.appendChild(card);
             });
+
+            // Bind buttons
+            document.querySelectorAll('.btn-dec').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = e.target.getAttribute('data-index');
+                    if(currentConciliacion[idx].recibido > 0) {
+                        currentConciliacion[idx].recibido -= 1;
+                        document.getElementById('qty-'+idx).innerText = currentConciliacion[idx].recibido;
+                        updateColor(idx);
+                    }
+                });
+            });
+            document.querySelectorAll('.btn-inc').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = e.target.getAttribute('data-index');
+                    currentConciliacion[idx].recibido += 1;
+                    document.getElementById('qty-'+idx).innerText = currentConciliacion[idx].recibido;
+                    updateColor(idx);
+                });
+            });
+
+            function updateColor(idx) {
+                const item = currentConciliacion[idx];
+                const el = document.getElementById('qty-'+idx);
+                const diffEl = document.getElementById('diff-'+idx);
+                const diff = item.esperado - item.recibido;
+                
+                if (item.recibido < item.esperado) {
+                    el.style.color = '#fbbf24';
+                    el.style.textShadow = '0 0 10px rgba(251,191,36,0.4)';
+                    diffEl.style.display = 'block';
+                    diffEl.style.background = 'rgba(217, 119, 6, 0.2)';
+                    diffEl.style.borderColor = 'rgba(217, 119, 6, 0.5)';
+                    diffEl.style.color = '#fbbf24';
+                    diffEl.innerHTML = `⚠️ Devolución de ${diff} unidades`;
+                } else if (item.recibido > item.esperado) {
+                    el.style.color = '#60a5fa';
+                    el.style.textShadow = '0 0 10px rgba(96,165,250,0.4)';
+                    diffEl.style.display = 'block';
+                    diffEl.style.background = 'rgba(37, 99, 235, 0.2)';
+                    diffEl.style.borderColor = 'rgba(37, 99, 235, 0.5)';
+                    diffEl.style.color = '#60a5fa';
+                    diffEl.innerHTML = `⚠️ Sobran ${-diff} unidades`;
+                } else {
+                    el.style.color = '#34d399';
+                    el.style.textShadow = '0 0 10px rgba(52,211,153,0.4)';
+                    diffEl.style.display = 'block';
+                    diffEl.style.background = 'rgba(16, 185, 129, 0.2)';
+                    diffEl.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                    diffEl.style.color = '#34d399';
+                    diffEl.innerHTML = `✅ Cantidad Coincide`;
+                }
+            }
+
+            // Inicializar colores y diferencias
+            currentConciliacion.forEach((_, index) => {
+                updateColor(index);
+            });
+
         } else {
             reconList.innerHTML = '<div style="text-align:center; padding: 20px; color: #64748b;">No hay productos para conciliar.</div>';
         }
@@ -672,33 +750,30 @@
             return;
         }
         
-        // Find discrepancies
-        const toUpdate = currentConciliacion.filter(item => item.diferencia !== 0);
-        if (toUpdate.length === 0) {
-            // No differences, just proceed as done
-            btnReiniciar.click();
-            return;
-        }
-        
-        const payload = {
-            folio: currentFolio,
-            productos: toUpdate.map(item => ({
-                producto: item.producto,
-                nueva_cantidad: item.recibido
-            }))
-        };
+        // We will send all the products final quantities to the backend
+        const payloadProductos = currentConciliacion.map(item => ({
+            producto: item.producto,
+            esperado: item.esperado,
+            nueva_cantidad: item.recibido,
+            precio: item.precio
+        }));
         
         const prevText = btnRecibido.innerHTML;
         btnRecibido.innerHTML = '⏳ Guardando...';
         btnRecibido.disabled = true;
+
+        const formData = new FormData();
+        if (acuseTempFile) {
+            formData.append('imagen', acuseTempFile);
+        }
+        formData.append('folio', currentFolio);
+        formData.append('serie', currentSerie);
+        formData.append('productos', JSON.stringify(payloadProductos));
         
         try {
             const res = await fetch('/api/actualizar_recibo', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+                body: formData
             });
             
             const resultData = await res.json();
@@ -712,7 +787,7 @@
             }
         } catch (err) {
             console.error(err);
-            alert('Error de conexión.');
+            alert('Error de conexión al guardar.');
             btnRecibido.innerHTML = prevText;
             btnRecibido.disabled = false;
         }
@@ -725,229 +800,7 @@
         fileInput.value = '';
         reciboInput.value = '';
     });
-
-    // ==========================================
-    // OpenCV LIVE SCANNER LOGIC
-    // ==========================================
-    let openCvReady = false;
-    let scannerStream = null;
-    let scanType = null; // 'factura' or 'acuse'
-    let video = document.getElementById('videoElement');
-    let canvas = document.getElementById('canvasOverlay');
-    let ctx = canvas.getContext('2d');
-    let bestContourPoints = null;
-    let animationFrameId = null;
-
-    function onOpenCvReady() {
-        openCvReady = true;
-        let loader = document.getElementById('scannerLoading');
-        if(loader) loader.style.display = 'none';
-        console.log("OpenCV.js is ready.");
-    }
-
-    // Override clicks to open scanner
-    document.getElementById('uploadArea').onclick = (e) => {
-        e.preventDefault();
-        openScanner('factura');
-    };
-    
-    // Remove old listeners for btnEscanearRecibo if they existed (we'll just replace the onclick)
-    const oldBtn = document.getElementById('btnEscanearRecibo');
-    const newBtn = oldBtn.cloneNode(true);
-    oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-    newBtn.onclick = () => { openScanner('acuse'); };
-
-    async function openScanner(type) {
-        scanType = type;
-        if (!openCvReady) {
-            // Fallback to native input if OpenCV is not loaded
-            if (type === 'factura') fileInput.click();
-            else reciboInput.click();
-            return;
-        }
-
-        document.getElementById('scannerUI').style.display = 'flex';
-        document.getElementById('scannerTitle').textContent = type === 'factura' ? 'Escanear Factura' : 'Escanear Acuse';
-        
-        try {
-            scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } });
-            video.srcObject = scannerStream;
-            video.play();
-            
-            video.onloadedmetadata = () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                processVideo();
-            };
-        } catch (err) {
-            console.error("Camera error:", err);
-            closeScanner();
-            // Fallback to native file input if camera fails (e.g., HTTP)
-            alert("No se pudo acceder a la cámara en vivo. Usando cámara nativa del sistema.");
-            if (type === 'factura') fileInput.click();
-            else reciboInput.click();
-        }
-    }
-
-    function closeScanner() {
-        document.getElementById('scannerUI').style.display = 'none';
-        if (scannerStream) {
-            scannerStream.getTracks().forEach(track => track.stop());
-            scannerStream = null;
-        }
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
-    }
-
-    function processVideo() {
-        if (!scannerStream) return;
-        
-        try {
-            let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            src.data.set(imgData.data);
-            
-            // Convert to grayscale
-            let gray = new cv.Mat();
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-            
-            // Blur & Canny Edge Detection
-            let blurred = new cv.Mat();
-            cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
-            let edges = new cv.Mat();
-            cv.Canny(blurred, edges, 75, 200, 3, false);
-            
-            // Find Contours
-            let contours = new cv.MatVector();
-            let hierarchy = new cv.Mat();
-            cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-            
-            // Find largest contour with 4 points
-            let maxArea = 0;
-            let bestApprox = new cv.Mat();
-            
-            for (let i = 0; i < contours.size(); ++i) {
-                let cnt = contours.get(i);
-                let area = cv.contourArea(cnt);
-                if (area > 10000) {
-                    let peri = cv.arcLength(cnt, true);
-                    let approx = new cv.Mat();
-                    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-                    
-                    if (approx.rows === 4 && area > maxArea) {
-                        maxArea = area;
-                        approx.copyTo(bestApprox);
-                    }
-                    approx.delete();
-                }
-            }
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            if (bestApprox.rows === 4) {
-                bestContourPoints = [];
-                for(let i=0; i<4; i++) {
-                    bestContourPoints.push({
-                        x: bestApprox.data32S[i*2],
-                        y: bestApprox.data32S[i*2+1]
-                    });
-                }
-                
-                // Draw green bounding box
-                ctx.beginPath();
-                ctx.moveTo(bestContourPoints[0].x, bestContourPoints[0].y);
-                for(let i=1; i<4; i++) {
-                    ctx.lineTo(bestContourPoints[i].x, bestContourPoints[i].y);
-                }
-                ctx.closePath();
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#10b981'; // Green
-                ctx.stroke();
-                ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
-                ctx.fill();
-            } else {
-                bestContourPoints = null;
-            }
-            
-            src.delete(); gray.delete(); blurred.delete(); edges.delete();
-            contours.delete(); hierarchy.delete(); bestApprox.delete();
-            
-        } catch (err) {
-            console.error("OpenCV error:", err);
-        }
-        
-        animationFrameId = requestAnimationFrame(processVideo);
-    }
-    
-    document.getElementById('btnCapture').onclick = () => {
-        if (!scannerStream) return;
-        
-        // Temporarily pause processing
-        cancelAnimationFrame(animationFrameId);
-        
-        let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        src.data.set(imgData.data);
-        
-        let finalCanvas = document.createElement('canvas');
-        
-        if (bestContourPoints && bestContourPoints.length === 4) {
-            // Sort points: Top-Left, Top-Right, Bottom-Right, Bottom-Left
-            let pts = bestContourPoints.sort((a,b) => a.y - b.y);
-            let topPts = pts.slice(0,2).sort((a,b) => a.x - b.x);
-            let bottomPts = pts.slice(2,4).sort((a,b) => a.x - b.x);
-            
-            let tl = topPts[0]; let tr = topPts[1];
-            let bl = bottomPts[0]; let br = bottomPts[1];
-            
-            let widthA = Math.hypot(br.x - bl.x, br.y - bl.y);
-            let widthB = Math.hypot(tr.x - tl.x, tr.y - tl.y);
-            let maxWidth = Math.max(Math.floor(widthA), Math.floor(widthB));
-            
-            let heightA = Math.hypot(tr.x - br.x, tr.y - br.y);
-            let heightB = Math.hypot(tl.x - bl.x, tl.y - bl.y);
-            let maxHeight = Math.max(Math.floor(heightA), Math.floor(heightB));
-            
-            let dst = new cv.Mat();
-            let dsize = new cv.Size(maxWidth, maxHeight);
-            
-            let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y]);
-            let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, maxWidth-1, 0, maxWidth-1, maxHeight-1, 0, maxHeight-1]);
-            
-            let M = cv.getPerspectiveTransform(srcTri, dstTri);
-            cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-            
-            cv.imshow(finalCanvas, dst);
-            
-            src.delete(); dst.delete(); srcTri.delete(); dstTri.delete(); M.delete();
-        } else {
-            // No contour detected, just take the raw photo
-            cv.imshow(finalCanvas, src);
-            src.delete();
-        }
-        
-        closeScanner();
-        
-        // Convert canvas to File and mock the input change event
-        finalCanvas.toBlob((blob) => {
-            const file = new File([blob], scanType + "_scanned.jpg", { type: "image/jpeg" });
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            
-            if (scanType === 'factura') {
-                fileInput.files = dataTransfer.files;
-                fileInput.dispatchEvent(new Event('change'));
-            } else {
-                reciboInput.files = dataTransfer.files;
-                reciboInput.dispatchEvent(new Event('change'));
-            }
-        }, "image/jpeg", 0.9);
-    };
-
 </script>
+
 </body>
 </html>

@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, redirect, jsonify, make_response, send_file
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import base64
-from datetime import datetime
 import requests as req_lib
 import msal
 import threading
@@ -10,85 +11,37 @@ from supabase import create_client, Client
 import cv2
 import numpy as np
 import re
-import google.generativeai as genai
+from datetime import datetime
 
-# Configurar Gemini API
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Intentamos importar pytesseract
+# Intentamos importar PaddleOCR
 try:
-    import pytesseract
+    from paddleocr import PaddleOCR
+    # lang='es' para español, use_angle_cls para enderezar texto
+    reader = PaddleOCR(use_angle_cls=True, lang='es')
 except ImportError:
-    print("pytesseract no está instalado.")
+    print("PaddleOCR no está instalado.")
+    reader = None
 except Exception as e:
-    print(f"Error inicializando pytesseract: {e}")
+    print(f"Error inicializando PaddleOCR: {e}")
+    reader = None
 
-# ============================================================
-# MAPEO DE NOMBRES: Acuse Walmart → Nombre en Base de Datos
-# Columna izquierda = como aparece en Supabase
-# Columna derecha = como aparece en la hoja acuse de Walmart
-# ============================================================
-ACUSE_A_DB = {
-    # Clave: Nombre en la hoja de Acuse (en minúsculas) -> Valor: Nombre en Supabase
-    "bqt lili asiatic 6t":       "BQT LILI ASIATIC 6 T",
-    "bqt 18 rosas":              "BQT ROSA 18 TALLOS",
-    "bqt mday premium":          "BQT MIXTO PREMIUM",
-    "rosas 12 mday":             "ROSA 12 TALLOS",
-    "jarron mday":               "JARRON MDAY",
-    "bqt mday m":                "BQT MIXTO M",
-    "bqt rosas 12t":             "BOUQUET ROSAS 12 T",
-    "bqt rosas 6t":              "BOUQUET ROSAS 6 T",
-    "bqt snapdragon 8t":         "BQT SNAPDRAGON 8 T",
-    "bqt rosas 12t baja":        "BOUQUETS DOCENA DE ROSAS",
-    "bqt mixto 9t":              "BOUQUET MIXTO 9 T",
-    "bqt mixto 12t":             "BOUQUET MIXTO 12 T",
-    "bqt mixto 15t":             "BOUQUET MIXTO 15 T",
-}
-
-# Mapa inverso: DB name → lista de posibles nombres en acuse (para búsqueda)
-DB_A_ACUSE = {}
-for acuse_name, db_name in ACUSE_A_DB.items():
-    DB_A_ACUSE.setdefault(db_name.upper(), []).append(acuse_name)
-# ============================================================
-
-def _corregir_rotacion_exif(img_bytes_raw):
-    """Corrige rotación usando metadatos EXIF de la foto."""
-    try:
-        from PIL import Image as PILImage
-        import io
-        pil_img = PILImage.open(io.BytesIO(img_bytes_raw))
-        exif = pil_img._getexif() if hasattr(pil_img, '_getexif') else None
-        orientacion = None
-        if exif:
-            for tag, val in exif.items():
-                import PIL.ExifTags
-                if PIL.ExifTags.TAGS.get(tag) == 'Orientation':
-                    orientacion = val
-                    break
-        rotaciones = {3: 180, 6: 270, 8: 90}
-        if orientacion in rotaciones:
-            pil_img = pil_img.rotate(rotaciones[orientacion], expand=True)
-        buf = io.BytesIO()
-        pil_img.save(buf, format='JPEG')
-        return np.frombuffer(buf.getvalue(), np.uint8), True
-    except Exception:
-        return None, False
-
-def mejorar_imagen_opencv(img_bytes, img_bytes_raw=None):
-    """Preprocesa la imagen usando OpenCV para mejorar el OCR.
-    Incluye corrección automática de rotación (EXIF + auto-detección)."""
-
-    # 1. Intentar corrección EXIF primero
-    if img_bytes_raw is not None:
-        corregido, ok = _corregir_rotacion_exif(img_bytes_raw)
-        if ok and corregido is not None:
-            img_bytes = corregido
-
-    # Solo decodificar y devolver, sin filtros destructivos que realzan la tinta de atrás
+def mejorar_imagen_opencv(img_bytes):
+    """Preprocesa la imagen usando OpenCV para mejorar el OCR"""
     img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
-    return img
-
-
+    
+    # Convertir a escala de grises
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # Aumentar contraste con CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    contrast_img = clahe.apply(gray)
+    
+    # Reducir ruido conservando bordes
+    denoised = cv2.fastNlMeansDenoising(contrast_img, None, h=10, searchWindowSize=21, templateWindowSize=7)
+    
+    # Convertir de vuelta a BGR porque PaddleOCR espera 3 canales
+    denoised_bgr = cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR)
+    return denoised_bgr
 
 
 app = Flask(__name__)
@@ -96,16 +49,16 @@ app = Flask(__name__)
 DELETE_PASSWORD = "CFBCWALMEX"
 
 # Supabase Config
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 # ── SharePoint / Excel config ─────────────────────────────────────────────────
 SP_TENANT_ID     = os.environ.get("SP_TENANT_ID",     "")
 SP_CLIENT_ID     = os.environ.get("SP_CLIENT_ID",     "")
 SP_CLIENT_SECRET = os.environ.get("SP_CLIENT_SECRET", "")
-SP_SITE_URL      = os.environ.get("SP_SITE_URL",      "https://pacificafarms.sharepoint.com/sites/requerimientovsproyeccion")
-SP_FILE_PATH     = os.environ.get("SP_FILE_PATH",     "/requerimiento vs proyeccion/WALMEX/Analisis Walmart.xlsx")
+SP_SITE_URL      = os.environ.get("SP_SITE_URL",      "")
+SP_FILE_PATH     = os.environ.get("SP_FILE_PATH",     "")
 SP_SHEET_DETALLE  = os.environ.get("SP_SHEET_NAME", "Detalle")
 SP_SHEET_GASTOS   = "REPORTE-GASTOSAPP"
 
@@ -1206,80 +1159,80 @@ def api_analizar_factura():
         return jsonify({"ok": False, "error": "No selected file"}), 400
         
     try:
-        import numpy as np
-        import cv2
-        import base64, time
+        file_bytes = np.frombuffer(file.read(), np.uint8)
+        
+        folio_manual = request.form.get('folio_manual', '').strip()
+        if not folio_manual:
+            return jsonify({"ok": False, "error": "Folio es requerido"}), 400
 
-        raw_bytes = file.read()
+        print(f"Bypassing OCR. Folio manual: {folio_manual}", flush=True)
         
-        # El folio siempre viene manual desde el modal del usuario
-        folio_encontrado = request.form.get('folio_manual', '').strip()
+        folio_encontrado = folio_manual
+        fecha_detectada = "N/A"
+        total_detectado = "N/A"
+        serie = "N/A"
+        productos_gemini = [] 
+        full_text = "OCR Bypass. Manual Folio."
+
+        db_productos = []
+        db_status = "NOT_FOUND"
         
-        if not folio_encontrado:
-            return jsonify({"ok": False, "error": "No se proporcionó un folio"}), 400
-        
-        print(f"Buscando folio manual: {folio_encontrado}", flush=True)
-        
-        # Buscar el folio en Supabase
+        # Buscar en Supabase usando el folio detectado (o manual)
         db_res = supabase_client.table("facturas_folios").select("*").eq("folio", folio_encontrado).execute()
         db_productos = db_res.data
-        db_status = "FOUND" if db_productos else "NOT_FOUND"
-        
-        if db_status == "NOT_FOUND":
-            return jsonify({
-                "ok": True,
-                "factura": {"serie": "N/A", "folio": folio_encontrado, "fecha": "N/A", "total": "N/A", "url_factura": ""},
-                "db_status": "NOT_FOUND",
-                "comparacion": [],
-                "ocr_raw_text": ""
-            })
-        
-        # Calcular comparación desde la DB
-        import unicodedata
+        if db_productos:
+            db_status = "FOUND"
+            
         comparacion = []
-        total_calc = 0
-        for db_p in db_productos:
-            prod_name = str(db_p.get("producto", "")).strip()
-            cant_db = float(db_p.get("unidades", 0))
-            precio_db = float(db_p.get("precio_unidad", 0))
-            total_calc += cant_db * precio_db
-            comparacion.append({
-                "producto_db": prod_name,
-                "cantidad_db": cant_db,
-                "precio_db": precio_db,
-                "estado": "OK"
-            })
-        
-        # Subir foto a Supabase
+        if db_status == "FOUND":
+            first_row = db_productos[0]
+            fecha_detectada = str(first_row.get("diario", "N/A"))
+            serie = str(first_row.get("salida", "N/A"))
+            
+            total_sum = 0.0
+            for db_p in db_productos:
+                prod_name = str(db_p.get("producto", "")).strip()
+                cant_db = float(db_p.get("unidades", 0))
+                precio_db = float(db_p.get("precio_unidad", 0))
+                venta_total = float(db_p.get("venta_total", 0))
+                total_sum += venta_total
+                
+                comparacion.append({
+                    "producto_db": prod_name,
+                    "cantidad_db": cant_db,
+                    "precio_db": precio_db,
+                    "estado": "OK" # Asumimos OK porque no hay validación OCR
+                })
+            
+            total_detectado = f"${total_sum:,.2f}"
+                    
+        import base64, time
         url_factura_temp = ""
         try:
-            file_bytes = np.frombuffer(raw_bytes, np.uint8)
             b64_str = base64.b64encode(file_bytes).decode('utf-8')
-            ruta_supa = f"Facturas/factura_{folio_encontrado}_{int(time.time())}.jpg"
+            ruta_supa = f"Facturas/factura_{int(time.time())}.jpg"
             url_factura_temp = subir_foto_supabase(b64_str, ruta_supa)
         except Exception as ex:
             print(f"Error subiendo foto factura: {ex}")
             
         return jsonify({
-            "ok": True,
-            "factura": {
-                "serie": db_productos[0].get("salida", "N/A") if db_productos else "N/A",
-                "folio": folio_encontrado,
-                "fecha": db_productos[0].get("diario", "N/A") if db_productos else "N/A",
-                "total": f"${total_calc:,.2f}",
-                "url_factura": url_factura_temp
-            },
-            "db_status": db_status,
-            "comparacion": comparacion,
-            "productos_gemini": [],
-            "ocr_raw_text": ""
-        })
+              "ok": True,
+              "factura": {
+                  "serie": serie,
+                  "folio": folio_encontrado,
+                  "fecha": fecha_detectada,
+                  "total": total_detectado,
+                  "url_factura": url_factura_temp
+              },
+              "db_status": db_status,
+              "comparacion": comparacion,
+              "productos_gemini": productos_gemini,
+              "ocr_raw_text": full_text
+          })
         
     except Exception as e:
-        print(f"Error en analizar_factura: {e}")
+        print(f"Error procesando factura manual: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
 
 @app.route('/api/analizar_recibo', methods=['POST'])
 def analizar_recibo():
@@ -1296,195 +1249,38 @@ def analizar_recibo():
         esperados = []
 
     try:
-        # Read the image
+        # Read the image and run PaddleOCR
         img_bytes = file.read()
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        import numpy as np
-        import cv2
+        # Aumentar contraste para mejorar OCR en recibos borrosos
+        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l_channel, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        cl = clahe.apply(l_channel)
+        limg = cv2.merge((cl,a,b))
+        img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        result = reader.ocr(img, cls=False)
+        
+        full_text = ""
+        for line in result:
+            if line:
+                for word_info in line:
+                    full_text += word_info[1][0] + " "
+                full_text += "\n"
+        
+        print(f"--- OCR RECIBO ---\n{full_text}\n------------------", flush=True)
+                
+        # Heurística para Walmart Recibo
         import unicodedata
         import re
-        
-        # Iniciar PaddleOCR y procesar imagen
-        file_bytes = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        
-        # --- PREPROCESAMIENTO PARA TESSERACT ---
-        h, w = img.shape[:2]
-        if w > 1000:
-            scale = 1000 / w
-            img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-        elif w < 600:
-            scale = 600 / w
-            img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        def remove_accents(input_str):
+            return unicodedata.normalize('NFKD', input_str).encode('ASCII', 'ignore').decode('utf-8')
             
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, img = cv2.threshold(img, 150, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-        # -----------------------------------------------
+        ocr_clean = remove_accents(full_text.lower())
         
-        import pytesseract
-        from pytesseract import Output
-        
-        # Extraer datos con Tesseract
-        data = pytesseract.image_to_data(img, lang='spa', output_type=Output.DICT)
-        
-        boxes = []
-        n_boxes = len(data['text'])
-        for i in range(n_boxes):
-            conf = int(data['conf'][i])
-            text = data['text'][i].strip()
-            # Ignorar palabras vacías o con muy baja confianza
-            if text and conf > 20:
-                x = data['left'][i]
-                y = data['top'][i]
-                width = data['width'][i]
-                height = data['height'][i]
-                
-                # Coordenadas centrales
-                x_center = x + (width / 2)
-                y_center = y + (height / 2)
-                
-                boxes.append({
-                    "text": text,
-                    "raw": text,
-                    "clean": unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8').lower(),
-                    "x": x_center,
-                    "y": y_center
-                })
-                
-        # Ordenar cajas de arriba a abajo, luego de izquierda a derecha (usando un margen de tolerancia en Y de 15 px)
-        boxes.sort(key=lambda b: (round(b["y"] / 15.0), b["x"]))
-        
-        ocr_raw = "\n".join([b["text"] for b in boxes])
-        print(f"--- OCR RECIBO (Tesseract OCR) --- Extrajo {len(boxes)} cajas.", flush=True)
-
-        # 1. Encontrar en qué orden aparecen los productos esperados
-        # Unimos todo el texto para poder buscar nombres completos (ej: "bouquet rosas 12 t")
-        full_text_clean = " ".join([b["clean"] for b in boxes])
-        
-        productos_encontrados_con_indice = []
-        
-        for prod in esperados:
-            prod_name = prod.get("producto", "")
-            
-            # 1a. Buscar si alguno de los nombres exactos de Walmart está en el ticket
-            nombres_validos = DB_A_ACUSE.get(prod_name.upper(), [])
-            encontrado = False
-            indice_aparicion = -1
-            
-            for nombre_acuse in nombres_validos:
-                idx = full_text_clean.find(nombre_acuse)
-                if idx != -1:
-                    encontrado = True
-                    indice_aparicion = idx
-                    break
-                    
-            # 1b. Fallback: matching difuso por si el producto no está mapeado
-            if not encontrado:
-                prod_clean = unicodedata.normalize('NFKD', prod_name).encode('ASCII', 'ignore').decode('utf-8').lower()
-                words = [w for w in prod_clean.split() if len(w) > 3]
-                
-                # Buscar palabra por palabra en la lista de cajas para sacar un índice aproximado
-                match_count = 0
-                primer_indice_palabra = -1
-                
-                for i, b in enumerate(boxes):
-                    if b["clean"] in words:
-                        match_count += 1
-                        if primer_indice_palabra == -1:
-                            primer_indice_palabra = i
-                            
-                if len(words) > 0 and (match_count / len(words)) >= 0.5:
-                    encontrado = True
-                    # Aproximamos el índice en el string completo
-                    indice_aparicion = primer_indice_palabra * 5 
-                    
-            if encontrado:
-                productos_encontrados_con_indice.append((indice_aparicion, prod))
-
-        # Ordenar los productos detectados según aparecieron en el texto (de arriba a abajo)
-        productos_encontrados_con_indice.sort(key=lambda x: x[0])
-        productos_encontrados = [p[1] for p in productos_encontrados_con_indice]
-
-        # Si faltó alguno que no se detectó bien, lo agregamos al final para no perderlo
-        for prod in esperados:
-            if prod not in productos_encontrados:
-                productos_encontrados.append(prod)
-
-        # 2. Extraer Cantidad Recibida para cada producto
-        # En el acuse, los números vienen después del nombre del producto (ej: "bouquet rosas 12 t 15.000 15.000")
-        # El segundo número (o el último antes del siguiente producto) es la "Cant Recibida".
-        
-        full_text_para_numeros = full_text_clean.replace(",", ".")
-        conciliacion = []
-        
-        for i, (idx_actual, prod) in enumerate(productos_encontrados_con_indice):
-            prod_name = prod.get("producto", "")
-            cant_esperada = float(prod.get("cantidad", 0))
-            
-            # Definir el segmento de texto que le pertenece a este producto
-            # Va desde donde empieza este producto hasta donde empieza el siguiente (o fin del texto)
-            idx_siguiente = productos_encontrados_con_indice[i+1][0] if i + 1 < len(productos_encontrados_con_indice) else len(full_text_para_numeros)
-            
-            segmento = full_text_para_numeros[idx_actual:idx_siguiente]
-            
-            # Buscar todos los números con formato decimal (ej. 15.000 o 15.00) en su segmento
-            matches = re.findall(r'\b(\d+\.\d{2,3})\b', segmento)
-            
-            cantidades_validas = []
-            for m in matches:
-                val = float(m)
-                # Las cantidades suelen ser menores a 500, ignoramos números muy grandes que podrían ser IDs o precios totales
-                if 0 < val < 500:
-                    cantidades_validas.append(val)
-                    
-            cant_recibida = 0
-            if cantidades_validas:
-                # Tomamos el ÚLTIMO número válido de este segmento, que corresponde a la columna "Cant Recibida"
-                val = cantidades_validas[-1]
-                
-                # Mitigar error de OCR común donde '10' se lee como '18'
-                if val == 18 and cant_esperada == 10:
-                    val = 10.0
-                elif val == 18.000 and cant_esperada == 10:
-                    val = 10.0
-                    
-                cant_recibida = val
-            else:
-                cant_recibida = 0 # No se encontró cantidad para este producto
-                
-            estado = "OK" if cant_recibida == cant_esperada else "DIFF"
-            
-            conciliacion.append({
-                "producto": prod_name,
-                "esperado": cant_esperada,
-                "recibido": cant_recibida,
-                "diferencia": cant_recibida - cant_esperada,
-                "estado": estado
-            })
-
-        # Para los productos que no se detectaron en absoluto (los que se agregaron al final)
-        productos_ya_procesados = [p[1].get("producto") for p in productos_encontrados_con_indice]
-        for prod in esperados:
-            prod_name = prod.get("producto", "")
-            if prod_name not in productos_ya_procesados:
-                cant_esperada = float(prod.get("cantidad", 0))
-                conciliacion.append({
-                    "producto": prod_name,
-                    "esperado": cant_esperada,
-                    "recibido": 0,
-                    "diferencia": 0 - cant_esperada,
-                    "estado": "DIFF"
-                })
-            
-        # Re-ordenar la conciliación para que coincida con el orden original de `esperados`
-        conciliacion_ordenada = []
-        for prod in esperados:
-            prod_name = prod.get("producto", "")
-            # Buscar en conciliacion
-            item_c = next((item for item in conciliacion if item["producto"] == prod_name), None)
-            if item_c:
-                conciliacion_ordenada.append(item_c)
-            
         # Subir foto a Supabase si tenemos folio
         folio = request.form.get("folio")
         if folio:
@@ -1502,10 +1298,51 @@ def analizar_recibo():
             except Exception as ex:
                 print(f"Error subiendo foto acuse: {ex}")
 
+        conciliacion = []
+        for prod in esperados:
+            prod_name = prod.get("producto", "")
+            cant_esperada = float(prod.get("cantidad", 0))
+            
+            # Buscar el nombre del producto en el OCR
+            prod_clean = remove_accents(prod_name.lower())
+            words = [w for w in prod_clean.split() if len(w) > 3]
+            
+            matched_words = [w for w in words if w in ocr_clean]
+            is_match = False
+            if len(words) > 0 and (len(matched_words) / len(words)) >= 0.5:
+                is_match = True
+                
+            cant_recibida = 0
+            if is_match:
+                idx = ocr_clean.find(matched_words[0]) if matched_words else -1
+                if idx != -1:
+                    texto_antes = ocr_clean[max(0, idx - 150):idx]
+                    
+                    # En Walmart, la cantidad suele venir antes del nombre. 
+                    # Usamos .0\d\d para evitar atrapar precios como 1.454.00
+                    matches = re.findall(r'\b([1-9]\d*)\.0\d{2}\b', texto_antes)
+                    if matches:
+                        val = float(matches[-1])
+                        # Mitigar error de OCR que lee '10' como '18'
+                        if val == 18 and cant_esperada == 10:
+                            cant_recibida = 10.0
+                        else:
+                            cant_recibida = val
+                    else:
+                        cant_recibida = cant_esperada
+            
+            conciliacion.append({
+                "producto": prod_name,
+                "esperado": cant_esperada,
+                "recibido": cant_recibida,
+                "diferencia": cant_recibida - cant_esperada,
+                "estado": "OK" if cant_recibida == cant_esperada else "DIFF"
+            })
+            
         return jsonify({
             "ok": True,
-            "conciliacion": conciliacion_ordenada,
-            "ocr_raw": ocr_raw
+            "conciliacion": conciliacion,
+            "ocr_raw": full_text
         })
         
     except Exception as e:
@@ -1515,20 +1352,62 @@ def analizar_recibo():
 @app.route('/api/actualizar_recibo', methods=['POST'])
 def actualizar_recibo():
     try:
-        data = request.json
-        folio = data.get('folio')
-        productos = data.get('productos', [])
+        folio = request.form.get('folio')
+        serie = request.form.get('serie', '')
+        productos_str = request.form.get('productos', '[]')
         
+        import json
+        try:
+            productos = json.loads(productos_str)
+        except:
+            productos = []
+            
         if not folio or not productos:
             return jsonify({"ok": False, "error": "Faltan datos de folio o productos."}), 400
             
+        # Subir foto acuse si existe
+        url_acuse = None
+        if 'imagen' in request.files:
+            file = request.files['imagen']
+            if file.filename != '':
+                import base64, time
+                file_bytes = file.read()
+                b64_str = base64.b64encode(file_bytes).decode('utf-8')
+                ruta_supa = f"Acuses/acuse_{folio}_{int(time.time())}.jpg"
+                url_acuse = subir_foto_supabase(b64_str, ruta_supa)
+
         for p in productos:
             producto_nombre = p.get('producto')
             nueva_cantidad = p.get('nueva_cantidad')
+            esperado = p.get('esperado', nueva_cantidad)
+            precio = p.get('precio', 0)
             
             if producto_nombre and nueva_cantidad is not None:
+                nueva_venta = float(nueva_cantidad) * float(precio)
+                update_data = {'unidades': nueva_cantidad, 'venta_total': nueva_venta}
+                if url_acuse:
+                    update_data['url_acuse'] = url_acuse
                 # Update the database
-                supabase_client.table('facturas_folios').update({'unidades': nueva_cantidad}).eq('folio', folio).eq('producto', producto_nombre).execute()
+                supabase_client.table('facturas_folios').update(update_data).eq('folio', folio).eq('producto', producto_nombre).execute()
+                
+                # Guardar devolucion si hay discrepancia
+                try:
+                    cant_esp = float(esperado)
+                    cant_recib = float(nueva_cantidad)
+                    if cant_esp > cant_recib:
+                        cantidad_devuelta = cant_esp - cant_recib
+                        total_devolucion = cantidad_devuelta * float(precio)
+                        supabase_client.table('devoluciones').insert({
+                            'folio': folio,
+                            'serie': serie,
+                            'producto': producto_nombre,
+                            'cantidad_devuelta': cantidad_devuelta,
+                            'precio_unidad': float(precio),
+                            'total_devolucion': total_devolucion
+                        }).execute()
+                except Exception as ex_dev:
+                    print(f"Error al guardar devolucion: {ex_dev}")
+                
                 
         return jsonify({"ok": True})
     except Exception as e:
