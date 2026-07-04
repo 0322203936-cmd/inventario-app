@@ -676,7 +676,18 @@
                             <button type="button" class="btn btn-sm btn-outline-light btn-inc" data-index="${index}" style="font-weight:bold; width: 30px; border-radius: 8px; border-color: rgba(255,255,255,0.2); color:#fff;">+</button>
                         </div>
                     </div>
-                    <div id="diff-${index}" style="display:none; padding: 8px; border-radius: 8px; font-size: 12px; text-align: center; margin-top: 10px; font-weight: bold; border: 1px solid transparent;"></div>
+                    <div id="diff-container-${index}" style="display:none; font-size: 13px; padding: 6px 10px; border-radius: 8px; text-align: center; border: 1px solid transparent; margin-top: 10px;">
+                        <span id="diff-msg-${index}"></span>
+                        <div id="diff-reason-${index}" style="margin-top: 8px; text-align: left; display: none;">
+                            <label style="font-size: 11px; color: rgba(255,255,255,0.7); display: block; margin-bottom: 4px;">Razón de merma:</label>
+                            <select id="reason-sel-${index}" style="width: 100%; padding: 6px; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; font-size: 13px;" onchange="currentConciliacion[${index}].razon_devolucion = this.value">
+                                <option value="" disabled selected>Selecciona un motivo...</option>
+                                <option value="Calidad">Calidad</option>
+                                <option value="No empacado">No empacado</option>
+                                <option value="Maltratado">Maltratado</option>
+                            </select>
+                        </div>
+                    </div>
                 `;
                 reconList.appendChild(card);
             });
@@ -704,33 +715,39 @@
             function updateColor(idx) {
                 const item = currentConciliacion[idx];
                 const el = document.getElementById('qty-'+idx);
-                const diffEl = document.getElementById('diff-'+idx);
+                const diffCont = document.getElementById('diff-container-'+idx);
+                const diffMsg = document.getElementById('diff-msg-'+idx);
+                const diffReason = document.getElementById('diff-reason-'+idx);
                 const diff = item.esperado - item.recibido;
                 
                 if (item.recibido < item.esperado) {
                     el.style.color = '#fbbf24';
                     el.style.textShadow = '0 0 10px rgba(251,191,36,0.4)';
-                    diffEl.style.display = 'block';
-                    diffEl.style.background = 'rgba(217, 119, 6, 0.2)';
-                    diffEl.style.borderColor = 'rgba(217, 119, 6, 0.5)';
-                    diffEl.style.color = '#fbbf24';
-                    diffEl.innerHTML = `⚠️ Devolución de ${diff} unidades`;
+                    diffCont.style.display = 'block';
+                    diffCont.style.background = 'rgba(217, 119, 6, 0.2)';
+                    diffCont.style.borderColor = 'rgba(217, 119, 6, 0.5)';
+                    diffCont.style.color = '#fbbf24';
+                    diffMsg.innerHTML = `⚠️ Devolución de ${diff} unidades`;
+                    diffReason.style.display = 'block';
+                    if(item.razon_devolucion) document.getElementById('reason-sel-'+idx).value = item.razon_devolucion;
                 } else if (item.recibido > item.esperado) {
                     el.style.color = '#60a5fa';
                     el.style.textShadow = '0 0 10px rgba(96,165,250,0.4)';
-                    diffEl.style.display = 'block';
-                    diffEl.style.background = 'rgba(37, 99, 235, 0.2)';
-                    diffEl.style.borderColor = 'rgba(37, 99, 235, 0.5)';
-                    diffEl.style.color = '#60a5fa';
-                    diffEl.innerHTML = `⚠️ Sobran ${-diff} unidades`;
+                    diffCont.style.display = 'block';
+                    diffCont.style.background = 'rgba(37, 99, 235, 0.2)';
+                    diffCont.style.borderColor = 'rgba(37, 99, 235, 0.5)';
+                    diffCont.style.color = '#60a5fa';
+                    diffMsg.innerHTML = `⚠️ Sobran ${-diff} unidades`;
+                    diffReason.style.display = 'none';
                 } else {
                     el.style.color = '#34d399';
                     el.style.textShadow = '0 0 10px rgba(52,211,153,0.4)';
-                    diffEl.style.display = 'block';
-                    diffEl.style.background = 'rgba(16, 185, 129, 0.2)';
-                    diffEl.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-                    diffEl.style.color = '#34d399';
-                    diffEl.innerHTML = `✅ Cantidad Coincide`;
+                    diffCont.style.display = 'block';
+                    diffCont.style.background = 'rgba(16, 185, 129, 0.2)';
+                    diffCont.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                    diffCont.style.color = '#34d399';
+                    diffMsg.innerHTML = `✅ Cantidad Coincide`;
+                    diffReason.style.display = 'none';
                 }
             }
 
