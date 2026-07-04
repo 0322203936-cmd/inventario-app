@@ -1141,19 +1141,9 @@ def api_eliminar_foto():
 
 @app.route("/api/analizar_factura", methods=["POST"])
 def api_analizar_factura():
-    if 'imagen' not in request.files:
-        return jsonify({"ok": False, "error": "No image provided"}), 400
-        
-    file = request.files['imagen']
-    if file.filename == '':
-        return jsonify({"ok": False, "error": "No selected file"}), 400
-        
-    try:
-        file_bytes = np.frombuffer(file.read(), np.uint8)
-        
-        folio_manual = request.form.get('folio_manual', '').strip()
-        if not folio_manual:
-            return jsonify({"ok": False, "error": "Folio es requerido"}), 400
+    folio_manual = request.form.get('folio_manual', '').strip()
+    if not folio_manual:
+        return jsonify({"ok": False, "error": "Folio es requerido"}), 400
 
         print(f"Bypassing OCR. Folio manual: {folio_manual}", flush=True)
         
@@ -1196,14 +1186,7 @@ def api_analizar_factura():
             
             total_detectado = f"${total_sum:,.2f}"
                     
-        import base64, time
         url_factura_temp = ""
-        try:
-            b64_str = base64.b64encode(file_bytes).decode('utf-8')
-            ruta_supa = f"Facturas/factura_{int(time.time())}.jpg"
-            url_factura_temp = subir_foto_supabase(b64_str, ruta_supa)
-        except Exception as ex:
-            print(f"Error subiendo foto factura: {ex}")
             
         return jsonify({
               "ok": True,
@@ -1326,7 +1309,7 @@ def actualizar_recibo():
     try:
         folio = request.form.get('folio')
         serie = request.form.get('serie', '')
-        url_factura_form = request.form.get('url_factura', '')
+        # Ya no recibimos url_factura como string desde el form
         productos_str = request.form.get('productos', '[]')
         
         import json
@@ -1338,16 +1321,27 @@ def actualizar_recibo():
         if not folio or not productos:
             return jsonify({"ok": False, "error": "Faltan datos de folio o productos."}), 400
             
+        import base64, time
+        
         # Subir foto acuse si existe
         url_acuse = None
-        if 'imagen' in request.files:
-            file = request.files['imagen']
-            if file.filename != '':
-                import base64, time
-                file_bytes = file.read()
-                b64_str = base64.b64encode(file_bytes).decode('utf-8')
-                ruta_supa = f"Acuses/acuse_{folio}_{int(time.time())}.jpg"
-                url_acuse = subir_foto_supabase(b64_str, ruta_supa)
+        if 'imagen_acuse' in request.files:
+            file_acuse = request.files['imagen_acuse']
+            if file_acuse.filename != '':
+                file_bytes_acuse = file_acuse.read()
+                b64_str_acuse = base64.b64encode(file_bytes_acuse).decode('utf-8')
+                ruta_supa_acuse = f"Acuses/acuse_{folio}_{int(time.time())}.jpg"
+                url_acuse = subir_foto_supabase(b64_str_acuse, ruta_supa_acuse)
+
+        # Subir foto factura si existe
+        url_factura_form = None
+        if 'imagen_factura' in request.files:
+            file_fact = request.files['imagen_factura']
+            if file_fact.filename != '':
+                file_bytes_fact = file_fact.read()
+                b64_str_fact = base64.b64encode(file_bytes_fact).decode('utf-8')
+                ruta_supa_fact = f"Facturas/factura_{folio}_{int(time.time())}.jpg"
+                url_factura_form = subir_foto_supabase(b64_str_fact, ruta_supa_fact)
 
         for p in productos:
             producto_nombre = p.get('producto')

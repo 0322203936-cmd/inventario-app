@@ -424,7 +424,6 @@
         loadingArea.style.display = 'flex';
 
         const formData = new FormData();
-        formData.append('imagen', tempFile);
         formData.append('folio_manual', manualFolio);
 
         try {
@@ -462,9 +461,6 @@
         
         currentFolio = data.factura.folio;
         currentSerie = data.factura.serie || 'N/A';
-        if (data.factura.url_factura) {
-            currentUrlFactura = data.factura.url_factura;
-        }
         
         document.getElementById('resSerie').textContent = currentSerie;
         document.getElementById('resFolio').textContent = currentFolio || 'N/A';
@@ -781,14 +777,14 @@
         btnRecibido.disabled = true;
 
         const formData = new FormData();
+        if (tempFile) {
+            formData.append('imagen_factura', tempFile);
+        }
         if (acuseTempFile) {
-            formData.append('imagen', acuseTempFile);
+            formData.append('imagen_acuse', acuseTempFile);
         }
         formData.append('folio', currentFolio);
         formData.append('serie', currentSerie);
-        if (currentUrlFactura) {
-            formData.append('url_factura', currentUrlFactura);
-        }
         formData.append('productos', JSON.stringify(payloadProductos));
         
         try {
