@@ -755,7 +755,8 @@
             producto: item.producto,
             esperado: item.esperado,
             nueva_cantidad: item.recibido,
-            precio: item.precio
+            precio: item.precio,
+            razon_devolucion: item.razon_devolucion || ''
         }));
         
         const prevText = btnRecibido.innerHTML;

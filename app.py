@@ -1381,6 +1381,7 @@ def actualizar_recibo():
             nueva_cantidad = p.get('nueva_cantidad')
             esperado = p.get('esperado', nueva_cantidad)
             precio = p.get('precio', 0)
+            razon_devolucion = p.get('razon_devolucion', '')
             
             if producto_nombre and nueva_cantidad is not None:
                 nueva_venta = float(nueva_cantidad) * float(precio)
@@ -1403,7 +1404,8 @@ def actualizar_recibo():
                             'producto': producto_nombre,
                             'cantidad_devuelta': cantidad_devuelta,
                             'precio_unidad': float(precio),
-                            'total_devolucion': total_devolucion
+                            'total_devolucion': total_devolucion,
+                            'razon_devolucion': razon_devolucion
                         }).execute()
                 except Exception as ex_dev:
                     print(f"Error al guardar devolucion: {ex_dev}")
