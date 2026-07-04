@@ -2,8 +2,7 @@ Flask
 gunicorn
 msal
 requests
-paddlepaddle
-paddleocr>=2.8.1
+
 opencv-python-headless
 python-dotenv
 supabase

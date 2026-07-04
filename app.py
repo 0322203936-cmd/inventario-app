@@ -13,18 +13,8 @@ import numpy as np
 import re
 from datetime import datetime
 
-# Intentamos importar PaddleOCR
-try:
-    from paddleocr import PaddleOCR
-    # lang='es' para español, use_angle_cls para enderezar texto
-    reader = PaddleOCR(use_angle_cls=True, lang='es')
-except ImportError:
-    print("PaddleOCR no está instalado.")
-    reader = None
-except Exception as e:
-    print(f"Error inicializando PaddleOCR: {e}")
-    reader = None
-
+# OCR eliminado a petición del usuario para ahorrar memoria RAM
+reader = None
 def mejorar_imagen_opencv(img_bytes):
     """Preprocesa la imagen usando OpenCV para mejorar el OCR"""
     img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
@@ -1249,29 +1239,11 @@ def analizar_recibo():
         esperados = []
 
     try:
-        # Read the image and run PaddleOCR
-        img_bytes = file.read()
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # Ya no usamos OCR, así que si llegamos aquí sin folio manual, es un error
+        if not folio_manual:
+            return jsonify({"ok": False, "error": "El folio manual es requerido ahora que el OCR está desactivado."}), 400
         
-        # Aumentar contraste para mejorar OCR en recibos borrosos
-        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-        l_channel, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        cl = clahe.apply(l_channel)
-        limg = cv2.merge((cl,a,b))
-        img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        
-        result = reader.ocr(img, cls=False)
-        
-        full_text = ""
-        for line in result:
-            if line:
-                for word_info in line:
-                    full_text += word_info[1][0] + " "
-                full_text += "\n"
-        
-        print(f"--- OCR RECIBO ---\n{full_text}\n------------------", flush=True)
+        full_text = "OCR desactivado."
                 
         # Heurística para Walmart Recibo
         import unicodedata
