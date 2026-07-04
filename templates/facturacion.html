@@ -786,6 +786,9 @@
         }
         formData.append('folio', currentFolio);
         formData.append('serie', currentSerie);
+        if (currentUrlFactura) {
+            formData.append('url_factura', currentUrlFactura);
+        }
         formData.append('productos', JSON.stringify(payloadProductos));
         
         try {

@@ -1354,6 +1354,7 @@ def actualizar_recibo():
     try:
         folio = request.form.get('folio')
         serie = request.form.get('serie', '')
+        url_factura_form = request.form.get('url_factura', '')
         productos_str = request.form.get('productos', '[]')
         
         import json
@@ -1388,6 +1389,8 @@ def actualizar_recibo():
                 update_data = {'unidades': nueva_cantidad, 'venta_total': nueva_venta}
                 if url_acuse:
                     update_data['url_acuse'] = url_acuse
+                if url_factura_form:
+                    update_data['url_factura'] = url_factura_form
                 # Update the database
                 supabase_client.table('facturas_folios').update(update_data).eq('folio', folio).eq('producto', producto_nombre).execute()
                 
