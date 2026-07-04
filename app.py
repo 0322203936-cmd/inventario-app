@@ -1141,9 +1141,10 @@ def api_eliminar_foto():
 
 @app.route("/api/analizar_factura", methods=["POST"])
 def api_analizar_factura():
-    folio_manual = request.form.get('folio_manual', '').strip()
-    if not folio_manual:
-        return jsonify({"ok": False, "error": "Folio es requerido"}), 400
+    try:
+        folio_manual = request.form.get('folio_manual', '').strip()
+        if not folio_manual:
+            return jsonify({"ok": False, "error": "Folio es requerido"}), 400
 
         print(f"Bypassing OCR. Folio manual: {folio_manual}", flush=True)
         
