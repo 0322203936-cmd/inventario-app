@@ -939,7 +939,17 @@ def reporte():
                         if len(row) >= 6:
                             row_num = idx + 2
                             tienda = row[1]
-                            fecha = row[2]
+                            # Excel puede devolver la fecha como número serial (ej: 46088)
+                            fecha_raw = row[2]
+                            try:
+                                fecha_num = float(str(fecha_raw))
+                                # Convertir número serial de Excel a fecha real
+                                from datetime import date, timedelta
+                                excel_epoch = date(1899, 12, 30)
+                                fecha_date = excel_epoch + timedelta(days=int(fecha_num))
+                                fecha = fecha_date.strftime("%d/%m/%Y")
+                            except (ValueError, TypeError):
+                                fecha = str(fecha_raw)
                             usuario = row[3]
                             categoria = row[4]
                             
