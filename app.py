@@ -1440,6 +1440,25 @@ def cancelar_factura():
         # Insertar en facturas_canceladas
         supabase_client.table("facturas_canceladas").insert(registros_a_mover).execute()
         
+        # Insertar en devoluciones automáticamente
+        devoluciones_a_insertar = []
+        for reg in registros_a_mover:
+            cant = float(reg.get("unidades", 0))
+            precio = float(reg.get("precio_unidad", 0))
+            if cant > 0:
+                devoluciones_a_insertar.append({
+                    "folio": folio,
+                    "serie": "",
+                    "producto": reg.get("producto", ""),
+                    "cantidad_devuelta": cant,
+                    "precio_unidad": precio,
+                    "total_devolucion": cant * precio,
+                    "razon_devolucion": "Cancelada automáticamente"
+                })
+        
+        if devoluciones_a_insertar:
+            supabase_client.table("devoluciones").insert(devoluciones_a_insertar).execute()
+        
         # Eliminar de facturas_folios
         supabase_client.table("facturas_folios").delete().eq("folio", folio).execute()
         
