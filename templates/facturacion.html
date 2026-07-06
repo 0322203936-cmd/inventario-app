@@ -592,7 +592,7 @@
                 const res = await fetch('/api/cancelar_factura', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ folio: currentFolio })
+                    body: JSON.stringify({ folio: currentFolio, serie: currentSerie })
                 });
                 
                 const data = await res.json();

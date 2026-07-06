@@ -1421,6 +1421,7 @@ def sin_acuse():
 def cancelar_factura():
     data = request.json
     folio = data.get("folio")
+    serie = data.get("serie", "")
     if not folio:
         return jsonify({"success": False, "error": "Folio requerido"}), 400
         
@@ -1448,7 +1449,7 @@ def cancelar_factura():
             if cant > 0:
                 devoluciones_a_insertar.append({
                     "folio": folio,
-                    "serie": "",
+                    "serie": serie,
                     "producto": reg.get("producto", ""),
                     "cantidad_devuelta": cant,
                     "precio_unidad": precio,
