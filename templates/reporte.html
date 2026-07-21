@@ -2,9 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reporte de Gastos — Pacífica Farms</title>
+    <title>Reporte de Gastos — Centro floricultor de baja california</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -41,8 +43,8 @@
         .app-header {
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 0 20px;
-            height: 60px;
+            padding: 12px 20px;
+            min-height: 60px;
             display: flex;
             align-items: center;
             gap: 14px;
@@ -50,6 +52,7 @@
             top: 0;
             z-index: 100;
             box-shadow: var(--shadow-sm);
+            flex-wrap: wrap;
         }
 
         .back-btn {
@@ -65,7 +68,17 @@
         }
         .back-btn:hover { background: #fde8c8; }
 
-        .header-info { flex: 1; }
+        .header-info { flex: 0 0 auto; }
+        .header-filters {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin: 0 auto;
+        }
+        .header-filters .filter-group {
+            flex: 0 0 auto;
+            min-width: 150px;
+        }
         .header-info h1 {
             font-size: 16px;
             font-weight: 700;
@@ -89,14 +102,9 @@
             border-radius: 20px;
         }
 
-        /* ── Filter bar ── */
+        /* ── Filter bar (now in header) ── */
         .filter-bar {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 14px 20px;
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
+            display: none;
         }
 
         .filter-group {
@@ -129,14 +137,89 @@
         }
         .filter-control:focus { border-color: var(--accent); background: #fff; }
 
-        /* ── Main list ── */
-        .gastos-list {
+        .date-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .clear-date-btn {
+            position: absolute;
+            right: 6px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+        }
+        .clear-date-btn:hover {
+            background: var(--red-lt);
+            color: var(--red);
+        }
+
+        /* ── Main Layout ── */
+        .main-container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 20px;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .gastos-list {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 14px;
-            max-width: 900px;
-            margin: 0 auto;
+            min-width: 0;
+        }
+        .resumen-sidebar {
+            width: 250px;
+            background: transparent;
+            border: none;
+            padding: 16px;
+            position: sticky;
+            top: 90px; /* adjusted since filter bar is gone */
+            box-shadow: none;
+            flex-shrink: 0;
+        }
+        .resumen-titulo {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 8px;
+            text-align: center;
+        }
+        .resumen-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-main);
+        }
+        .resumen-item:last-child {
+            border-bottom: none;
+        }
+        @media (max-width: 1000px) {
+            .main-container {
+                flex-direction: column-reverse;
+            }
+            .resumen-sidebar {
+                width: 100%;
+                position: static;
+            }
         }
 
         /* ── Card ── */
@@ -332,7 +415,13 @@
         .btn-save   { background: var(--accent); color: #fff; }
 
         /* ── Category detail panels ── */
-        .cat-panels { padding: 0 18px 16px; display: flex; flex-direction: column; gap: 10px; }
+        .cat-panels {
+            padding: 0 18px 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 12px;
+            align-items: start;
+        }
 
         .cat-panel {
             background: #f8fafc;
@@ -510,6 +599,121 @@
             text-align: center;
             margin-top: 4px;
         }
+
+        /* ── Desktop Enhancements ── */
+        @media (min-width: 768px) {
+            .filter-bar {
+                justify-content: center;
+                align-items: center;
+                gap: 24px;
+                padding: 16px 30px;
+            }
+            .filter-group {
+                flex: 1;
+                max-width: 250px;
+            }
+            .gastos-list {
+                padding: 30px;
+                gap: 20px;
+            }
+            .gasto-card {
+                border-radius: 16px;
+            }
+            .card-head {
+                padding: 20px 24px 16px;
+            }
+            .cat-panels {
+                padding: 0 24px 20px;
+                gap: 16px;
+            }
+            .fotos-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                gap: 12px;
+            }
+        }
+
+        /* ── Print Enhancements ── */
+        @media print {
+            body.print-mode .resumen-sidebar {
+                display: none !important;
+            }
+            body.print-mode .main-container {
+                display: block;
+                padding: 0;
+            }
+            @page {
+                size: portrait;
+                margin: 0.5cm;
+            }
+            body.print-mode .app-header, 
+            body.print-mode .filter-bar, 
+            body.print-mode .empty-state,
+            body.print-mode .cat-pills,
+            body.print-mode .edit-panel {
+                display: none !important;
+            }
+            body.print-mode {
+                background: white;
+                font-size: 11px;
+            }
+            body.print-mode .gastos-list {
+                padding: 0;
+                margin: 0;
+            }
+            body.print-mode .gasto-card {
+                display: none; 
+                border: none;
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+            }
+            body.print-mode .gasto-card.print-active {
+                display: block; 
+                page-break-inside: avoid;
+            }
+            body.print-mode .card-head {
+                padding: 10px 5px;
+            }
+            body.print-mode .cat-panels {
+                display: flex;
+                flex-direction: column;
+                padding: 0;
+                gap: 6px;
+                align-items: stretch;
+            }
+            body.print-mode .cat-panel {
+                margin-bottom: 0;
+                border: 1px solid #ccc;
+                page-break-inside: avoid;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            body.print-mode .cat-panel-head {
+                padding: 6px 10px;
+            }
+            body.print-mode .cat-panel-body {
+                padding: 8px 10px;
+            }
+            body.print-mode .comentarios-box {
+                margin-bottom: 6px;
+                padding: 6px 10px;
+            }
+            body.print-mode .fotos-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            body.print-mode .foto-thumb {
+                width: 100px;
+                height: 100px;
+                object-fit: contain;
+            }
+            body.print-mode .monto-display {
+                border: none;
+                background: none;
+                padding: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -518,33 +722,40 @@
 <div class="app-header">
     <a href="/" class="back-btn">←</a>
     <div class="header-info">
-        <h1>📊 Reporte de Gastos</h1>
-        <span>Historial capturado</span>
+        <h1>Historial Capturado</h1>
     </div>
-    <div class="header-badge">Pacífica Farms</div>
+    
+    <div class="header-filters">
+        <div class="filter-group">
+            <span class="filter-label">Ruta</span>
+            <select class="filter-control" id="filtroTienda" onchange="filtrarGastos()">
+                <option value="ALL">Todas las rutas</option>
+                <option value="MXL">MXL</option>
+                <option value="Ruta 2000">Ruta 2000</option>
+                <option value="Rutas Playas">Rutas Playas</option>
+                <option value="ENS">ENS</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Usuario</span>
+            <input class="filter-control" type="text" id="filtroUsuario" placeholder="Filtrar usuario..." onkeyup="filtrarGastos()">
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Fecha</span>
+            <div class="date-wrapper">
+                <input class="filter-control" type="text" id="filtroFecha" placeholder="Seleccionar rango..." style="padding-right: 32px;">
+                <button class="clear-date-btn" onclick="limpiarFecha()" title="Borrar fecha">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header-badge">Centro floricultor de baja california</div>
 </div>
 
-<!-- Filter bar -->
-<div class="filter-bar">
-    <div class="filter-group">
-        <span class="filter-label">Ruta</span>
-        <select class="filter-control" id="filtroTienda" onchange="filtrarGastos()">
-            <option value="ALL">Todas las rutas</option>
-            <option value="MXL">MXL</option>
-            <option value="Ruta 2000">Ruta 2000</option>
-            <option value="Rutas Playas">Rutas Playas</option>
-            <option value="ENS">ENS</option>
-        </select>
-    </div>
-    <div class="filter-group">
-        <span class="filter-label">Usuario</span>
-        <input class="filter-control" type="text" id="filtroUsuario" placeholder="Filtrar usuario..." onkeyup="filtrarGastos()">
-    </div>
-    <div class="filter-group">
-        <span class="filter-label">Fecha</span>
-        <input class="filter-control" type="date" id="filtroFecha" onchange="filtrarGastos()">
-    </div>
-</div>
+
+
+<!-- Main Container -->
+<div class="main-container">
 
 <!-- Cards -->
 <div class="gastos-list" id="gastosContainer">
@@ -560,7 +771,7 @@
         {% set card_num = loop.index %}
         {% set viaticos = g.viaticos if g.viaticos is not none else (1100 if g.tienda == 'MXL' else 700) %}
 
-        <div class="gasto-card" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}" data-fecha="{{ g.fecha }}">
+        <div class="gasto-card" id="gasto-card-{{ card_num }}" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}" data-fecha="{{ g.fecha }}">
             <div class="card-stripe"></div>
 
             <div class="card-head">
@@ -569,10 +780,10 @@
                     <div class="cat-pills">
                         {% for cat, det in g.detalles.items() %}
                         <button class="cat-pill {{ cat.lower() }}" id="btn-{{ card_idx }}-{{ cat }}" onclick="switchCategoria('{{ card_idx }}', '{{ cat }}')">
-                            {% if cat == 'CASETAS' %}🛣️{% elif cat == 'COMIDA' %}🍽️{% else %}📦{% endif %}
                             {{ cat }}
                         </button>
                         {% endfor %}
+                        <button class="cat-pill" style="background: var(--surface); border-color: var(--border); color: var(--text-main); margin-left: 8px;" onclick="imprimirTarjeta('{{ card_num }}')">Imprimir</button>
                     </div>
                     <div class="card-ruta">{{ g.tienda }}</div>
                     <div class="card-meta">
@@ -586,7 +797,7 @@
                 <!-- Right: display view -->
                 <div class="card-head-right" id="display-view-{{ card_num }}">
                     <div class="monto-display" onclick="toggleEdit('{{ card_num }}')" id="gran-total-{{ card_num }}">
-                        ${{ "{:,.2f}".format(g.monto|float) }} ✏️
+                        ${{ "{:,.2f}".format(g.monto|float) }}
                     </div>
                     {% if viaticos > 0 or g.viaticos is not none %}
                         {% set restante = viaticos - g.monto|float %}
@@ -607,7 +818,6 @@
                     {% for cat, det in g.detalles.items() %}
                     <div class="edit-row edit-cat-row" data-cat="{{ cat }}" data-rows='{{ det.row_nums | tojson }}'>
                         <label>
-                            {% if cat == 'CASETAS' %}🛣️{% elif cat == 'COMIDA' %}🍽️{% else %}📦{% endif %}
                             {{ cat }}
                         </label>
                         <input type="number" step="0.01" value="{{ det.monto|float }}" class="edit-input edit-cat-monto" id="input-monto-{{ card_num }}-{{ cat }}">
@@ -616,7 +826,7 @@
                 </div>
                 <hr class="edit-divider">
                 <div class="edit-row">
-                    <label>💰 Viáticos globales</label>
+                    <label>Total Viaticos</label>
                     <input type="number" step="0.01" id="edit-viatico-{{ card_num }}" value="{{ viaticos }}" class="edit-input">
                 </div>
                 <div class="edit-actions">
@@ -632,7 +842,6 @@
                 <div class="cat-panel" id="cat-detail-{{ card_idx }}-{{ cat }}">
                     <div class="cat-panel-head">
                         <span class="cat-panel-name">
-                            {% if cat == 'CASETAS' %}🛣️{% elif cat == 'COMIDA' %}🍽️{% else %}📦{% endif %}
                             {{ cat }}
                         </span>
                         <span class="cat-panel-monto" id="display-monto-{{ card_num }}-{{ cat }}">${{ "{:,.2f}".format(det.monto) }}</span>
@@ -669,6 +878,13 @@
         {% endfor %}
     {% endif %}
 </div>
+
+<!-- Sidebar -->
+<div class="resumen-sidebar" id="resumenSidebar">
+    <!-- JS will populate this -->
+</div>
+
+</div> <!-- end main-container -->
 
 <!-- Photo Modal -->
 <div class="foto-modal" id="fotoModal" onclick="cerrarModal()">
@@ -730,7 +946,7 @@
                     granTotal += parseFloat(el.value) || 0;
                 });
                 let displayGranTotal = document.getElementById(`gran-total-${cardNum}`);
-                if (displayGranTotal) displayGranTotal.innerHTML = `$${granTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ✏️`;
+                if (displayGranTotal) displayGranTotal.innerHTML = `$${granTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 let status = document.getElementById('fotoMontoStatus');
                 status.style.display = 'block';
                 status.innerText = "¡Suma calculada!";
@@ -786,14 +1002,29 @@
         document.getElementById('fotoModal').classList.remove('open');
     }
 
+    function limpiarFecha() {
+        const fp = document.getElementById('filtroFecha')._flatpickr;
+        if (fp) {
+            fp.clear();
+        }
+    }
+
     function filtrarGastos() {
         const t = document.getElementById('filtroTienda').value;
         const u = document.getElementById('filtroUsuario').value.toLowerCase();
-        const fDate = document.getElementById('filtroFecha').value;
-        let tY = -1, tM = -1, tD = -1;
-        if (fDate) {
-            const parts = fDate.split('-');
-            if (parts.length === 3) { tY = parseInt(parts[0]); tM = parseInt(parts[1]); tD = parseInt(parts[2]); }
+        
+        const fp = document.getElementById('filtroFecha')._flatpickr;
+        let fStart = null, fEnd = null;
+        if (fp && fp.selectedDates.length > 0) {
+            fStart = new Date(fp.selectedDates[0]);
+            fStart.setHours(0,0,0,0);
+            if (fp.selectedDates.length === 2) {
+                fEnd = new Date(fp.selectedDates[1]);
+                fEnd.setHours(23,59,59,999);
+            } else {
+                fEnd = new Date(fStart);
+                fEnd.setHours(23,59,59,999);
+            }
         }
         document.querySelectorAll('.gasto-card').forEach(card => {
             const cardT = card.getAttribute('data-tienda');
@@ -811,16 +1042,28 @@
                         let idxY = p.findIndex(x => x > 31);
                         if (idxY !== -1) { cY = p[idxY]; p.splice(idxY, 1); }
                         else { cY = p[2] + 2000; p.splice(2, 1); }
-                        if ((p[0] === tM && p[1] === tD) || (p[0] === tD && p[1] === tM)) { cM = tM; cD = tD; }
-                        else { cM = p[0]; cD = p[1]; }
+                        if (p[0] > 12) { cD = p[0]; cM = p[1]; }
+                        else if (p[1] > 12) { cM = p[0]; cD = p[1]; }
+                        else { cD = p[0]; cM = p[1]; }
                     }
                 }
             }
             const matchT = (t === 'ALL' || cardT === t);
             const matchU = (u === '' || cardU.includes(u));
-            const matchF = (!fDate || (tY === cY && tM === cM && tD === cD));
+            let matchF = true;
+            if (fStart && fEnd) {
+                if (cY !== -1 && cM !== -1 && cD !== -1) {
+                    const cardDate = new Date(cY, cM - 1, cD);
+                    matchF = (cardDate >= fStart && cardDate <= fEnd);
+                } else {
+                    matchF = false;
+                }
+            }
             card.style.display = (matchT && matchU && matchF) ? 'block' : 'none';
         });
+        if (typeof calcularResumen === 'function') {
+            calcularResumen();
+        }
     }
 
     function toggleEdit(index) {
@@ -889,6 +1132,74 @@
             btn.disabled = false;
         }
     }
+
+    function calcularResumen() {
+        let resumen = {};
+        document.querySelectorAll('.gasto-card').forEach(card => {
+            // Only count visible cards
+            if (card.style.display === 'none') return;
+            
+            let u = card.getAttribute('data-usuario');
+            if (!u) return;
+            // Capitalize user name
+            let parts = u.split(' ');
+            u = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+            
+            let restanteEl = card.querySelector('.restante-val');
+            if (restanteEl) {
+                let text = restanteEl.innerText;
+                let val = parseFloat(text.replace(/[^\d.-]/g, ''));
+                if (!isNaN(val)) {
+                    if (!resumen[u]) resumen[u] = 0;
+                    resumen[u] += val;
+                }
+            }
+        });
+        
+        let html = '<div class="resumen-titulo">Total Restante</div>';
+        let hasData = false;
+        for (let [user, total] of Object.entries(resumen)) {
+            hasData = true;
+            let color = total >= 0 ? '#16a34a' : '#dc2626';
+            html += `<div class="resumen-item">
+                <span style="font-weight: 600;">👤 ${user}</span>
+                <span style="color: ${color}; font-weight: 800;">$${total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+            </div>`;
+        }
+        if (!hasData) {
+            html += '<div style="font-size: 12px; color: #718096; text-align: center; padding: 10px;">No hay datos</div>';
+        }
+        document.getElementById('resumenSidebar').innerHTML = html;
+    }
+
+    // Run on load
+    window.addEventListener('DOMContentLoaded', () => {
+        calcularResumen();
+        flatpickr("#filtroFecha", {
+            mode: "range",
+            locale: "es",
+            dateFormat: "Y-m-d",
+            onChange: function() {
+                filtrarGastos();
+            }
+        });
+    });
+
+    function imprimirTarjeta(cardNum) {
+        document.body.classList.add('print-mode');
+        document.querySelectorAll('.gasto-card').forEach(c => c.classList.remove('print-active'));
+        document.getElementById('gasto-card-' + cardNum).classList.add('print-active');
+        
+        // Expand all categories before printing so they are all visible
+        const allPanels = document.querySelectorAll('#gasto-card-' + cardNum + ' .cat-panel');
+        allPanels.forEach(p => p.style.display = 'block');
+        
+        window.print();
+        
+        document.body.classList.remove('print-mode');
+    }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 </body>
 </html>

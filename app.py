@@ -135,9 +135,9 @@ def _get_base_url(site_id):
 
 
 def _fmt_fecha_excel(fecha_str):
-    """Convierte fecha de DD/MM/YYYY a MM/DD/YY para el Excel."""
+    """Convierte fecha de DD/MM/YYYY a YYYY-MM-DD para el Excel."""
     try:
-        return datetime.strptime(fecha_str, "%d/%m/%Y").strftime("%m/%d/%y")
+        return datetime.strptime(fecha_str, "%d/%m/%Y").strftime("%Y-%m-%d")
     except Exception:
         return fecha_str  # si falla, deja el valor original
 
@@ -939,6 +939,21 @@ def reporte():
                         if len(row) >= 6:
                             row_num = idx + 2
                             tienda = row[1]
+                            
+                            fecha_reg_raw = row[0]
+                            fecha_reg_date = None
+                            try:
+                                from datetime import datetime, timedelta
+                                fecha_reg_num = float(str(fecha_reg_raw))
+                                fecha_reg_date = datetime(1899, 12, 30) + timedelta(days=fecha_reg_num)
+                                fecha_reg_str = fecha_reg_date.strftime("%d/%m/%Y %H:%M")
+                            except (ValueError, TypeError):
+                                fecha_reg_str = str(fecha_reg_raw)
+                                try:
+                                    from datetime import datetime
+                                    fecha_reg_date = datetime.strptime(fecha_reg_str, "%d/%m/%Y %H:%M")
+                                except Exception:
+                                    pass
                             # Excel puede devolver la fecha como número serial (ej: 46088)
                             fecha_raw = row[2]
                             try:
@@ -947,6 +962,16 @@ def reporte():
                                 from datetime import date, timedelta
                                 excel_epoch = date(1899, 12, 30)
                                 fecha_date = excel_epoch + timedelta(days=int(fecha_num))
+                                
+                                # Fix for swapped days and months in old records
+                                if fecha_reg_date and fecha_reg_date < datetime(2026, 7, 22):
+                                    if fecha_date.day <= 12:
+                                        from datetime import date as dt_date
+                                        try:
+                                            fecha_date = dt_date(fecha_date.year, fecha_date.day, fecha_date.month)
+                                        except ValueError:
+                                            pass
+                                            
                                 fecha = fecha_date.strftime("%d/%m/%Y")
                             except (ValueError, TypeError):
                                 fecha = str(fecha_raw)
@@ -972,7 +997,7 @@ def reporte():
                             
                             if key not in grouped:
                                 grouped[key] = {
-                                    "fecha_reg": row[0],
+                                    "fecha_reg": fecha_reg_str,
                                     "tienda": tienda,
                                     "fecha": fecha,
                                     "usuario": usuario,
@@ -1011,7 +1036,7 @@ def reporte():
                                     if comentario_str:
                                         grouped[key]["detalles"][categoria]["comentarios"].append(comentario_str)
 
-                                grouped[key]["fecha_reg"] = row[0] # Mostrar última fecha de actualización
+                                grouped[key]["fecha_reg"] = fecha_reg_str # Mostrar última fecha de actualización
                                 
                     gastos = list(grouped.values())
                     gastos.reverse() # Mostrar los grupos más recientes primero
