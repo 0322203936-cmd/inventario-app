@@ -7,7 +7,9 @@ import base64
 import requests as req_lib
 import msal
 import threading
-from supabase import create_client, Client
+from collections import OrderedDict
+from urllib.parse import quote, quote_plus, unquote
+from neon_db import database_client
 import cv2
 import numpy as np
 import re
@@ -38,10 +40,7 @@ app = Flask(__name__)
 
 DELETE_PASSWORD = "CFBCWALMEX"
 
-# Supabase Config
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+# Base de datos local: Neon PostgreSQL. La conexion privada vive solo en el servidor.
 
 # ── SharePoint / Excel config ─────────────────────────────────────────────────
 SP_TENANT_ID     = os.environ.get("SP_TENANT_ID",     "")
@@ -88,6 +87,9 @@ _TOKEN_CACHE = None
 _TOKEN_EXPIRY = 0
 _SITE_ID_CACHE = None
 _DOWNLOAD_URL_CACHE = {}
+_PHOTO_BYTES_CACHE = OrderedDict()
+_PHOTO_BYTES_CACHE_SIZE = 0
+_PHOTO_BYTES_CACHE_LIMIT = 24 * 1024 * 1024
 
 def _get_sp_token():
     global _TOKEN_CACHE, _TOKEN_EXPIRY
@@ -634,32 +636,109 @@ def ping():
 
 # ── SharePoint: subida de fotos ───────────────────────────────────────────────
 
-SP_GASTOS_FOLDER = "/requerimiento vs proyeccion/WALMEX/Gastos"
+SP_GASTOS_FOLDER = "requerimiento vs proyeccion/WALMEX/Gastos"
 
-def subir_foto_supabase(imagen_base64, ruta_destino):
-    """
-    Sube una imagen (base64) a Supabase Storage y retorna la URL publica.
-    """
-    try:
-        if ',' in imagen_base64:
-            imagen_base64 = imagen_base64.split(',', 1)[1]
-        img_bytes = base64.b64decode(imagen_base64)
-        
-        # Subir a supabase (reemplaza si existe)
-        supabase_client.storage.from_("gastos-fotos").upload(
-            ruta_destino, 
-            img_bytes, 
-            file_options={"content-type": "image/jpeg", "upsert": "true"}
+
+def _graph_path(path):
+    """Codifica una ruta de SharePoint conservando sus separadores."""
+    return quote(path.strip("/"), safe="/")
+
+
+def _ensure_sharepoint_folder(site_id, auth_headers, folder_path):
+    """Crea, si hace falta, cada segmento de una carpeta del drive del sitio."""
+    current = ""
+    for segment in [p for p in folder_path.strip("/").split("/") if p]:
+        parent = current
+        current = f"{current}/{segment}" if current else segment
+        check_url = (
+            f"https://graph.microsoft.com/v1.0/sites/{site_id}"
+            f"/drive/root:/{_graph_path(current)}"
         )
-        
-        # Obtener URL publica
-        res = supabase_client.storage.from_("gastos-fotos").get_public_url(ruta_destino)
-        return res
-    except Exception as e:
-        print(f"[SUPABASE] Error subiendo foto: {e}")
-        return None
+        check = req_lib.get(check_url, headers=auth_headers, timeout=30)
+        if check.ok:
+            continue
+        if check.status_code != 404:
+            check.raise_for_status()
 
-def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url):
+        if parent:
+            children_url = (
+                f"https://graph.microsoft.com/v1.0/sites/{site_id}"
+                f"/drive/root:/{_graph_path(parent)}:/children"
+            )
+        else:
+            children_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root/children"
+        created = req_lib.post(
+            children_url,
+            headers={**auth_headers, "Content-Type": "application/json"},
+            json={"name": segment, "folder": {}, "@microsoft.graph.conflictBehavior": "fail"},
+            timeout=30,
+        )
+        if not created.ok and created.status_code != 409:
+            created.raise_for_status()
+
+
+def _thumbnail_bytes(img_bytes, max_side=360, quality=68):
+    """Genera una miniatura JPEG liviana para el reporte."""
+    image = cv2.imdecode(np.frombuffer(img_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        return img_bytes
+    height, width = image.shape[:2]
+    scale = min(1.0, max_side / max(height, width))
+    if scale < 1.0:
+        image = cv2.resize(
+            image,
+            (max(1, round(width * scale)), max(1, round(height * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+    ok, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    return encoded.tobytes() if ok else img_bytes
+
+
+def _thumb_path(path):
+    stem, ext = os.path.splitext(path)
+    return f"{stem}__thumb{ext or '.jpg'}"
+
+
+def _legacy_object_path(value):
+    marker = "/storage/v1/object/public/gastos-fotos/"
+    if marker not in value:
+        return None
+    return unquote(value.split(marker, 1)[1].split("?", 1)[0])
+
+
+def _photo_proxy_url(value, thumbnail=False):
+    if not value:
+        return ""
+    suffix = "&thumb=1" if thumbnail else ""
+    return f"/api/foto?path={quote_plus(value)}{suffix}"
+
+
+app.jinja_env.globals["foto_proxy_url"] = _photo_proxy_url
+
+
+def _photo_cache_get(key):
+    item = _PHOTO_BYTES_CACHE.get(key)
+    if item is None:
+        return None
+    _PHOTO_BYTES_CACHE.move_to_end(key)
+    return item
+
+
+def _photo_cache_put(key, content, content_type):
+    global _PHOTO_BYTES_CACHE_SIZE
+    if len(content) > _PHOTO_BYTES_CACHE_LIMIT // 2:
+        return
+    old = _PHOTO_BYTES_CACHE.pop(key, None)
+    if old:
+        _PHOTO_BYTES_CACHE_SIZE -= len(old[0])
+    _PHOTO_BYTES_CACHE[key] = (content, content_type)
+    _PHOTO_BYTES_CACHE_SIZE += len(content)
+    while _PHOTO_BYTES_CACHE and _PHOTO_BYTES_CACHE_SIZE > _PHOTO_BYTES_CACHE_LIMIT:
+        _, removed = _PHOTO_BYTES_CACHE.popitem(last=False)
+        _PHOTO_BYTES_CACHE_SIZE -= len(removed[0])
+
+def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url=None,
+                          site_id=None, crear_miniatura=True):
     """
     Sube una imagen (base64) a SharePoint via Graph API.
     ruta_destino: ej. 'Gastos/2025-06/CASETAS/Mizael_20250617_083045.jpg'
@@ -669,20 +748,13 @@ def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url):
         imagen_base64 = imagen_base64.split(',', 1)[1]
     img_bytes = base64.b64decode(imagen_base64)
 
-    # Construir URL de subida en el drive del sitio
-    site_parts    = SP_SITE_URL.rstrip("/").split("/")
-    sp_hostname   = site_parts[2]
-    sp_site_path  = "/".join(site_parts[3:])
-
-    token    = auth_headers["Authorization"].replace("Bearer ", "")
-    site_url = f"https://graph.microsoft.com/v1.0/sites/{sp_hostname}:/{sp_site_path}"
-    r = req_lib.get(site_url, headers=auth_headers, timeout=30)
-    r.raise_for_status()
-    site_id = r.json()["id"]
+    site_id = site_id or _get_site_id(auth_headers)
+    parent_folder = os.path.dirname(ruta_destino).replace("\\", "/")
+    _ensure_sharepoint_folder(site_id, auth_headers, parent_folder)
 
     upload_url = (
         f"https://graph.microsoft.com/v1.0/sites/{site_id}"
-        f"/drive/root:/{ruta_destino}:/content"
+        f"/drive/root:/{_graph_path(ruta_destino)}:/content"
     )
     resp = req_lib.put(
         upload_url,
@@ -690,7 +762,44 @@ def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url):
         data=img_bytes,
         timeout=60
     )
-    return resp.ok
+    resp.raise_for_status()
+
+    if crear_miniatura:
+        thumb = _thumbnail_bytes(img_bytes)
+        thumb_url = (
+            f"https://graph.microsoft.com/v1.0/sites/{site_id}"
+            f"/drive/root:/{_graph_path(_thumb_path(ruta_destino))}:/content"
+        )
+        thumb_resp = req_lib.put(
+            thumb_url,
+            headers={**auth_headers, "Content-Type": "image/jpeg"},
+            data=thumb,
+            timeout=60,
+        )
+        thumb_resp.raise_for_status()
+    return True
+
+
+def subir_foto_sharepoint_auto(imagen_base64, ruta_relativa):
+    """Sube una foto y devuelve una ruta estable, nunca una URL temporal."""
+    try:
+        token = _get_sp_token()
+        if not token:
+            raise RuntimeError("No se pudo obtener token de Microsoft Graph")
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id = _get_site_id(auth_headers)
+        ruta_destino = f"{SP_GASTOS_FOLDER}/{ruta_relativa.lstrip('/')}"
+        subir_foto_sharepoint(
+            imagen_base64,
+            ruta_destino,
+            auth_headers,
+            site_id=site_id,
+            crear_miniatura=True,
+        )
+        return ruta_destino
+    except Exception as exc:
+        print(f"[SHAREPOINT] Error subiendo foto: {exc}")
+        return None
 
 
 def procesar_gastos(pendiente):
@@ -728,15 +837,18 @@ def procesar_gastos(pendiente):
             rutas_fotos = []
             for i, foto_b64 in enumerate(fotos):
                 nombre_archivo = f"{tienda}_{usuario}_{fecha}_{timestamp}_{i+1}.jpg"
-                ruta_supa = f"{mes_folder}/{cat.upper()}/{nombre_archivo}"
-                
-                # Subir a Supabase
-                url_publica = subir_foto_supabase(foto_b64, ruta_supa)
-                if url_publica:
-                    rutas_fotos.append(url_publica)
-                    print(f"[GASTOS] Subida a Supabase: {url_publica}")
-                else:
-                    print(f"[GASTOS] Error al subir a Supabase: {ruta_supa}")
+                ruta_sharepoint = f"{SP_GASTOS_FOLDER}/{mes_folder}/{cat.upper()}/{nombre_archivo}"
+
+                # Guardamos una ruta estable; nunca una URL temporal de Microsoft.
+                if subir_foto_sharepoint(
+                    foto_b64,
+                    ruta_sharepoint,
+                    auth_headers,
+                    base_url=base_url,
+                    site_id=site_id,
+                ):
+                    rutas_fotos.append(ruta_sharepoint)
+                    print(f"[GASTOS] Subida a SharePoint: {ruta_sharepoint}")
                     
             filas_gastos.append([
                 fecha_reg.strftime("%d/%m/%Y %H:%M"),
@@ -851,46 +963,58 @@ def api_foto():
     if not ruta:
         return "Ruta no proporcionada", 400
 
-    token = _get_sp_token()
-    if not token:
-        return "No autorizado", 401
-
-    auth_headers = {"Authorization": f"Bearer {token}"}
     try:
-        site_id   = _get_site_id(auth_headers)
-        ruta_limpia = ruta.lstrip("/")
-        
-        import time
-        global _DOWNLOAD_URL_CACHE
-        cached = _DOWNLOAD_URL_CACHE.get(ruta_limpia)
-        
-        if cached and cached['expiry'] > time.time():
-            download_url = cached['url']
+        wants_thumb = request.args.get("thumb") == "1"
+        legacy_path = _legacy_object_path(ruta) if ruta.startswith(("http://", "https://")) else None
+        if legacy_path and legacy_path.startswith(f"{SP_GASTOS_FOLDER}/"):
+            stable_path = legacy_path
+        elif legacy_path:
+            stable_path = f"{SP_GASTOS_FOLDER}/{legacy_path}"
         else:
-            meta_url  = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:/{ruta_limpia}"
-            
-            # Retry mechanism para SharePoint eventual consistency o throttling
-            r = None
-            for attempt in range(3):
-                r = req_lib.get(meta_url, headers=auth_headers, timeout=15)
-                if r.ok:
-                    break
-                if r.status_code in (404, 429, 503) and attempt < 2:
-                    time.sleep(1.5)
-                    continue
-                    
-            if not r or not r.ok:
-                print(f"[FOTO] Metadata error {r.status_code if r else 'NA'}: {ruta_limpia}")
-                return "Imagen no encontrada o error en SharePoint", 404
+            stable_path = ruta.lstrip("/")
+        cache_key = f"{'thumb' if wants_thumb else 'full'}:{stable_path}"
+        cached_bytes = _photo_cache_get(cache_key)
+        if cached_bytes:
+            content, content_type = cached_bytes
+            resp = make_response(content)
+            resp.headers["Content-Type"] = content_type
+            resp.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
+            return resp
 
-            download_url = r.json().get("@microsoft.graph.downloadUrl")
-            if not download_url:
-                return "Download URL no encontrada", 404
-                
-            _DOWNLOAD_URL_CACHE[ruta_limpia] = {
-                'url': download_url,
-                'expiry': time.time() + 3000
-            }
+        token = _get_sp_token()
+        if not token:
+            return "No autorizado", 401
+        auth_headers = {"Authorization": f"Bearer {token}"}
+        site_id   = _get_site_id(auth_headers)
+        candidates = [_thumb_path(stable_path), stable_path] if wants_thumb else [stable_path]
+        download_url = None
+        downloaded_from_original = False
+        for candidate in candidates:
+            cached_url = _DOWNLOAD_URL_CACHE.get(candidate)
+            if cached_url and cached_url['expiry'] > time.time():
+                download_url = cached_url['url']
+                downloaded_from_original = wants_thumb and candidate == stable_path
+                break
+
+            meta_url = (
+                f"https://graph.microsoft.com/v1.0/sites/{site_id}"
+                f"/drive/root:/{_graph_path(candidate)}"
+            )
+            r = req_lib.get(meta_url, headers=auth_headers, timeout=15)
+            if r.ok:
+                download_url = r.json().get("@microsoft.graph.downloadUrl")
+                if download_url:
+                    _DOWNLOAD_URL_CACHE[candidate] = {
+                        'url': download_url,
+                        'expiry': time.time() + 3000,
+                    }
+                    downloaded_from_original = wants_thumb and candidate == stable_path
+                    break
+            elif r.status_code not in (404,):
+                print(f"[FOTO] Metadata error {r.status_code}: {candidate}")
+
+        if not download_url:
+            return "Imagen no encontrada en SharePoint", 404
 
         # Descargar la imagen en el servidor y enviarla directamente al browser
         img = None
@@ -902,13 +1026,18 @@ def api_foto():
                 time.sleep(1.5)
                 
         if not img or not img.ok:
-            print(f"[FOTO] Download error {img.status_code if img else 'NA'}: {ruta_limpia}")
+            print(f"[FOTO] Download error {img.status_code if img else 'NA'}: {stable_path}")
             return "Error al descargar imagen desde Microsoft", 502
 
-        content_type = img.headers.get("Content-Type", "image/jpeg")
-        resp = make_response(img.content)
+        content = img.content
+        if downloaded_from_original:
+            content = _thumbnail_bytes(content)
+        content_type = "image/jpeg" if downloaded_from_original else img.headers.get("Content-Type", "image/jpeg")
+        _photo_cache_put(cache_key, content, content_type)
+        resp = make_response(content)
         resp.headers["Content-Type"]  = content_type
-        resp.headers["Cache-Control"] = "public, max-age=3600"
+        resp.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
         return resp
 
     except Exception as e:
@@ -1193,8 +1322,8 @@ def api_analizar_factura():
         db_productos = []
         db_status = "NOT_FOUND"
         
-        # Buscar en Supabase usando el folio detectado (o manual)
-        db_res = supabase_client.table("facturas_folios").select("*").eq("folio", folio_encontrado).execute()
+        # Buscar en Neon usando el folio detectado (o manual)
+        db_res = database_client.table("facturas_folios").select("*").eq("folio", folio_encontrado).execute()
         db_productos = db_res.data
         if db_productos:
             db_status = "FOUND"
@@ -1272,20 +1401,20 @@ def analizar_recibo():
             
         ocr_clean = remove_accents(full_text.lower())
         
-        # Subir foto a Supabase si tenemos folio
+        # Subir foto a SharePoint si tenemos folio
         folio = request.form.get("folio")
         if folio:
             import base64, time
             try:
                 b64_str = base64.b64encode(img_bytes).decode('utf-8')
-                ruta_supa = f"Acuses/acuse_{folio}_{int(time.time())}.jpg"
-                url_publica = subir_foto_supabase(b64_str, ruta_supa)
+                ruta_sharepoint = f"Acuses/acuse_{folio}_{int(time.time())}.jpg"
+                url_publica = subir_foto_sharepoint_auto(b64_str, ruta_sharepoint)
                 if url_publica:
                       update_data = {"url_acuse": url_publica}
                       url_factura = request.form.get("url_factura")
                       if url_factura:
                           update_data["url_factura"] = url_factura
-                      supabase_client.table("facturas_folios").update(update_data).eq("folio", folio).execute()
+                      database_client.table("facturas_folios").update(update_data).eq("folio", folio).execute()
             except Exception as ex:
                 print(f"Error subiendo foto acuse: {ex}")
 
@@ -1367,7 +1496,7 @@ def actualizar_recibo():
                 file_bytes_acuse = file_acuse.read()
                 b64_str_acuse = base64.b64encode(file_bytes_acuse).decode('utf-8')
                 ruta_supa_acuse = f"Acuses/acuse_{folio}_{int(time.time())}.jpg"
-                url_acuse = subir_foto_supabase(b64_str_acuse, ruta_supa_acuse)
+                url_acuse = subir_foto_sharepoint_auto(b64_str_acuse, ruta_supa_acuse)
 
         # Subir foto factura si existe
         url_factura_form = None
@@ -1377,7 +1506,7 @@ def actualizar_recibo():
                 file_bytes_fact = file_fact.read()
                 b64_str_fact = base64.b64encode(file_bytes_fact).decode('utf-8')
                 ruta_supa_fact = f"Facturas/factura_{folio}_{int(time.time())}.jpg"
-                url_factura_form = subir_foto_supabase(b64_str_fact, ruta_supa_fact)
+                url_factura_form = subir_foto_sharepoint_auto(b64_str_fact, ruta_supa_fact)
 
         for p in productos:
             producto_nombre = p.get('producto')
@@ -1394,7 +1523,7 @@ def actualizar_recibo():
                 if url_factura_form:
                     update_data['url_factura'] = url_factura_form
                 # Update the database
-                supabase_client.table('facturas_folios').update(update_data).eq('folio', folio).eq('producto', producto_nombre).execute()
+                database_client.table('facturas_folios').update(update_data).eq('folio', folio).eq('producto', producto_nombre).execute()
                 
                 # Guardar devolucion si hay discrepancia
                 try:
@@ -1403,7 +1532,7 @@ def actualizar_recibo():
                     if cant_esp > cant_recib:
                         cantidad_devuelta = cant_esp - cant_recib
                         total_devolucion = cantidad_devuelta * float(precio)
-                        supabase_client.table('devoluciones').insert({
+                        database_client.table('devoluciones').insert({
                             'folio': folio,
                             'serie': serie,
                             'producto': producto_nombre,
@@ -1436,7 +1565,7 @@ def sin_acuse():
         update_data = {"razon_sin_acuse": razon}
         if url_factura:
             update_data["url_factura"] = url_factura
-        supabase_client.table("facturas_folios").update(update_data).eq("folio", folio).execute()
+        database_client.table("facturas_folios").update(update_data).eq("folio", folio).execute()
         return jsonify({"success": True})
     except Exception as e:
         print(f"[ERROR] Al reportar sin acuse: {e}")
@@ -1452,7 +1581,7 @@ def cancelar_factura():
         
     try:
         # Obtener los datos actuales de la factura
-        res = supabase_client.table("facturas_folios").select("*").eq("folio", folio).execute()
+        res = database_client.table("facturas_folios").select("*").eq("folio", folio).execute()
         if not res.data:
             return jsonify({"success": False, "error": "Factura no encontrada en base de datos"}), 404
             
@@ -1464,7 +1593,7 @@ def cancelar_factura():
                 del reg["id"]
                 
         # Insertar en facturas_canceladas
-        supabase_client.table("facturas_canceladas").insert(registros_a_mover).execute()
+        database_client.table("facturas_canceladas").insert(registros_a_mover).execute()
         
         # Insertar en devoluciones automáticamente
         devoluciones_a_insertar = []
@@ -1483,10 +1612,10 @@ def cancelar_factura():
                 })
         
         if devoluciones_a_insertar:
-            supabase_client.table("devoluciones").insert(devoluciones_a_insertar).execute()
+            database_client.table("devoluciones").insert(devoluciones_a_insertar).execute()
         
         # Eliminar de facturas_folios
-        supabase_client.table("facturas_folios").delete().eq("folio", folio).execute()
+        database_client.table("facturas_folios").delete().eq("folio", folio).execute()
         
         return jsonify({"success": True})
     except Exception as e:
