@@ -3,8 +3,9 @@ gunicorn
 msal
 requests
 
-opencv-python-headless
+numpy<2
+opencv-python-headless==4.11.0.86
 python-dotenv
-supabase
+psycopg[binary,pool]
 pandas
 openpyxl
