@@ -8,7 +8,7 @@ import requests as req_lib
 import msal
 import threading
 from collections import OrderedDict
-from urllib.parse import quote, quote_plus, unquote
+from urllib.parse import quote, quote_plus, unquote, urlsplit
 from neon_db import database_client
 import cv2
 import numpy as np
@@ -706,6 +706,24 @@ def _legacy_object_path(value):
     return unquote(value.split(marker, 1)[1].split("?", 1)[0])
 
 
+def _download_legacy_photo(value):
+    """Recupera una foto historica desde su URL publica original de Supabase."""
+    try:
+        parsed = urlsplit(value)
+        if parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith(".supabase.co"):
+            return None
+        if "/storage/v1/object/public/gastos-fotos/" not in parsed.path:
+            return None
+        response = req_lib.get(value, timeout=30)
+        if not response.ok:
+            print(f"[FOTO] Legacy download error {response.status_code}: {value}")
+            return None
+        return response.content, response.headers.get("Content-Type", "image/jpeg")
+    except Exception as exc:
+        print(f"[FOTO] Legacy download exception: {exc}")
+        return None
+
+
 def _photo_proxy_url(value, thumbnail=False):
     if not value:
         return ""
@@ -1014,7 +1032,22 @@ def api_foto():
                 print(f"[FOTO] Metadata error {r.status_code}: {candidate}")
 
         if not download_url:
-            return "Imagen no encontrada en SharePoint", 404
+            # Algunas fotos historicas todavia conservan la URL publica de
+            # Supabase y no alcanzaron a copiarse a SharePoint. Se recuperan
+            # desde esa URL sin modificar el registro guardado.
+            legacy_photo = _download_legacy_photo(ruta) if legacy_path else None
+            if not legacy_photo:
+                return "Imagen no encontrada en SharePoint", 404
+            content, content_type = legacy_photo
+            if wants_thumb:
+                content = _thumbnail_bytes(content)
+                content_type = "image/jpeg"
+            _photo_cache_put(cache_key, content, content_type)
+            resp = make_response(content)
+            resp.headers["Content-Type"] = content_type
+            resp.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
+            resp.headers["X-Content-Type-Options"] = "nosniff"
+            return resp
 
         # Descargar la imagen en el servidor y enviarla directamente al browser
         img = None
@@ -1027,7 +1060,19 @@ def api_foto():
                 
         if not img or not img.ok:
             print(f"[FOTO] Download error {img.status_code if img else 'NA'}: {stable_path}")
-            return "Error al descargar imagen desde Microsoft", 502
+            legacy_photo = _download_legacy_photo(ruta) if legacy_path else None
+            if not legacy_photo:
+                return "Error al descargar imagen desde Microsoft", 502
+            content, content_type = legacy_photo
+            if wants_thumb:
+                content = _thumbnail_bytes(content)
+                content_type = "image/jpeg"
+            _photo_cache_put(cache_key, content, content_type)
+            resp = make_response(content)
+            resp.headers["Content-Type"] = content_type
+            resp.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
+            resp.headers["X-Content-Type-Options"] = "nosniff"
+            return resp
 
         content = img.content
         if downloaded_from_original:
