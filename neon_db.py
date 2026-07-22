@@ -40,14 +40,20 @@ DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("TARGET_DATABASE
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL de Neon no esta configurada.")
 
-_pool = ConnectionPool(
-    conninfo=DATABASE_URL,
-    min_size=0,
-    max_size=6,
-    timeout=30,
-    kwargs={"row_factory": dict_row},
-    open=True,
-)
+_pool = None
+
+def get_pool():
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(
+            conninfo=DATABASE_URL,
+            min_size=0,
+            max_size=6,
+            timeout=30,
+            kwargs={"row_factory": dict_row},
+            open=True,
+        )
+    return _pool
 
 
 def _normalize(value):
@@ -121,7 +127,7 @@ class QueryBuilder:
         return " WHERE " + " AND ".join(parts)
 
     def execute(self):
-        with _pool.connection() as connection:
+        with get_pool().connection() as connection:
             with connection.cursor() as cursor:
                 if self.action == "select":
                     if self.selection == "*":
@@ -183,7 +189,7 @@ class NeonClient:
         return QueryBuilder(name)
 
     def ping(self):
-        with _pool.connection() as connection:
+        with get_pool().connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 return cursor.fetchone() is not None
