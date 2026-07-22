@@ -90,6 +90,42 @@ _DOWNLOAD_URL_CACHE = {}
 _PHOTO_BYTES_CACHE = OrderedDict()
 _PHOTO_BYTES_CACHE_SIZE = 0
 _PHOTO_BYTES_CACHE_LIMIT = 24 * 1024 * 1024
+_PHOTO_CACHE_LOCK = threading.RLock()
+_DOWNLOAD_URL_CACHE_LOCK = threading.RLock()
+# Microsoft Graph empieza a responder 429/5xx cuando el reporte intenta abrir
+# demasiadas fotos en paralelo. Esta cola mantiene una concurrencia estable.
+_GRAPH_PHOTO_SEMAPHORE = threading.BoundedSemaphore(4)
+_GRAPH_RETRY_STATUSES = {408, 429, 500, 502, 503, 504}
+
+
+def _retry_wait(response, attempt):
+    """Respeta Retry-After de Graph y usa espera exponencial como respaldo."""
+    retry_after = response.headers.get("Retry-After") if response is not None else None
+    try:
+        return min(max(float(retry_after), 0.25), 15.0)
+    except (TypeError, ValueError):
+        return min(0.75 * (2 ** attempt), 8.0)
+
+
+def _photo_http_get(url, *, headers=None, timeout=30, attempts=5):
+    """GET tolerante a limitacion y fallos transitorios de SharePoint/Graph."""
+    last_response = None
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            with _GRAPH_PHOTO_SEMAPHORE:
+                last_response = req_lib.get(url, headers=headers, timeout=timeout)
+            if last_response.ok or last_response.status_code not in _GRAPH_RETRY_STATUSES:
+                return last_response
+        except req_lib.RequestException as exc:
+            last_error = exc
+        if attempt < attempts - 1:
+            time.sleep(_retry_wait(last_response, attempt))
+    if last_response is not None:
+        return last_response
+    if last_error:
+        raise last_error
+    return None
 
 def _get_sp_token():
     global _TOKEN_CACHE, _TOKEN_EXPIRY
@@ -714,7 +750,7 @@ def _download_legacy_photo(value):
             return None
         if "/storage/v1/object/public/gastos-fotos/" not in parsed.path:
             return None
-        response = req_lib.get(value, timeout=30)
+        response = _photo_http_get(value, timeout=30, attempts=4)
         if not response.ok:
             print(f"[FOTO] Legacy download error {response.status_code}: {value}")
             return None
@@ -735,25 +771,70 @@ app.jinja_env.globals["foto_proxy_url"] = _photo_proxy_url
 
 
 def _photo_cache_get(key):
-    item = _PHOTO_BYTES_CACHE.get(key)
-    if item is None:
-        return None
-    _PHOTO_BYTES_CACHE.move_to_end(key)
-    return item
+    with _PHOTO_CACHE_LOCK:
+        item = _PHOTO_BYTES_CACHE.get(key)
+        if item is None:
+            return None
+        _PHOTO_BYTES_CACHE.move_to_end(key)
+        return item
 
 
 def _photo_cache_put(key, content, content_type):
     global _PHOTO_BYTES_CACHE_SIZE
     if len(content) > _PHOTO_BYTES_CACHE_LIMIT // 2:
         return
-    old = _PHOTO_BYTES_CACHE.pop(key, None)
-    if old:
-        _PHOTO_BYTES_CACHE_SIZE -= len(old[0])
-    _PHOTO_BYTES_CACHE[key] = (content, content_type)
-    _PHOTO_BYTES_CACHE_SIZE += len(content)
-    while _PHOTO_BYTES_CACHE and _PHOTO_BYTES_CACHE_SIZE > _PHOTO_BYTES_CACHE_LIMIT:
-        _, removed = _PHOTO_BYTES_CACHE.popitem(last=False)
-        _PHOTO_BYTES_CACHE_SIZE -= len(removed[0])
+    with _PHOTO_CACHE_LOCK:
+        old = _PHOTO_BYTES_CACHE.pop(key, None)
+        if old:
+            _PHOTO_BYTES_CACHE_SIZE -= len(old[0])
+        _PHOTO_BYTES_CACHE[key] = (content, content_type)
+        _PHOTO_BYTES_CACHE_SIZE += len(content)
+        while _PHOTO_BYTES_CACHE and _PHOTO_BYTES_CACHE_SIZE > _PHOTO_BYTES_CACHE_LIMIT:
+            _, removed = _PHOTO_BYTES_CACHE.popitem(last=False)
+            _PHOTO_BYTES_CACHE_SIZE -= len(removed[0])
+
+
+def _sharepoint_download_url(site_id, auth_headers, candidate, force_refresh=False):
+    """Obtiene y cachea el enlace temporal de descarga de una foto."""
+    if not force_refresh:
+        with _DOWNLOAD_URL_CACHE_LOCK:
+            cached = _DOWNLOAD_URL_CACHE.get(candidate)
+            if cached and cached["expiry"] > time.time():
+                return cached["url"], None
+
+    meta_url = (
+        f"https://graph.microsoft.com/v1.0/sites/{site_id}"
+        f"/drive/root:/{_graph_path(candidate)}"
+    )
+    response = _photo_http_get(meta_url, headers=auth_headers, timeout=20, attempts=5)
+    if response is None or not response.ok:
+        return None, response
+    download_url = response.json().get("@microsoft.graph.downloadUrl")
+    if download_url:
+        with _DOWNLOAD_URL_CACHE_LOCK:
+            _DOWNLOAD_URL_CACHE[candidate] = {
+                "url": download_url,
+                "expiry": time.time() + 2700,
+            }
+    return download_url, response
+
+
+def _download_sharepoint_photo(site_id, auth_headers, candidate):
+    """Descarga una foto y renueva una vez su enlace si Microsoft lo invalido."""
+    for refresh in (False, True):
+        download_url, metadata_response = _sharepoint_download_url(
+            site_id, auth_headers, candidate, force_refresh=refresh
+        )
+        if not download_url:
+            return None, metadata_response
+        response = _photo_http_get(download_url, timeout=40, attempts=5)
+        if response is not None and response.ok:
+            return response, metadata_response
+        # Los enlaces @microsoft.graph.downloadUrl son temporales. Si uno
+        # expiro o fallo repetidamente, se elimina y se solicita uno nuevo.
+        with _DOWNLOAD_URL_CACHE_LOCK:
+            _DOWNLOAD_URL_CACHE.pop(candidate, None)
+    return response, metadata_response
 
 def subir_foto_sharepoint(imagen_base64, ruta_destino, auth_headers, base_url=None,
                           site_id=None, crear_miniatura=True):
@@ -1005,64 +1086,27 @@ def api_foto():
         auth_headers = {"Authorization": f"Bearer {token}"}
         site_id   = _get_site_id(auth_headers)
         candidates = [_thumb_path(stable_path), stable_path] if wants_thumb else [stable_path]
-        download_url = None
+        img = None
         downloaded_from_original = False
+        last_metadata_response = None
         for candidate in candidates:
-            cached_url = _DOWNLOAD_URL_CACHE.get(candidate)
-            if cached_url and cached_url['expiry'] > time.time():
-                download_url = cached_url['url']
+            img, last_metadata_response = _download_sharepoint_photo(
+                site_id, auth_headers, candidate
+            )
+            if img is not None and img.ok:
                 downloaded_from_original = wants_thumb and candidate == stable_path
                 break
+            status = last_metadata_response.status_code if last_metadata_response is not None else "NA"
+            if status != 404:
+                print(f"[FOTO] Metadata/download error {status}: {candidate}")
 
-            meta_url = (
-                f"https://graph.microsoft.com/v1.0/sites/{site_id}"
-                f"/drive/root:/{_graph_path(candidate)}"
-            )
-            r = req_lib.get(meta_url, headers=auth_headers, timeout=15)
-            if r.ok:
-                download_url = r.json().get("@microsoft.graph.downloadUrl")
-                if download_url:
-                    _DOWNLOAD_URL_CACHE[candidate] = {
-                        'url': download_url,
-                        'expiry': time.time() + 3000,
-                    }
-                    downloaded_from_original = wants_thumb and candidate == stable_path
-                    break
-            elif r.status_code not in (404,):
-                print(f"[FOTO] Metadata error {r.status_code}: {candidate}")
-
-        if not download_url:
+        if img is None or not img.ok:
             # Algunas fotos historicas todavia conservan la URL publica de
             # Supabase y no alcanzaron a copiarse a SharePoint. Se recuperan
             # desde esa URL sin modificar el registro guardado.
             legacy_photo = _download_legacy_photo(ruta) if legacy_path else None
             if not legacy_photo:
                 return "Imagen no encontrada en SharePoint", 404
-            content, content_type = legacy_photo
-            if wants_thumb:
-                content = _thumbnail_bytes(content)
-                content_type = "image/jpeg"
-            _photo_cache_put(cache_key, content, content_type)
-            resp = make_response(content)
-            resp.headers["Content-Type"] = content_type
-            resp.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            return resp
-
-        # Descargar la imagen en el servidor y enviarla directamente al browser
-        img = None
-        for attempt in range(3):
-            img = req_lib.get(download_url, timeout=30)
-            if img.ok:
-                break
-            if attempt < 2:
-                time.sleep(1.5)
-                
-        if not img or not img.ok:
-            print(f"[FOTO] Download error {img.status_code if img else 'NA'}: {stable_path}")
-            legacy_photo = _download_legacy_photo(ruta) if legacy_path else None
-            if not legacy_photo:
-                return "Error al descargar imagen desde Microsoft", 502
             content, content_type = legacy_photo
             if wants_thumb:
                 content = _thumbnail_bytes(content)
