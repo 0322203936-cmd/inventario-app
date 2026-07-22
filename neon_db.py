@@ -42,9 +42,9 @@ if not DATABASE_URL:
 
 _pool = ConnectionPool(
     conninfo=DATABASE_URL,
-    min_size=1,
+    min_size=0,
     max_size=6,
-    timeout=15,
+    timeout=30,
     kwargs={"row_factory": dict_row},
     open=True,
 )
