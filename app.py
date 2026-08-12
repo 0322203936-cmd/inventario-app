@@ -448,7 +448,7 @@ def index():
             inventarios = request.form.getlist("inventario[]")
             mermas      = request.form.getlist("merma[]")
             razones     = request.form.getlist("razon[]")
-            fecha_reg   = datetime.now().strftime("%d/%m/%Y %H:%M")
+            fecha_reg   = datetime.now().strftime("%Y-%m-%d %H:%M")
 
             filas_detalle = []
             filas_cf      = []
@@ -950,9 +950,9 @@ def procesar_gastos(pendiente):
                     print(f"[GASTOS] Subida a SharePoint: {ruta_sharepoint}")
                     
             filas_gastos.append([
-                fecha_reg.strftime("%d/%m/%Y %H:%M"),
+                fecha_reg.strftime("%Y-%m-%d %H:%M"),
                 tienda.replace("_", " "),
-                pendiente.get("fecha", ""),
+                _fmt_fecha_excel(pendiente.get("fecha", "")),
                 usuario,
                 cat.upper(),
                 monto,
