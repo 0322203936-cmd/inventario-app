@@ -1182,8 +1182,20 @@ def reporte():
                                 fecha_date = excel_epoch + timedelta(days=int(fecha_num))
                                 
                                 # Fix for swapped days and months in old records
-                                if fecha_reg_date and fecha_reg_date < datetime(2026, 7, 22):
-                                    if fecha_date.day <= 12:
+                                is_old_record = False
+                                if fecha_reg_date:
+                                    if fecha_reg_date < datetime(2026, 8, 12):
+                                        is_old_record = True
+                                    elif fecha_reg_date.day <= 12:
+                                        try:
+                                            swapped_reg = datetime(fecha_reg_date.year, fecha_reg_date.day, fecha_reg_date.month)
+                                            if swapped_reg < datetime(2026, 8, 12):
+                                                is_old_record = True
+                                        except ValueError:
+                                            pass
+                                            
+                                if is_old_record:
+                                    if fecha_date.day <= 12 and fecha_date.month != fecha_date.day:
                                         from datetime import date as dt_date
                                         try:
                                             fecha_date = dt_date(fecha_date.year, fecha_date.day, fecha_date.month)
