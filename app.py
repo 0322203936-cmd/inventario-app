@@ -173,9 +173,10 @@ def _get_base_url(site_id):
 
 
 def _fmt_fecha_excel(fecha_str):
-    """Convierte fecha de DD/MM/YYYY a YYYY-MM-DD para el Excel."""
+    """Mantiene fecha como DD/MM/YYYY para Excel. Excel US la volteará, pero lo revertiremos al leer."""
+    # Solo validamos que sea DD/MM/YYYY, y la devolvemos igual.
     try:
-        return datetime.strptime(fecha_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+        return datetime.strptime(fecha_str, "%d/%m/%Y").strftime("%d/%m/%Y")
     except Exception:
         return fecha_str  # si falla, deja el valor original
 
@@ -448,7 +449,7 @@ def index():
             inventarios = request.form.getlist("inventario[]")
             mermas      = request.form.getlist("merma[]")
             razones     = request.form.getlist("razon[]")
-            fecha_reg   = datetime.now().strftime("%Y-%m-%d %H:%M")
+            fecha_reg   = datetime.now().strftime("%d/%m/%Y %H:%M")
 
             filas_detalle = []
             filas_cf      = []
@@ -950,7 +951,7 @@ def procesar_gastos(pendiente):
                     print(f"[GASTOS] Subida a SharePoint: {ruta_sharepoint}")
                     
             filas_gastos.append([
-                fecha_reg.strftime("%Y-%m-%d %H:%M"),
+                fecha_reg.strftime("%d/%m/%Y %H:%M"),
                 tienda.replace("_", " "),
                 _fmt_fecha_excel(pendiente.get("fecha", "")),
                 usuario,
@@ -1164,7 +1165,7 @@ def reporte():
                                 from datetime import datetime, timedelta
                                 fecha_reg_num = float(str(fecha_reg_raw))
                                 fecha_reg_date = datetime(1899, 12, 30) + timedelta(days=fecha_reg_num)
-                                fecha_reg_str = fecha_reg_date.strftime("%d/%m/%Y %H:%M")
+                                fecha_reg_str = fecha_reg_date.strftime("%m/%d/%Y %H:%M")
                             except (ValueError, TypeError):
                                 fecha_reg_str = str(fecha_reg_raw)
                                 try:
@@ -1181,28 +1182,8 @@ def reporte():
                                 excel_epoch = date(1899, 12, 30)
                                 fecha_date = excel_epoch + timedelta(days=int(fecha_num))
                                 
-                                # Fix for swapped days and months in old records
-                                is_old_record = False
-                                if fecha_reg_date:
-                                    if fecha_reg_date < datetime(2026, 8, 12):
-                                        is_old_record = True
-                                    elif fecha_reg_date.day <= 12:
-                                        try:
-                                            swapped_reg = datetime(fecha_reg_date.year, fecha_reg_date.day, fecha_reg_date.month)
-                                            if swapped_reg < datetime(2026, 8, 12):
-                                                is_old_record = True
-                                        except ValueError:
-                                            pass
-                                            
-                                if is_old_record:
-                                    if fecha_date.day <= 12 and fecha_date.month != fecha_date.day:
-                                        from datetime import date as dt_date
-                                        try:
-                                            fecha_date = dt_date(fecha_date.year, fecha_date.day, fecha_date.month)
-                                        except ValueError:
-                                            pass
-                                            
-                                fecha = fecha_date.strftime("%d/%m/%Y")
+                                # Reverse the US Locale flip that happened in Excel when we saved DD/MM/YYYY
+                                fecha = fecha_date.strftime("%m/%d/%Y")
                             except (ValueError, TypeError):
                                 fecha = str(fecha_raw)
                             usuario = row[3]
