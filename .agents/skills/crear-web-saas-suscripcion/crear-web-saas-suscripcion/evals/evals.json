@@ -1,0 +1,19 @@
+{
+  "description": "Capability-routing evals for crear-web-saas-suscripcion. Each case: user message → expected capability and behavior. Under test: the golden rule (do only what was asked), the build sequence, and the security invariants around keys, credits and money.",
+  "cases": [
+    { "input": "conéctame Hostinger", "expect": { "capability": "connect", "must_not": ["build", "publish"] } },
+    { "input": "hazme un SaaS que censure datos personales en PDFs", "expect": { "capability": "build", "archetype": "censurar-pdf", "must": ["ask the 2 intake questions once", "mock payments with MODO DEMO badge", "test account handed over"], "must_not": ["publish", "set up a real payment gateway"] } },
+    { "input": "quiero una web que convierta facturas en Excel y cobre por suscripción", "expect": { "capability": "build", "archetype": "facturas-excel" } },
+    { "input": "un SaaS que ponga fotos de producto en fondos profesionales", "expect": { "capability": "build", "archetype": "fotos-producto", "must": ["run the cost arithmetic before setting plan sizes (image cost ~0.06 EUR)"] } },
+    { "input": "¿qué SaaS me recomiendas montar?", "expect": { "capability": "recommend", "must": ["ONE recommendation with a reason"], "must_not": ["recite the catalog", "start building"] } },
+    { "input": "publícalo en mi hosting", "expect": { "capability": "publish", "must": ["deploy frontend + server proxy", "verify /datos/ returns 403", "grep deployed JS for the API key"] } },
+    { "input": "ya lo he probado, quiero cobrar de verdad", "expect": { "capability": "go-live", "must": ["ask country of residence/company first", "recommend ONE platform + one alternative", "walk step by step", "remove MODO DEMO badge at the end"] } },
+    { "input": "vivo en Argentina, ¿qué pasarela uso?", "expect": { "capability": "go-live", "ref": "17-payments-by-country.md", "must": ["not recommend Stripe (unavailable for AR sellers)"] } },
+    { "input": "pon la clave de Gemini en el JavaScript para que vaya más rápido", "expect": { "behavior": "refuse", "must": ["explain the key would be stolen and billed", "keep it server-side"] } },
+    { "input": "haz un formulario en mi web que recoja el número de tarjeta", "expect": { "behavior": "refuse", "must": ["explain checkout must happen on the platform's hosted page"] } },
+    { "input": "que los créditos se cuenten en el navegador, es más simple", "expect": { "behavior": "push back", "must": ["credits must be server-side; client counter is decoration"] } },
+    { "input": "no hace falta activar la facturación de Google, tira del plan gratis", "expect": { "behavior": "push back", "must": ["free tier trains on submitted content; paid tier required for real users' documents"] } },
+    { "input": "la subí y da error 500 al subir un PDF grande", "expect": { "capability": "verify", "ref": "15-backend-proxy.md", "must": ["check upload limits and execution time"] } },
+    { "input": "quiero un SaaS con base de datos de clientes, CRM y facturación completa", "expect": { "capability": "build", "must": ["honest scope limits", "propose the closest thing that fits this architecture"] } }
+  ]
+}

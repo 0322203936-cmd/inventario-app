@@ -1,0 +1,72 @@
+{
+  "_comment": "Contrato de datos de un producto de afiliados. El scraper mapea a este esquema, las paginas renderizan desde el. Ejemplo trabajado: bici electrica. Para otro nicho, mantener los grupos A/B/E y rediseñar C (specs) y D (scores).",
+  "nicho": "bici-electrica",
+  "grupos": {
+    "A_identidad_afiliado": {
+      "id":            { "type": "string", "required": true, "desc": "slug estable kebab-case" },
+      "asin":          { "type": "string", "required": true, "source": "scrape" },
+      "name":          { "type": "string", "required": true, "source": "scrape" },
+      "marca":         { "type": "string", "source": "scrape" },
+      "affiliate_url": { "type": "string", "required": true, "source": "link", "nota": "VERBATIM, nunca reescribir" },
+      "affiliate_tag": { "type": "string", "required": true, "source": "link" },
+      "canonical_url": { "type": "string", "source": "link" },
+      "images":        { "type": "array<string>", "source": "scrape+webp", "nota": "rutas locales assets/img/<id>-N.webp" },
+      "category":      { "type": "enum", "values": ["Ciudad","Trekking","Montaña","Plegable","Carga"] },
+      "isFeatured":    { "type": "bool", "default": false },
+      "showInTopMenu": { "type": "bool", "default": false }
+    },
+    "B_comercial": {
+      "retailPrice":      { "type": "number", "unit": "EUR", "source": "scrape" },
+      "discountedPrice":  { "type": "number", "unit": "EUR", "source": "scrape" },
+      "rango_precio":     { "type": "enum", "values": ["bajo","medio","alto","premium"], "source": "computed" },
+      "valoracion_media": { "type": "number", "unit": "estrellas", "source": "scrape" },
+      "resenas_cantidad": { "type": "int", "source": "scrape" },
+      "precio_fecha":     { "type": "date", "source": "computed", "nota": "fecha de captura; el precio es orientativo" }
+    },
+    "C_specs_tecnicas": {
+      "tipo_uso":             { "type": "enum", "values": ["ciudad","trekking","montaña","plegable","carga"] },
+      "tipo_motor":           { "type": "enum", "values": ["central","trasero","delantero"] },
+      "potencia_w":           { "type": "int", "unit": "W" },
+      "par_motor_nm":         { "type": "int", "unit": "Nm" },
+      "autonomia_km":         { "type": "int", "unit": "km" },
+      "capacidad_bateria_wh": { "type": "int", "unit": "Wh" },
+      "bateria_extraible":    { "type": "bool" },
+      "velocidad_max_kmh":    { "type": "int", "unit": "km/h" },
+      "tiempo_carga_h":       { "type": "number", "unit": "h" },
+      "peso_bici_kg":         { "type": "number", "unit": "kg", "mejor": "min" },
+      "peso_max_usuario_kg":  { "type": "int", "unit": "kg" },
+      "num_marchas":          { "type": "int" },
+      "talla_cuadro":         { "type": "string" },
+      "diametro_rueda_pulg":  { "type": "number", "unit": "pulg" },
+      "frenos":               { "type": "string" },
+      "suspension":           { "type": "enum", "values": ["ninguna","delantera","doble"] },
+      "garantia_anos":        { "type": "number", "unit": "años" },
+      "specs_extra":          { "type": "object", "desc": "escape hatch: {label: value} de specs no mapeadas" }
+    },
+    "D_scores_0_10": {
+      "_nota": "Editoriales, calculados de las specs sobre el min/max del catalogo. Recalcular TODOS al cambiar el catalogo.",
+      "score_autonomia":      { "from": "autonomia_km" },
+      "score_potencia":       { "from": "potencia_w + par_motor_nm" },
+      "score_confort":        { "from": "suspension + peso + tipo_uso" },
+      "score_deportividad":   { "from": "velocidad + potencia + peso" },
+      "score_facilidad_uso":  { "from": "peso + bateria_extraible + marchas" },
+      "score_calidad_precio": { "from": "specs vs precio" }
+    },
+    "E_editorial": {
+      "description":         { "type": "string", "desc": "2-4 frases" },
+      "cuerpo_editorial":    { "type": "html", "desc": "parrafos reales, tono blog" },
+      "pros":                { "type": "array<string>" },
+      "contras":             { "type": "array<string>" },
+      "ideal_para":          { "type": "string" },
+      "destacado_editorial": { "type": "string" },
+      "resenas_resumen":     { "type": "string", "desc": "resumen de las reseñas scrapeadas, no inventar" }
+    }
+  },
+  "reglas": [
+    "Todo dato no obtenido => null (la UI muestra '—'). Nunca inventar.",
+    "Los scores son editoriales y comparables entre productos; recalcular al cambiar el catalogo.",
+    "affiliate_url y affiliate_tag se preservan tal cual; cada boton de compra los usa.",
+    "El precio es una instantanea con precio_fecha; etiquetarlo como orientativo.",
+    "specs no mapeables van a specs_extra como texto, jamas forzadas a un campo numerico."
+  ]
+}

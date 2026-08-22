@@ -1,0 +1,29 @@
+{
+  "_comment": "Optional pre-authorization for crear-web-como-servicio. Copy these entries into your ~/.claude/settings.json under permissions.allow. Covers the five capabilities (connect, build, images, AI features, publish). Scoped to this skill's scripts, the Hostinger connection commands, and a few safe helpers — nothing destructive. It never pre-authorizes anything that moves money or exposes a key.",
+
+  "permissions": {
+    "allow": [
+      "Bash(python *crear-web-como-servicio/scripts/*.py*)",
+      "Bash(python3 *crear-web-como-servicio/scripts/*.py*)",
+      "Bash(bash *crear-web-como-servicio/scripts/*.sh*)",
+      "Bash(node *crear-web-como-servicio/scripts/*.mjs*)",
+      "Bash(powershell *crear-web-como-servicio/scripts/*.ps1*)",
+
+      "Bash(claude mcp add *)",
+      "Bash(claude mcp list*)",
+      "Bash(npm install -g hostinger-api-mcp*)",
+      "Bash(hostinger-*-mcp *)",
+      "Bash(winget install OpenJS.NodeJS*)",
+
+      "Bash(mkdir -p *)",
+      "Bash(ls *)",
+      "Bash(cp *)",
+      "Bash(grep *)",
+      "Bash(command -v *)",
+      "Bash(which *)",
+
+      "Bash(python -m http.server *)",
+      "Bash(python3 -m http.server *)"
+    ]
+  }
+}

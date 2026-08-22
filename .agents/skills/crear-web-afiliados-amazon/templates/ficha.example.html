@@ -1,0 +1,88 @@
+<!--
+  ficha.example.html — ESTRUCTURA de referencia de una pagina de producto.
+  NO es una ficha real: es el esqueleto que main.js rellena desde window.__DB__
+  para CADA registro. Los data-* marcan donde entra cada campo. El contenido
+  critico (nombre, precio, boton de compra, aviso de afiliados) va hardcodeado
+  al generar cada ficha, para que se lea sin JS; los graficos y el comparador
+  los monta el JS.
+
+  Al generar el sitio: una ficha por registro (p. ej. /producto/e-001.html),
+  o una sola ficha.html que lee ?id= y renderiza. Preferido: una por registro
+  (mejor SEO), generadas desde los datos, nunca escritas a mano.
+-->
+<article class="ficha" data-producto-id="e-001">
+
+  <!-- 1. Galeria -->
+  <section class="ficha-galeria" data-galeria>
+    <img class="ficha-img-main" src="assets/img/e-001-1.webp" alt="F.lli Schiano E-Ride 28 pulgadas" fetchpriority="high">
+    <ul class="ficha-thumbs" data-thumbs><!-- thumbnails desde images[] --></ul>
+  </section>
+
+  <!-- 2. Cabecera + compra -->
+  <header class="ficha-head">
+    <p class="ficha-marca" data-campo="marca">F.lli Schiano</p>
+    <h1 class="ficha-nombre" data-campo="name">F.lli Schiano E-Ride 28"</h1>
+    <div class="ficha-rating" data-rating><!-- valoracion_media estrellas + resenas_cantidad --></div>
+    <div class="ficha-precio">
+      <span class="precio-actual" data-campo="discountedPrice">862,33 €</span>
+      <span class="precio-antes" data-campo="retailPrice">999,99 €</span>
+      <span class="precio-nota">Precio orientativo · <time data-campo="precio_fecha">22/07/2026</time> · consúltalo en Amazon</span>
+    </div>
+    <!-- El boton usa SIEMPRE affiliate_url tal cual (invariante 1) -->
+    <a class="btn-comprar" data-campo="affiliate_url" href="https://amzn.to/XXXX" target="_blank" rel="sponsored nofollow noopener">Ver precio en Amazon</a>
+  </header>
+
+  <!-- 3. Radar de valoracion del editor -->
+  <section class="ficha-radar">
+    <h2>Valoración del editor</h2>
+    <figure data-radar aria-label="Gráfico de valoraciones"></figure>
+    <p class="nota">Puntuaciones editoriales de 0 a 10, comparables entre productos.</p>
+  </section>
+
+  <!-- 4. Tabla de especificaciones (grupo C, agrupada; null -> —) -->
+  <section class="ficha-specs">
+    <h2>Ficha técnica</h2>
+    <table data-specs><!-- filas por grupo: motor, bateria, medidas, equipamiento --></table>
+    <details class="specs-extra"><summary>Otros datos</summary><div data-specs-extra></div></details>
+  </section>
+
+  <!-- 5. Cuerpo editorial + pros/contras + ideal_para -->
+  <section class="ficha-editorial">
+    <div class="editorial-cuerpo" data-campo="cuerpo_editorial"><!-- HTML, parrafos reales --></div>
+    <div class="pros-contras">
+      <ul class="pros" data-campo="pros"></ul>
+      <ul class="contras" data-campo="contras"></ul>
+    </div>
+    <p class="ideal-para"><strong>Ideal para:</strong> <span data-campo="ideal_para"></span></p>
+  </section>
+
+  <!-- 6. Reseñas (resumen + algunas scrapeadas, etiquetadas como de Amazon) -->
+  <section class="ficha-resenas">
+    <h2>Qué dicen los compradores</h2>
+    <p class="resenas-resumen" data-campo="resenas_resumen"></p>
+    <ul data-resenas><!-- autor, estrellas, texto --></ul>
+    <p class="nota">Reseñas mostradas en Amazon en el momento de la captura.</p>
+  </section>
+
+  <!-- 7. Comparar + similares -->
+  <section class="ficha-comparar">
+    <button class="btn-comparar" data-add-comparador="e-001">Añadir al comparador</button>
+    <div class="similares" data-similares><!-- misma category, precio cercano --></div>
+  </section>
+
+  <!-- Repetir CTA tras leer -->
+  <a class="btn-comprar" data-campo="affiliate_url" href="https://amzn.to/XXXX" target="_blank" rel="sponsored nofollow noopener">Ver precio en Amazon</a>
+
+  <!-- 8. Aviso de afiliados (obligatorio, invariante 5) -->
+  <p class="aviso-afiliados">Como Afiliados de Amazon, obtenemos ingresos por las compras que cumplen los requisitos. «Amazon» y el logo de Amazon son marcas de Amazon.com, Inc. o sus filiales.</p>
+
+  <!-- JSON-LD Product: SOLO valores reales scrapeados -->
+  <script type="application/ld+json" data-jsonld-product>
+  {
+    "@context": "https://schema.org", "@type": "Product",
+    "name": "", "brand": "", "image": [],
+    "offers": { "@type": "Offer", "price": "", "priceCurrency": "EUR", "availability": "https://schema.org/InStock" },
+    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "", "reviewCount": "" }
+  }
+  </script>
+</article>

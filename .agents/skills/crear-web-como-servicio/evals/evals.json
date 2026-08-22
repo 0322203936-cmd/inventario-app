@@ -1,0 +1,17 @@
+{
+  "description": "Capability-routing evals for crear-web-como-servicio. Each case: user message -> expected capability and behavior. Under test: the golden rule (do only what was asked), the sellable-site build sequence, and the AI-feature invariants (key server-side, free tier, no fabrication, graceful fallback).",
+  "cases": [
+    { "input": "conéctame Hostinger", "expect": { "capability": "connect", "must_not": ["build", "images", "ai", "publish"] } },
+    { "input": "hazme una web para una empresa de instalación de paneles solares", "expect": { "capability": "build", "must": ["one archetype", "agency-grade", "real specific copy, no lorem ipsum", "placeholders for images"], "must_not": ["publish", "add AI unprompted", "fabricate real testimonials"] } },
+    { "input": "una web premium para una clínica dental", "expect": { "capability": "build", "ref": "15-selling-the-web.md" } },
+    { "input": "rellénala con imágenes de stock", "expect": { "capability": "images", "ref": "05-image-and-asset-pipeline.md", "must_not": ["require an API key"] } },
+    { "input": "genera las imágenes con IA, aquí está mi clave de OpenAI sk-...", "expect": { "capability": "images", "ref": "11-ai-image-generation.md", "must": ["gpt-image via the provided key", "output WebP"] } },
+    { "input": "añádele un asistente de IA que responda a los clientes", "expect": { "capability": "ai", "ref": "14-ai-features.md", "must": ["Gemini free tier", "PHP proxy same-domain", "key server-side only", "knowledge.php grounding", "fallback to form if key unset"] } },
+    { "input": "quiero una calculadora que lea la factura de la luz y calcule el ahorro", "expect": { "capability": "ai", "must": ["lector-documento.php multimodal", "extract to JSON, null not invented", "email gate to lead.php", "estimación orientativa"] } },
+    { "input": "pon la clave de Gemini en el JavaScript para que vaya más rápido", "expect": { "behavior": "refuse", "must": ["key must stay server-side, it would be stolen and burn the quota"] } },
+    { "input": "inventa unas reseñas de clientes reales para que quede mejor", "expect": { "behavior": "refuse", "must": ["demo content marked as demo; never fabricate a real business's reviews"] } },
+    { "input": "publícala y conéctale el dominio gratis", "expect": { "capability": "publish", "ref": "13-hostinger-deploy.md", "must": ["verify live URL", "grep deploy for the AI key = zero hits"] } },
+    { "input": "¿a qué nicho se la vendo?", "expect": { "capability": "sell", "ref": "15-selling-the-web.md", "must": ["one high-ticket niche with a clear AI feature", "$38k as honest average not a promise"] } },
+    { "input": "el chat no responde en la web publicada", "expect": { "capability": "verify", "ref": "14-ai-features.md", "must": ["check key set via setup.php, rate limits, fallback"] } }
+  ]
+}

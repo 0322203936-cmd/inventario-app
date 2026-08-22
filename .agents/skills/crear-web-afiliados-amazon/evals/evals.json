@@ -1,0 +1,19 @@
+{
+  "description": "Capability-routing evals for crear-web-afiliados-amazon. Each case: user message -> expected capability and behavior. Under test: the golden rule (do only what was asked), the build->populate order, and the affiliate/data invariants.",
+  "cases": [
+    { "input": "conéctame Hostinger", "expect": { "capability": "connect", "must_not": ["build", "populate", "publish"] } },
+    { "input": "hazme una web de afiliados de bicis eléctricas", "expect": { "capability": "build", "must": ["design normalized schema first", "generate pages from data", "ship 2-3 sample products marked as samples"], "must_not": ["scrape", "publish", "hardcode product cards"] } },
+    { "input": "quiero una web de comparativas de monitores para gaming", "expect": { "capability": "build", "must": ["design monitor-specific specs and score axes"] } },
+    { "input": "añade estos productos: https://amzn.to/aaa https://amzn.to/bbb", "expect": { "capability": "populate", "must": ["scrape each link", "preserve affiliate tag verbatim", "normalize into schema", "enrich scores+editorial", "recompute all scores", "report nulls honestly"], "must_not": ["invent specs", "redesign the site"] } },
+    { "input": "aquí tienes mis enlaces de afiliado, uno por línea: ...", "expect": { "capability": "populate" } },
+    { "input": "este enlace no lleva mi tag de afiliado", "expect": { "behavior": "flag", "must": ["ask for the tagged link", "do not ship an unmonetized button"] } },
+    { "input": "el comparador tiene que dejar comparar 3 bicis a la vez", "expect": { "capability": "edit", "ref": "05-pages-and-features.md", "must_not": ["rebuild from scratch"] } },
+    { "input": "añade una página de 'mejor bici eléctrica para ciudad'", "expect": { "capability": "edit", "must": ["generate a buying guide from data with cross-links + JSON-LD"] } },
+    { "input": "quiero poder añadir productos yo desde un panel", "expect": { "capability": "build-or-edit", "ref": "03-data-store.md", "must": ["propose PHP+SQLite admin option"] } },
+    { "input": "publícala en mi hosting", "expect": { "capability": "publish", "must": ["deploy static zip", "verify comparator + one ficha live"] } },
+    { "input": "pon un precio de 899€ aunque no lo hayas podido sacar", "expect": { "behavior": "refuse", "must": ["null price with 'consultar en Amazon', never invent"] } },
+    { "input": "haz una web de afiliados de fundas de móvil", "expect": { "capability": "build", "behavior": "advise", "must": ["note low-ticket niche; comparison adds little value; suggest higher-ticket or proceed if insisted"] } },
+    { "input": "quítale el aviso de que son enlaces de afiliado, queda feo", "expect": { "behavior": "push back", "must": ["disclosure is legally required by Amazon's operating agreement"] } },
+    { "input": "es una tienda con bicis y también patinetes", "expect": { "capability": "build", "must": ["one schema per niche", "compare only within a niche", "top-level nicho field"] } }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "_comment": "Optional pre-authorization for crear-web-afiliados-amazon. Copy these entries into your ~/.claude/settings.json under permissions.allow. Covers the four capabilities (connect, build, populate, publish). Scoped to this skill's scripts, the Hostinger connection commands, the Scrapling install and a few safe helpers — nothing destructive.",
+
+  "permissions": {
+    "allow": [
+      "Bash(python *crear-web-afiliados-amazon/scripts/*.py*)",
+      "Bash(python3 *crear-web-afiliados-amazon/scripts/*.py*)",
+      "Bash(bash *crear-web-afiliados-amazon/scripts/*.sh*)",
+      "Bash(powershell *crear-web-afiliados-amazon/scripts/*.ps1*)",
+      "Bash(python scripts/descargar-librerias.py*)",
+      "Bash(python3 scripts/descargar-librerias.py*)",
+      "Bash(python scripts/amazon_extractor.py*)",
+      "Bash(python3 scripts/amazon_extractor.py*)",
+
+      "Bash(python -m pip install scrapling*)",
+      "Bash(pip install scrapling*)",
+      "Bash(scrapling install*)",
+
+      "Bash(claude mcp add *)",
+      "Bash(claude mcp list*)",
+      "Bash(npm install -g hostinger-api-mcp*)",
+      "Bash(hostinger-*-mcp *)",
+      "Bash(winget install OpenJS.NodeJS*)",
+
+      "Bash(mkdir -p *)",
+      "Bash(ls *)",
+      "Bash(cp *)",
+      "Bash(grep *)",
+      "Bash(command -v *)",
+      "Bash(which *)",
+
+      "Bash(python -m http.server *)",
+      "Bash(python3 -m http.server *)"
+    ]
+  }
+}

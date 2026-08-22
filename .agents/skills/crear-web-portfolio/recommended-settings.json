@@ -1,0 +1,28 @@
+{
+  "_comment": "Optional pre-authorization for crear-web-portfolio. Copy these entries into your ~/.claude/settings.json under permissions.allow. Covers connect, build and publish. Scoped to this skill's scripts, the Hostinger connection commands, the image helpers and the preview server. Nothing destructive.",
+
+  "permissions": {
+    "allow": [
+      "Bash(python *crear-web-portfolio/scripts/*.py*)",
+      "Bash(python3 *crear-web-portfolio/scripts/*.py*)",
+      "Bash(bash *crear-web-portfolio/scripts/*.sh*)",
+      "Bash(powershell *crear-web-portfolio/scripts/*.ps1*)",
+
+      "Bash(claude mcp add *)",
+      "Bash(claude mcp list*)",
+      "Bash(npm install -g hostinger-api-mcp*)",
+      "Bash(hostinger-*-mcp *)",
+      "Bash(winget install OpenJS.NodeJS*)",
+
+      "Bash(mkdir -p *)",
+      "Bash(ls *)",
+      "Bash(cp *)",
+      "Bash(grep *)",
+      "Bash(command -v *)",
+      "Bash(which *)",
+
+      "Bash(python -m http.server *)",
+      "Bash(python3 -m http.server *)"
+    ]
+  }
+}
