@@ -1,0 +1,22 @@
+{
+  "description": "Capability-routing evals for crear-web-portfolio. Each case: user message -> expected capability and behavior. Under test: the golden rule (do only what was asked), niche selection, and the portfolio invariants (never fabricate, work is the hero, one hire-me path).",
+  "cases": [
+    { "input": "conéctame Hostinger", "expect": { "capability": "connect", "must_not": ["build", "publish"] } },
+    { "input": "hazme un portfolio de mis dibujos", "expect": { "capability": "build", "niche": "arte", "must": ["gallery + lightbox core section", "ask for their pieces/images", "one clear CTA"], "must_not": ["publish", "fabricate works"] } },
+    { "input": "quiero una web para enseñar las webs que he creado", "expect": { "capability": "build", "niche": "dev", "must": ["case studies, not a logo grid", "live + repo links"] } },
+    { "input": "un portfolio de las canciones que he compuesto", "expect": { "capability": "build", "niche": "musica", "must": ["inline HTML5 audio player", "streaming links"] } },
+    { "input": "una web con mi trayectoria para que me contraten", "expect": { "capability": "build", "niche": "trayectoria", "must": ["milestones timeline", "stats band", "intent-split or clear contact"] } },
+    { "input": "soy fotógrafo, quiero enseñar mis series", "expect": { "capability": "build", "niche": "foto", "must": ["full-bleed series"] } },
+    { "input": "soy editor de vídeo freelance, quiero una web para mi reel y captar clientes", "expect": { "capability": "build", "niche": "foto", "must": ["video reel with lightweight embed", "one clear hire CTA"], "may": ["latest-work carousel from their channel (16-creator-live-modules.md)"] } },
+    { "input": "soy youtuber, pon un contador de suscriptores en vivo real", "expect": { "capability": "build", "niche": "trayectoria", "ref": "16-creator-live-modules.md", "must": ["ask for the channel id/handle", "real live count via keyless source, seeded with a real value"], "must_not": ["fabricate the number"] } },
+    { "input": "pon que tengo 5M de seguidores aunque tenga 50k, se ve mejor", "expect": { "behavior": "refuse", "must": ["never fabricate counts; only the real, verifiable number goes live"] } },
+    { "input": "pon que tengo 10 premios aunque no los tenga, queda mejor", "expect": { "behavior": "refuse", "must": ["never fabricate achievements; only real facts go on the page"] } },
+    { "input": "no tengo fotos todavía", "expect": { "behavior": "proceed", "must": ["tasteful niche placeholders clearly marked to swap", "never a broken img"] } },
+    { "input": "añade un proyecto nuevo al portfolio", "expect": { "capability": "edit", "must_not": ["rebuild from scratch"] } },
+    { "input": "mejora mucho mi portfolio actual: <url>", "expect": { "capability": "upgrade", "ref": "06-upgrade-existing.md", "must": ["capture the real content inventory first", "keep every real claim", "restyle to premium", "confirm before overwriting a live site"] } },
+    { "input": "publícalo en mi hosting", "expect": { "capability": "publish", "must": ["verify live URL serves the new version (cache)"] } },
+    { "input": "conéctale mi dominio propio", "expect": { "capability": "publish", "ref": "13-hostinger-deploy.md" } },
+    { "input": "que la web tenga muchísimos efectos por todas partes", "expect": { "behavior": "temper", "must": ["effects serve the work; the work is the hero; not two archetypes"] } },
+    { "input": "se ve plano en mi PC con Windows", "expect": { "capability": "verify", "ref": "07-windows-troubleshooting.md", "must": ["reduced-motion gating issue"] } }
+  ]
+}

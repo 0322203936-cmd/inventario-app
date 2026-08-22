@@ -1,0 +1,252 @@
+<?php
+// factura.php — proxy seguro para LEER una factura de la luz (foto o PDF) con IA
+// multimodal y devolver los datos en JSON. El navegador solo habla con este
+// archivo (mismo dominio). Las claves viven en el servidor y NUNCA se envían al
+// frontend. Reutiliza el mismo patrón de claves que chat.php.
+//
+//   Motor principal : Google Gemini 2.5 Flash (visión / documentos)
+//   Respaldo        : Anthropic Claude Haiku (visión / documentos)
+//   Si no hay clave o ambos fallan -> {ok:false}: el frontend pide los datos a mano.
+
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
+$PER_MIN    = 6;    // extracciones por IP y minuto (es una operación pesada)
+$PER_DAY    = 40;   // por IP y día
+$GLOBAL_DAY = 400;  // tope global diario (protege la cuota gratuita)
+$MAX_BYTES  = 10 * 1024 * 1024; // 10 MB
+
+function out($arr) { echo json_encode($arr, JSON_UNESCAPED_UNICODE); exit; }
+function fail($reason) { out(['ok' => false, 'reason' => $reason]); }
+
+// --- Solo POST ---
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); out(['ok' => false, 'reason' => 'method']); }
+
+// --- Guard de mismo origen ---
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+$src  = $_SERVER['HTTP_ORIGIN'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
+if ($src !== '') {
+  $srcHost = strtolower((string) parse_url($src, PHP_URL_HOST));
+  if ($srcHost === '' || $srcHost !== $host) { http_response_code(403); out(['ok' => false, 'reason' => 'origin']); }
+}
+
+// --- Rate limiting por IP + tope global ---
+$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+$tmp = sys_get_temp_dir();
+$now = time();
+$today = date('Ymd');
+$ipFile = $tmp . '/solterra_fac_' . md5($ip) . '.json';
+$stamps = is_file($ipFile) ? json_decode(@file_get_contents($ipFile), true) : [];
+if (!is_array($stamps)) $stamps = [];
+$inMin = array_filter($stamps, function ($t) use ($now) { return $t > $now - 60; });
+$inDay = array_filter($stamps, function ($t) use ($now) { return $t > $now - 86400; });
+if (count($inMin) >= $PER_MIN) fail('rate_min');
+if (count($inDay) >= $PER_DAY) fail('rate_day');
+$gFile = $tmp . '/solterra_fac_global_' . $today . '.txt';
+$gCount = is_file($gFile) ? (int) @file_get_contents($gFile) : 0;
+if ($gCount >= $GLOBAL_DAY) fail('rate_global');
+
+// --- Fichero recibido ---
+if (empty($_FILES['factura']) || !is_uploaded_file($_FILES['factura']['tmp_name'] ?? '')) fail('sin_archivo');
+$f = $_FILES['factura'];
+if (($f['error'] ?? 1) !== 0) fail('subida');
+if (($f['size'] ?? 0) <= 0 || $f['size'] > $MAX_BYTES) fail('tamano');
+
+$bytes = @file_get_contents($f['tmp_name']);
+if ($bytes === false || $bytes === '') fail('lectura');
+
+// Detectar el tipo real
+$mime = '';
+if (function_exists('finfo_open')) {
+  $fi = finfo_open(FILEINFO_MIME_TYPE);
+  $mime = (string) finfo_file($fi, $f['tmp_name']);
+  finfo_close($fi);
+}
+if ($mime === '') $mime = (string) ($f['type'] ?? '');
+$mime = strtolower(trim($mime));
+$isPdf = (strpos($mime, 'pdf') !== false);
+$isImg = (strpos($mime, 'image/') === 0);
+if (!$isPdf && !$isImg) fail('tipo');
+if ($isImg && !in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'], true)) {
+  // normalizamos algún alias raro a jpeg si no lo reconocemos
+  if ($mime === 'image/jpg') $mime = 'image/jpeg';
+}
+
+$b64 = base64_encode($bytes);
+
+// --- Claves (mismo patrón que chat.php) ---
+$key = getenv('GEMINI_API_KEY');
+if (!$key && is_file(__DIR__ . '/../gemini_api_key.php')) { $key = @include __DIR__ . '/../gemini_api_key.php'; }
+if (!$key && is_file(__DIR__ . '/secret_config.php'))     { $key = @include __DIR__ . '/secret_config.php'; }
+$key = is_string($key) ? trim($key) : '';
+
+$akey = getenv('ANTHROPIC_API_KEY');
+if (!$akey && is_file(__DIR__ . '/../anthropic_api_key.php')) { $akey = @include __DIR__ . '/../anthropic_api_key.php'; }
+if (!$akey && is_file(__DIR__ . '/secret_anthropic.php'))     { $akey = @include __DIR__ . '/secret_anthropic.php'; }
+$akey = is_string($akey) ? trim($akey) : '';
+
+$hasGemini    = ($key  !== '' && $key  !== 'TU_CLAVE_AQUI');
+$hasAnthropic = ($akey !== '' && $akey !== 'TU_CLAVE_AQUI');
+if (!$hasGemini && !$hasAnthropic) fail('sin_clave');
+
+// Registrar la petición (ya validada)
+$stamps[] = $now;
+$stamps = array_slice($stamps, -200);
+@file_put_contents($ipFile, json_encode(array_values($stamps)), LOCK_EX);
+@file_put_contents($gFile, (string) ($gCount + 1), LOCK_EX);
+
+// --- Instrucción de extracción ---
+$INSTR = <<<'TXT'
+Eres un extractor de datos de facturas de electricidad de España. Te doy la imagen o el PDF de una factura de la luz. Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional, sin ```), con EXACTAMENTE estas claves:
+
+{
+  "es_factura_electrica": true/false,
+  "comercializadora": string o null,
+  "potencia_contratada_kw": number o null,
+  "termino_fijo_eur_mes": number o null,
+  "consumo_kwh_mes": number o null,
+  "consumo_kwh_anual": number o null,
+  "precio_kwh_eur": number o null,
+  "termino_variable_eur_mes": number o null,
+  "gasto_total_eur_mes": number o null,
+  "gasto_total_eur_anual": number o null,
+  "periodo_factura": "mensual" | "bimestral" | "otro" | null
+}
+
+Reglas:
+- Usa PUNTO como separador decimal. Nada de símbolos de € ni de texto dentro de los números.
+- "es_factura_electrica" es true solo si de verdad parece una factura de electricidad.
+- Si la factura cubre un periodo distinto de un mes (p. ej. bimestral), NORMALIZA los importes y consumos a valores MENSUALES (divide por los meses del periodo) e indica el periodo real en "periodo_factura".
+- "precio_kwh_eur" es el precio del término de energía (variable) por kWh; si hay varios tramos, usa el promedio.
+- "consumo_kwh_mes" es el consumo de energía mensual en kWh; "consumo_kwh_anual" multiplícalo por 12 si solo tienes el mensual.
+- "gasto_total_eur_mes" es el total de la factura por mes (impuestos incluidos si aparecen). "gasto_total_eur_anual" = mensual x 12.
+- Si un dato no aparece o no lo puedes leer con seguridad, pon null. No inventes.
+TXT;
+
+function extract_json($s) {
+  $s = trim((string) $s);
+  // quitar vallas de código si las hubiera
+  $s = preg_replace('/^```(?:json)?/i', '', $s);
+  $s = preg_replace('/```$/', '', trim($s));
+  $s = trim($s);
+  $start = strpos($s, '{');
+  $end   = strrpos($s, '}');
+  if ($start === false || $end === false || $end < $start) return null;
+  $json = substr($s, $start, $end - $start + 1);
+  $data = json_decode($json, true);
+  return is_array($data) ? $data : null;
+}
+
+// --- 1) Gemini 2.5 Flash (visión/documentos) ---
+function call_gemini_vision($key, $mime, $b64, $instr) {
+  $payload = [
+    'contents' => [[
+      'role' => 'user',
+      'parts' => [
+        ['inline_data' => ['mime_type' => $mime, 'data' => $b64]],
+        ['text' => $instr],
+      ],
+    ]],
+    'generationConfig' => [
+      'temperature'      => 0.1,
+      'maxOutputTokens'  => 900,
+      'responseMimeType' => 'application/json',
+      'thinkingConfig'   => ['thinkingBudget' => 0],
+    ],
+  ];
+  $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . urlencode($key);
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+    CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+    CURLOPT_TIMEOUT => 45,
+  ]);
+  $resp = curl_exec($ch); $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+  if ($resp === false || $code >= 400) return [null, "gemini http $code $err " . substr((string) $resp, 0, 200)];
+  $data = json_decode($resp, true);
+  $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+  return [$text, ''];
+}
+
+// --- 2) Claude Haiku (visión/documentos) ---
+function call_claude_vision($akey, $isPdf, $mime, $b64, $instr) {
+  $media = $isPdf ? 'application/pdf' : $mime;
+  $block = $isPdf
+    ? ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $b64]]
+    : ['type' => 'image',    'source' => ['type' => 'base64', 'media_type' => $media,            'data' => $b64]];
+  $payload = [
+    'model'      => 'claude-haiku-4-5',
+    'max_tokens' => 900,
+    'messages'   => [[
+      'role' => 'user',
+      'content' => [ $block, ['type' => 'text', 'text' => $instr] ],
+    ]],
+  ];
+  $ch = curl_init('https://api.anthropic.com/v1/messages');
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+      'content-type: application/json',
+      'x-api-key: ' . $akey,
+      'anthropic-version: 2023-06-01',
+    ],
+    CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+    CURLOPT_TIMEOUT => 45,
+  ]);
+  $resp = curl_exec($ch); $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+  if ($resp === false || $code >= 400) return [null, "claude http $code $err " . substr((string) $resp, 0, 200)];
+  $data = json_decode($resp, true);
+  $text = $data['content'][0]['text'] ?? '';
+  return [$text, ''];
+}
+
+$parsed = null; $usedSource = ''; $lastErr = '';
+
+if ($hasGemini) {
+  list($text, $err) = call_gemini_vision($key, $mime, $b64, $INSTR);
+  if ($text) { $parsed = extract_json($text); if ($parsed) $usedSource = 'gemini'; }
+  if (!$parsed) $lastErr .= ' | ' . $err;
+}
+if (!$parsed && $hasAnthropic) {
+  list($text, $err) = call_claude_vision($akey, $isPdf, $mime, $b64, $INSTR);
+  if ($text) { $parsed = extract_json($text); if ($parsed) $usedSource = 'claude'; }
+  if (!$parsed) $lastErr .= ' | ' . $err;
+}
+
+if (!$parsed) { @error_log('[solterra-factura] ' . $lastErr); fail('ia'); }
+
+// --- Normalizar / sanear números ---
+function num($v) {
+  if ($v === null || $v === '') return null;
+  if (is_int($v) || is_float($v)) return (float) $v;
+  $s = str_replace([' ', "\xc2\xa0", '€', 'kWh', 'kwh'], '', (string) $v);
+  // si viene con coma decimal
+  if (strpos($s, ',') !== false && strpos($s, '.') === false) $s = str_replace(',', '.', $s);
+  else $s = str_replace(',', '', $s);
+  return is_numeric($s) ? (float) $s : null;
+}
+
+$d = [
+  'es_factura_electrica'      => (bool) ($parsed['es_factura_electrica'] ?? true),
+  'comercializadora'          => is_string($parsed['comercializadora'] ?? null) ? trim($parsed['comercializadora']) : null,
+  'potencia_contratada_kw'    => num($parsed['potencia_contratada_kw'] ?? null),
+  'termino_fijo_eur_mes'      => num($parsed['termino_fijo_eur_mes'] ?? null),
+  'consumo_kwh_mes'           => num($parsed['consumo_kwh_mes'] ?? null),
+  'consumo_kwh_anual'         => num($parsed['consumo_kwh_anual'] ?? null),
+  'precio_kwh_eur'            => num($parsed['precio_kwh_eur'] ?? null),
+  'termino_variable_eur_mes'  => num($parsed['termino_variable_eur_mes'] ?? null),
+  'gasto_total_eur_mes'       => num($parsed['gasto_total_eur_mes'] ?? null),
+  'gasto_total_eur_anual'     => num($parsed['gasto_total_eur_anual'] ?? null),
+  'periodo_factura'           => is_string($parsed['periodo_factura'] ?? null) ? $parsed['periodo_factura'] : null,
+];
+
+// Completar mensual<->anual si falta uno
+if ($d['gasto_total_eur_anual'] === null && $d['gasto_total_eur_mes'] !== null) $d['gasto_total_eur_anual'] = round($d['gasto_total_eur_mes'] * 12, 2);
+if ($d['gasto_total_eur_mes']   === null && $d['gasto_total_eur_anual'] !== null) $d['gasto_total_eur_mes'] = round($d['gasto_total_eur_anual'] / 12, 2);
+if ($d['consumo_kwh_anual']     === null && $d['consumo_kwh_mes'] !== null) $d['consumo_kwh_anual'] = round($d['consumo_kwh_mes'] * 12, 1);
+if ($d['consumo_kwh_mes']       === null && $d['consumo_kwh_anual'] !== null) $d['consumo_kwh_mes'] = round($d['consumo_kwh_anual'] / 12, 1);
+
+out(['ok' => true, 'source' => $usedSource, 'data' => $d]);

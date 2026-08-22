@@ -1,0 +1,120 @@
+<?php
+// geocode.php — proxy de autocompletado de direcciones (typeahead).
+// El navegador NO puede fijar un User-Agent propio, así que geocodificamos en el
+// servidor respetando la política de uso: User-Agent identificable, límite de
+// peticiones y sin uso masivo. Motor principal Nominatim (OpenStreetMap),
+// respaldo Photon (Komoot). Devuelve una lista normalizada de sugerencias.
+
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
+$UA        = 'SolterraCalculadoraSolar/1.0 (https://solterra.example; contacto@solterra.example)';
+$PER_MIN   = 40;   // peticiones por IP y minuto (el cliente ya hace debounce)
+$MIN_CHARS = 3;
+
+function out($arr) { echo json_encode($arr, JSON_UNESCAPED_UNICODE); exit; }
+
+// --- Guard de mismo origen ---
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+$srcv = $_SERVER['HTTP_ORIGIN'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
+if ($srcv !== '') {
+  $srcHost = strtolower((string) parse_url($srcv, PHP_URL_HOST));
+  if ($srcHost === '' || $srcHost !== $host) { http_response_code(403); out(['results' => []]); }
+}
+
+$q = trim((string) ($_GET['q'] ?? ''));
+if (mb_strlen($q) < $MIN_CHARS) out(['results' => []]);
+if (mb_strlen($q) > 120) $q = mb_substr($q, 0, 120);
+
+// --- Rate limit por IP ---
+$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+$tmp = sys_get_temp_dir();
+$now = time();
+$rlFile = $tmp . '/solterra_geo_' . md5($ip) . '.json';
+$stamps = is_file($rlFile) ? json_decode(@file_get_contents($rlFile), true) : [];
+if (!is_array($stamps)) $stamps = [];
+$stamps = array_values(array_filter($stamps, function ($t) use ($now) { return $t > $now - 60; }));
+if (count($stamps) >= $PER_MIN) out(['results' => []]);
+$stamps[] = $now;
+@file_put_contents($rlFile, json_encode($stamps), LOCK_EX);
+
+// Devuelve el primer valor de texto no vacío entre las claves dadas (defensivo)
+function pick_str($arr, $keys) {
+  foreach ($keys as $k) {
+    if (isset($arr[$k]) && is_string($arr[$k]) && trim($arr[$k]) !== '') return trim($arr[$k]);
+  }
+  return '';
+}
+
+function http_get($url, $ua) {
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT        => 12,
+    CURLOPT_HTTPHEADER     => ['Accept: application/json', 'Accept-Language: es'],
+    CURLOPT_USERAGENT      => $ua,
+  ]);
+  $r = curl_exec($ch); $c = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+  return ($r !== false && $c === 200) ? $r : null;
+}
+
+$results = [];
+
+// --- 1) Nominatim ---
+$url = 'https://nominatim.openstreetmap.org/search?' . http_build_query([
+  'q'              => $q,
+  'format'         => 'jsonv2',
+  'addressdetails' => 1,
+  'limit'          => 6,
+  'countrycodes'   => 'es',
+  'accept-language'=> 'es',
+]);
+$raw = http_get($url, $UA);
+if ($raw) {
+  $arr = json_decode($raw, true);
+  if (is_array($arr)) {
+    foreach ($arr as $it) {
+      $lat = isset($it['lat']) ? (float) $it['lat'] : null;
+      $lon = isset($it['lon']) ? (float) $it['lon'] : null;
+      $label = (string) ($it['display_name'] ?? '');
+      if ($lat === null || $lon === null || $label === '') continue;
+      $ad = is_array($it['address'] ?? null) ? $it['address'] : [];
+      $city = pick_str($ad, ['city', 'town', 'village', 'municipality', 'county']);
+      $results[] = ['label' => $label, 'lat' => $lat, 'lon' => $lon, 'city' => $city];
+    }
+  }
+}
+
+// --- 2) Respaldo: Photon ---
+if (!count($results)) {
+  $url2 = 'https://photon.komoot.io/api?' . http_build_query(['q' => $q, 'lang' => 'es', 'limit' => 6]);
+  $raw2 = http_get($url2, $UA);
+  if ($raw2) {
+    $arr2 = json_decode($raw2, true);
+    $feats = $arr2['features'] ?? [];
+    if (is_array($feats)) {
+      foreach ($feats as $ft) {
+        $coord = $ft['geometry']['coordinates'] ?? null; // [lon, lat]
+        $p = $ft['properties'] ?? [];
+        if (!is_array($coord) || count($coord) < 2) continue;
+        if (($p['countrycode'] ?? '') !== 'ES' && ($p['country'] ?? '') !== 'Spain' && ($p['country'] ?? '') !== 'España') {
+          // no filtramos con dureza, pero priorizamos España; si no hay país claro, lo dejamos
+        }
+        $parts = array_filter([
+          $p['name'] ?? null,
+          $p['street'] ?? null,
+          isset($p['housenumber']) ? $p['housenumber'] : null,
+          $p['postcode'] ?? null,
+          $p['city'] ?? ($p['county'] ?? null),
+          $p['state'] ?? null,
+        ]);
+        $label = implode(', ', array_unique($parts));
+        if ($label === '') continue;
+        $city = pick_str($p, ['city', 'name', 'county']);
+        $results[] = ['label' => $label, 'lat' => (float) $coord[1], 'lon' => (float) $coord[0], 'city' => $city];
+      }
+    }
+  }
+}
+
+out(['results' => array_slice($results, 0, 6)]);

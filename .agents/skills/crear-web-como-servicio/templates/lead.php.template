@@ -1,0 +1,125 @@
+<?php
+// lead.php — captura de leads de la calculadora de ahorro.
+// Guarda el email + datos del cálculo en ficheros FUERA de public_html (o, si no
+// se puede, en el propio directorio pero protegidos por .htaccess). Opcionalmente
+// avisa por email al comercial. Devuelve {ok:true} para desbloquear el informe.
+//
+// Almacenamiento:
+//   ../solterra_leads.jsonl   (una línea JSON por lead, para procesar)
+//   ../solterra_leads.csv     (para abrir en Excel)
+// Aviso por email (opcional): crea ../solterra_lead_to.php con <?php return 'comercial@tudominio.com';
+
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
+$PER_MIN   = 6;    // envíos por IP y minuto
+$PER_DAY   = 60;   // por IP y día
+
+function out($arr) { echo json_encode($arr, JSON_UNESCAPED_UNICODE); exit; }
+
+// --- Solo POST ---
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); out(['ok' => false, 'reason' => 'method']); }
+
+// --- Guard de mismo origen ---
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+$srcv = $_SERVER['HTTP_ORIGIN'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
+if ($srcv !== '') {
+  $srcHost = strtolower((string) parse_url($srcv, PHP_URL_HOST));
+  if ($srcHost === '' || $srcHost !== $host) { http_response_code(403); out(['ok' => false, 'reason' => 'origin']); }
+}
+
+// --- Rate limit por IP ---
+$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+$tmp = sys_get_temp_dir();
+$now = time();
+$rlFile = $tmp . '/solterra_lead_' . md5($ip) . '.json';
+$stamps = is_file($rlFile) ? json_decode(@file_get_contents($rlFile), true) : [];
+if (!is_array($stamps)) $stamps = [];
+$inMin = array_filter($stamps, function ($t) use ($now) { return $t > $now - 60; });
+$inDay = array_filter($stamps, function ($t) use ($now) { return $t > $now - 86400; });
+if (count($inMin) >= $PER_MIN) out(['ok' => false, 'reason' => 'rate_min']);
+if (count($inDay) >= $PER_DAY) out(['ok' => false, 'reason' => 'rate_day']);
+
+// --- Entrada ---
+$in = json_decode(file_get_contents('php://input'), true);
+if (!is_array($in)) $in = [];
+
+$email = trim((string) ($in['email'] ?? ''));
+if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 160) out(['ok' => false, 'reason' => 'email']);
+$telefono = trim((string) ($in['telefono'] ?? ''));
+$telefono = preg_replace('/[^0-9+\s]/', '', $telefono);
+$telefono = mb_substr($telefono, 0, 24);
+$consent = !empty($in['consent']);
+if (!$consent) out(['ok' => false, 'reason' => 'consent']);
+
+// Datos del cálculo (se guardan tal cual, saneados a strings/números cortos)
+$calc = is_array($in['calc'] ?? null) ? $in['calc'] : [];
+function s($v, $max = 80) { return mb_substr(is_scalar($v) ? (string) $v : '', 0, $max); }
+$loc = is_array($in['ubicacion'] ?? null) ? $in['ubicacion'] : [];
+
+$row = [
+  'fecha'          => date('c'),
+  'email'          => $email,
+  'telefono'       => $telefono,
+  'ubicacion'      => s($loc['label'] ?? '', 160),
+  'lat'            => isset($loc['lat']) ? round((float) $loc['lat'], 5) : null,
+  'lon'            => isset($loc['lon']) ? round((float) $loc['lon'], 5) : null,
+  'area_tejado_m2' => isset($calc['area']) ? round((float) $calc['area']) : null,
+  'gasto_mes_eur'  => isset($calc['gastoMensual']) ? round((float) $calc['gastoMensual'], 2) : null,
+  'ahorro_anual_eur' => isset($calc['ahorroAnual']) ? round((float) $calc['ahorroAnual']) : null,
+  'ahorro_mes_eur'   => isset($calc['ahorroMensual']) ? round((float) $calc['ahorroMensual']) : null,
+  'pct_cubierto'   => isset($calc['pctCubierto']) ? round((float) $calc['pctCubierto']) : null,
+  'kwp'            => isset($calc['kWp']) ? round((float) $calc['kWp'], 2) : null,
+  'placas'         => isset($calc['placas']) ? (int) $calc['placas'] : null,
+  'coste_eur'      => isset($calc['coste']) ? round((float) $calc['coste']) : null,
+  'payback_anos'   => isset($calc['payback']) ? round((float) $calc['payback'], 1) : null,
+  'comercializadora' => s($calc['comercializadora'] ?? ''),
+  'origen_factura' => s($calc['origenFactura'] ?? ''),
+  'ip'             => $ip,
+  'ua'             => s($_SERVER['HTTP_USER_AGENT'] ?? '', 200),
+];
+
+// --- Elegir destino de escritura (fuera de public_html si se puede) ---
+$candidatos = [__DIR__ . '/..', __DIR__];
+$dir = null;
+foreach ($candidatos as $c) {
+  if (is_dir($c) && is_writable($c)) { $dir = $c; break; }
+}
+$stored = false;
+if ($dir !== null) {
+  $jsonl = $dir . '/solterra_leads.jsonl';
+  $csv   = $dir . '/solterra_leads.csv';
+
+  if (@file_put_contents($jsonl, json_encode($row, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX) !== false) $stored = true;
+
+  $newCsv = !is_file($csv);
+  $fh = @fopen($csv, 'a');
+  if ($fh) {
+    if (flock($fh, LOCK_EX)) {
+      if ($newCsv) fputcsv($fh, array_keys($row));
+      fputcsv($fh, array_values($row));
+      flock($fh, LOCK_UN);
+      $stored = true;
+    }
+    fclose($fh);
+  }
+}
+
+// Registrar el intento en el rate-limit (tras validar)
+$stamps[] = $now;
+$stamps = array_slice($stamps, -200);
+@file_put_contents($rlFile, json_encode(array_values($stamps)), LOCK_EX);
+
+// --- Aviso por email al comercial (opcional, best-effort) ---
+$to = '';
+if (is_file(__DIR__ . '/../solterra_lead_to.php')) { $v = @include __DIR__ . '/../solterra_lead_to.php'; if (is_string($v)) $to = trim($v); }
+if ($to !== '' && filter_var($to, FILTER_VALIDATE_EMAIL) && function_exists('mail')) {
+  $asunto = 'Nuevo lead calculadora solar — ' . $email;
+  $cuerpo = "Nuevo lead desde la calculadora de ahorro:\n\n";
+  foreach ($row as $k => $v) { $cuerpo .= str_pad($k, 18) . ': ' . (is_null($v) ? '-' : $v) . "\n"; }
+  $headers = 'From: no-reply@' . ($host ?: 'solterra.example') . "\r\n" . 'Content-Type: text/plain; charset=utf-8';
+  @mail($to, $asunto, $cuerpo, $headers);
+}
+
+// Devolvemos ok si al menos se guardó, o si no había dónde escribir pero el email es válido
+out(['ok' => ($stored || $dir === null)]);
