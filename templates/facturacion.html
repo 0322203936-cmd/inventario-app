@@ -465,6 +465,71 @@
                 return;
             }
 
+            const captura = data.captura || {};
+            if (captura.exists) {
+                if (!captura.can_reset) {
+                    const motivo = captura.has_verified
+                        ? 'La devolución ya fue verificada en Walmex y debe corregirse desde Walmex.'
+                        : 'La devolución ya fue modificada en Walmex y no puede restablecerse desde Choferes.';
+                    alert('Esta factura ya fue escaneada.\n\n' + motivo);
+                    mostrarResultados(data);
+                    return;
+                }
+
+                const aceptarRestablecer = confirm(
+                    'Esta factura ya fue escaneada.\n\n' +
+                    '¿Desea restablecerla para volver a capturarla?\n' +
+                    'La captura anterior dejará de estar activa y sus evidencias se conservarán en el historial.'
+                );
+                if (!aceptarRestablecer) {
+                    // Cancelar el restablecimiento también cancela esta nueva
+                    // tentativa: no debe permitir continuar con la captura
+                    // anterior ni volver a fotografiar el recibimiento.
+                    btnReiniciar.click();
+                    return;
+                }
+
+                loadingArea.querySelector('p').textContent = 'Restableciendo factura...';
+                loadingArea.style.display = 'flex';
+                try {
+                    const resetRes = await fetch('/api/restablecer_factura', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            folio: manualFolio,
+                            razon: 'Captura reemplazada por nueva captura del chofer'
+                        })
+                    });
+                    const resetData = await resetRes.json();
+                    if (!resetRes.ok || !resetData.ok) {
+                        alert('No se pudo restablecer la factura: ' + (resetData.error || 'Error desconocido'));
+                        loadingArea.style.display = 'none';
+                        uploadArea.style.display = 'block';
+                        return;
+                    }
+
+                    // Volver a leer la factura ya restaurada antes de repetir la conciliación.
+                    const reloadRes = await fetch('/api/analizar_factura', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    data = await reloadRes.json();
+                    if (!reloadRes.ok || !data.ok) {
+                        alert('La factura fue restablecida, pero no se pudo volver a cargar: ' + (data.error || 'Error desconocido'));
+                        loadingArea.style.display = 'none';
+                        uploadArea.style.display = 'block';
+                        return;
+                    }
+                } catch (resetErr) {
+                    console.error(resetErr);
+                    alert('Error de conexión al restablecer la factura.');
+                    loadingArea.style.display = 'none';
+                    uploadArea.style.display = 'block';
+                    return;
+                }
+            }
+
+            loadingArea.style.display = 'none';
             mostrarResultados(data);
         } catch (err) {
             console.error(err);
@@ -833,7 +898,16 @@
         resultsSection.style.display = 'none';
         uploadArea.style.display = 'block';
         fileInput.value = '';
+        if (fileInputGallery) fileInputGallery.value = '';
         reciboInput.value = '';
+        manualFolioInput.value = '';
+        tempFile = null;
+        acuseTempFile = null;
+        currentFolio = null;
+        currentSerie = null;
+        currentUrlFactura = null;
+        currentConciliacion = [];
+        esperados = [];
         btnRecibido.innerHTML = 'Recibido';
         btnRecibido.disabled = false;
     });

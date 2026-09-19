@@ -9,7 +9,7 @@ import msal
 import threading
 from collections import OrderedDict
 from urllib.parse import quote, quote_plus, unquote, urlsplit
-from neon_db import database_client
+from neon_db import database_client, get_invoice_capture_state, reset_invoice_capture
 import cv2
 import numpy as np
 import re
@@ -1435,6 +1435,15 @@ def api_analizar_factura():
                     
         url_factura_temp = ""
             
+        captura = get_invoice_capture_state(folio_encontrado) if db_productos else {
+            "exists": False,
+            "can_reset": False,
+            "has_verified": False,
+            "has_modified": False,
+            "has_evidence": False,
+            "rows": [],
+        }
+
         return jsonify({
               "ok": True,
               "factura": {
@@ -1445,6 +1454,7 @@ def api_analizar_factura():
                   "url_factura": url_factura_temp
               },
               "db_status": db_status,
+              "captura": captura,
               "comparacion": comparacion,
               "productos_gemini": productos_gemini,
               "ocr_raw_text": full_text
@@ -1453,6 +1463,22 @@ def api_analizar_factura():
     except Exception as e:
         print(f"Error procesando factura manual: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/restablecer_factura', methods=['POST'])
+def api_restablecer_factura():
+    """Archiva una captura no verificada y restaura la factura para recapturarla."""
+    try:
+        data = request.get_json(silent=True) or {}
+        folio = str(data.get('folio') or '').strip()
+        reason = str(data.get('razon') or 'Captura reemplazada por nueva captura').strip()
+        result = reset_invoice_capture(folio, reason)
+        return jsonify({"ok": True, **result})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 409
+    except Exception as exc:
+        print(f"Error restableciendo factura: {exc}")
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 @app.route('/api/analizar_recibo', methods=['POST'])
 def analizar_recibo():
