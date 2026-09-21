@@ -488,6 +488,12 @@
             color: var(--accent);
             font-weight: 700;
         }
+        .comentario-monto {
+            color: var(--text-main);
+            font-weight: 700;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
 
         .fotos-grid {
             display: grid;
@@ -851,9 +857,15 @@
                         <div class="comentarios-box">
                             <div class="comentarios-label">📝 Comentarios</div>
                             <ul class="comentarios-list">
-                                {% for c in det.comentarios %}
-                                <li>{{ c }}</li>
-                                {% endfor %}
+                                {% if det.comentario_items is defined and det.comentario_items %}
+                                    {% for item in det.comentario_items %}
+                                    <li>{{ item.texto }} <span class="comentario-monto">${{ "{:,.2f}".format(item.monto|float) }}</span></li>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for c in det.comentarios %}
+                                    <li>{{ c }}</li>
+                                    {% endfor %}
+                                {% endif %}
                             </ul>
                         </div>
                         {% endif %}
