@@ -63,7 +63,8 @@ HEADERS_CF = [
 
 HEADERS_GASTOS = [
     "Fecha de registro", "Tienda", "Fecha del Gasto", "Usuario",
-    "Categoria", "Monto", "Fotos", "Viaticos", "Comentarios"
+    "Categoria", "Monto", "Fotos", "Viaticos", "Comentarios",
+    "Monto Tickets", "Monto Comentario"
 ]
 
 # Tabla Detalle: columnas A-H (col 1-8)
@@ -930,6 +931,17 @@ def procesar_gastos(pendiente):
             cat_data = pendiente.get(cat, {})
             fotos = cat_data.get("fotos", [])
             monto = cat_data.get("monto", 0)
+            # Las nuevas capturas separan el monto adicional del monto de tickets.
+            # Las pendientes antiguas solo traen "monto" y se conservan como comentario.
+            monto_tickets = cat_data.get("monto_tickets")
+            monto_comentario = cat_data.get("monto_comentario")
+            if monto_tickets is None and monto_comentario is None:
+                monto_tickets = 0
+                monto_comentario = monto
+            else:
+                monto_tickets = float(monto_tickets or 0)
+                monto_comentario = float(monto_comentario or 0)
+                monto = monto_tickets + monto_comentario
             comentario = cat_data.get("comentario", "")
             if not fotos and monto == 0 and not comentario:
                 continue
@@ -959,7 +971,9 @@ def procesar_gastos(pendiente):
                 monto,
                 ",".join(rutas_fotos),
                 "",
-                comentario
+                comentario,
+                monto_tickets,
+                monto_comentario
             ])
             
         if filas_gastos:
@@ -1152,7 +1166,9 @@ def reporte():
                 values = r.json().get("values", [])
                 if len(values) > 1:
                     # El índice de valores asume:
-                    # 0: Fecha reg, 1: Tienda, 2: Fecha gasto, 3: Usuario, 4: Categoria, 5: Monto, 6: Fotos
+                    # 0: Fecha reg, 1: Tienda, 2: Fecha gasto, 3: Usuario,
+                    # 4: Categoria, 5: Monto total, 6: Fotos, 7: Viaticos,
+                    # 8: Comentarios, 9: Monto Tickets, 10: Monto Comentario
                     grouped = {}
                     for idx, row in enumerate(values[1:]):
                         if len(row) >= 6:
@@ -1193,6 +1209,19 @@ def reporte():
                                 monto = float(str(row[5]).replace('$', '').replace(',', '').strip()) if row[5] else 0.0
                             except ValueError:
                                 monto = 0.0
+
+                            def _optional_amount(value):
+                                if value is None or str(value).strip() == "":
+                                    return None
+                                try:
+                                    return float(str(value).replace('$', '').replace(',', '').strip())
+                                except (TypeError, ValueError):
+                                    return None
+
+                            monto_tickets_val = _optional_amount(row[9] if len(row) > 9 else None)
+                            monto_comentario_val = _optional_amount(row[10] if len(row) > 10 else None)
+                            desglose_completo = monto_tickets_val is not None and monto_comentario_val is not None
+                            comentario_monto = monto_comentario_val if monto_comentario_val is not None else monto
                                 
                             try:
                                 viaticos_val = float(str(row[7]).replace('$', '').replace(',', '').strip()) if len(row) > 7 and row[7] else None
@@ -1225,7 +1254,10 @@ def reporte():
                                         "monto": monto, 
                                         "fotos": list(fotos_list),
                                         "comentarios": [comentario_str] if comentario_str else [],
-                                        "comentario_items": ([{"texto": comentario_str, "monto": monto}] if comentario_str else []),
+                                        "comentario_items": ([{"texto": comentario_str, "monto": comentario_monto}] if comentario_str else []),
+                                        "monto_tickets": monto_tickets_val,
+                                        "monto_comentario": monto_comentario_val,
+                                        "desglose_completo": desglose_completo,
                                         "row_nums": [row_num]
                                     }
                             else:
@@ -1241,13 +1273,28 @@ def reporte():
                                 
                                 if categoria:
                                     if categoria not in grouped[key]["detalles"]:
-                                        grouped[key]["detalles"][categoria] = {"monto": 0.0, "fotos": [], "comentarios": [], "row_nums": []}
-                                    grouped[key]["detalles"][categoria]["monto"] += monto
-                                    grouped[key]["detalles"][categoria]["fotos"].extend(fotos_list)
-                                    grouped[key]["detalles"][categoria]["row_nums"].append(row_num)
+                                        grouped[key]["detalles"][categoria] = {
+                                            "monto": 0.0, "fotos": [], "comentarios": [],
+                                            "comentario_items": [], "monto_tickets": None,
+                                            "monto_comentario": None, "desglose_completo": desglose_completo,
+                                            "row_nums": []
+                                        }
+                                    detalle = grouped[key]["detalles"][categoria]
+                                    detalle["monto"] += monto
+                                    detalle["fotos"].extend(fotos_list)
+                                    detalle["row_nums"].append(row_num)
+                                    if desglose_completo:
+                                        if detalle.get("monto_tickets") is None:
+                                            detalle["monto_tickets"] = 0.0
+                                        if detalle.get("monto_comentario") is None:
+                                            detalle["monto_comentario"] = 0.0
+                                        detalle["monto_tickets"] += monto_tickets_val
+                                        detalle["monto_comentario"] += monto_comentario_val
+                                    else:
+                                        detalle["desglose_completo"] = False
                                     if comentario_str:
-                                        grouped[key]["detalles"][categoria]["comentarios"].append(comentario_str)
-                                        grouped[key]["detalles"][categoria].setdefault("comentario_items", []).append({"texto": comentario_str, "monto": monto})
+                                        detalle["comentarios"].append(comentario_str)
+                                        detalle.setdefault("comentario_items", []).append({"texto": comentario_str, "monto": comentario_monto})
 
                                 grouped[key]["fecha_reg"] = fecha_reg_str # Mostrar última fecha de actualización
                                 
@@ -1263,7 +1310,7 @@ def reporte():
 
 @app.route("/api/editar_gasto", methods=["POST"])
 def api_editar_gasto():
-    """Actualiza Monto por categoría y Viáticos globales de un grupo de gastos."""
+    """Actualiza total, desglose de tickets/comentario y viáticos del grupo."""
     data = request.json
     pwd = data.get("password")
     if pwd != "cfbc2026":
@@ -1283,6 +1330,7 @@ def api_editar_gasto():
         auth_headers = {"Authorization": f"Bearer {token}"}
         site_id = _get_site_id(auth_headers)
         base_url = _get_base_url(site_id)
+        _ensure_table_headers(auth_headers, base_url, 1, HEADERS_GASTOS, COLOR_HEADER_GASTOS, sheet_name=SP_SHEET_GASTOS)
         
         # Encontrar la primera fila global para guardar los viáticos
         todas_filas = []
@@ -1322,6 +1370,22 @@ def api_editar_gasto():
             )
             if not resp_m.ok:
                 return jsonify({"ok": False, "msg": f"Error editando monto de {cat}: {resp_m.text}"}), 500
+
+            # Guardar por separado los importes de tickets y de comentario.
+            if "monto_tickets" in cat_data and "monto_comentario" in cat_data:
+                monto_tickets = cat_data.get("monto_tickets", 0)
+                monto_comentario = cat_data.get("monto_comentario", 0)
+                for col, value, label in (
+                    ("J", monto_tickets, "tickets"),
+                    ("K", monto_comentario, "comentario"),
+                ):
+                    resp_split = req_lib.patch(
+                        f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{col}{r1}')",
+                        headers={**auth_headers, "Content-Type": "application/json"},
+                        json={"values": [[value]]}, timeout=30
+                    )
+                    if not resp_split.ok:
+                        return jsonify({"ok": False, "msg": f"Error editando monto de {label} en {cat}: {resp_split.text}"}), 500
             
             # Poner en 0 las demás filas de esta categoría
             for rn in cat_rows[1:]:
@@ -1330,6 +1394,13 @@ def api_editar_gasto():
                     headers={**auth_headers, "Content-Type": "application/json"},
                     json={"values": [[0]]}, timeout=30
                 )
+                if "monto_tickets" in cat_data and "monto_comentario" in cat_data:
+                    for col in ("J", "K"):
+                        req_lib.patch(
+                            f"{base_url}/workbook/worksheets/{SP_SHEET_GASTOS}/range(address='{col}{rn}')",
+                            headers={**auth_headers, "Content-Type": "application/json"},
+                            json={"values": [[0]]}, timeout=30
+                        )
                 
         return jsonify({"ok": True})
     except Exception as e:
