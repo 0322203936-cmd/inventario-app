@@ -1223,8 +1223,9 @@ def reporte():
                                 if categoria:
                                     grouped[key]["detalles"][categoria] = {
                                         "monto": monto, 
-                                        "fotos": list(fotos_list), 
+                                        "fotos": list(fotos_list),
                                         "comentarios": [comentario_str] if comentario_str else [],
+                                        "comentario_items": ([{"texto": comentario_str, "monto": monto}] if comentario_str else []),
                                         "row_nums": [row_num]
                                     }
                             else:
@@ -1246,6 +1247,7 @@ def reporte():
                                     grouped[key]["detalles"][categoria]["row_nums"].append(row_num)
                                     if comentario_str:
                                         grouped[key]["detalles"][categoria]["comentarios"].append(comentario_str)
+                                        grouped[key]["detalles"][categoria].setdefault("comentario_items", []).append({"texto": comentario_str, "monto": monto})
 
                                 grouped[key]["fecha_reg"] = fecha_reg_str # Mostrar última fecha de actualización
                                 

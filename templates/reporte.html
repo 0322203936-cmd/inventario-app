@@ -488,6 +488,12 @@
             color: var(--accent);
             font-weight: 700;
         }
+        .comentario-monto {
+            color: var(--text-main);
+            font-weight: 700;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
 
         .fotos-grid {
             display: grid;
@@ -769,7 +775,7 @@
         {% for g in gastos %}
         {% set card_idx = loop.index0 %}
         {% set card_num = loop.index %}
-        {% set viaticos = g.viaticos if g.viaticos is not none else (1100 if g.tienda == 'MXL' else 700) %}
+        {% set viaticos = g.viaticos if g.viaticos is not none else (900 if g.tienda == 'MXL' else 600) %}
 
         <div class="gasto-card" id="gasto-card-{{ card_num }}" data-tienda="{{ g.tienda }}" data-usuario="{{ g.usuario.lower() }}" data-fecha="{{ g.fecha }}">
             <div class="card-stripe"></div>
@@ -851,9 +857,15 @@
                         <div class="comentarios-box">
                             <div class="comentarios-label">📝 Comentarios</div>
                             <ul class="comentarios-list">
-                                {% for c in det.comentarios %}
-                                <li>{{ c }}</li>
-                                {% endfor %}
+                                {% if det.comentario_items is defined and det.comentario_items %}
+                                    {% for item in det.comentario_items %}
+                                    <li>{{ item.texto }} <span class="comentario-monto">${{ "{:,.2f}".format(item.monto|float) }}</span></li>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for c in det.comentarios %}
+                                    <li>{{ c }}</li>
+                                    {% endfor %}
+                                {% endif %}
                             </ul>
                         </div>
                         {% endif %}
