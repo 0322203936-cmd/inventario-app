@@ -1263,18 +1263,61 @@
         });
     });
 
+    let tarjetaEnImpresion = null;
+
+    function restaurarDespuesDeImprimir() {
+        document.body.classList.remove('print-mode');
+        document.querySelectorAll('.gasto-card.print-active').forEach(card => {
+            card.classList.remove('print-active');
+        });
+
+        if (tarjetaEnImpresion) {
+            tarjetaEnImpresion.querySelectorAll('.cat-panel[data-print-display]').forEach(panel => {
+                const displayAnterior = panel.dataset.printDisplay;
+                if (displayAnterior) {
+                    panel.style.display = displayAnterior;
+                } else {
+                    panel.style.removeProperty('display');
+                }
+                delete panel.dataset.printDisplay;
+            });
+        }
+        tarjetaEnImpresion = null;
+    }
+
+    // La vista previa de Chrome puede abrirse de forma asíncrona. Esperamos a
+    // que termine para no mostrar todas las tarjetas antes de limpiar el modo.
+    window.addEventListener('afterprint', restaurarDespuesDeImprimir);
+
+    // Respaldo para navegadores que no emitan afterprint de forma consistente.
+    const mediaPrint = window.matchMedia('print');
+    if (mediaPrint.addEventListener) {
+        mediaPrint.addEventListener('change', event => {
+            if (!event.matches) restaurarDespuesDeImprimir();
+        });
+    }
+
     function imprimirTarjeta(cardNum) {
+        const tarjeta = document.getElementById('gasto-card-' + cardNum);
+        if (!tarjeta) return;
+
+        // Si quedó una impresión anterior pendiente, la dejamos limpia antes
+        // de preparar la nueva tarjeta.
+        restaurarDespuesDeImprimir();
+        tarjetaEnImpresion = tarjeta;
         document.body.classList.add('print-mode');
         document.querySelectorAll('.gasto-card').forEach(c => c.classList.remove('print-active'));
-        document.getElementById('gasto-card-' + cardNum).classList.add('print-active');
-        
-        // Expand all categories before printing so they are all visible
-        const allPanels = document.querySelectorAll('#gasto-card-' + cardNum + ' .cat-panel');
-        allPanels.forEach(p => p.style.display = 'block');
-        
+        tarjeta.classList.add('print-active');
+
+        // Expandir categorías durante la impresión y conservar su estado
+        // original para restaurarlo al cerrar la vista previa.
+        const allPanels = tarjeta.querySelectorAll('.cat-panel');
+        allPanels.forEach(panel => {
+            panel.dataset.printDisplay = panel.style.display;
+            panel.style.display = 'block';
+        });
+
         window.print();
-        
-        document.body.classList.remove('print-mode');
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
